@@ -24,7 +24,7 @@ class GraphRead(OrmModel):
 class StateVariableSchema(BaseModel):
     id: str
     key: str
-    type: Literal["boolean", "string", "number"]
+    type: Literal["boolean", "string", "number", "float"]
     default_value: Any = None
     description: str | None = None
 

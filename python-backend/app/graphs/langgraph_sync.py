@@ -6,6 +6,7 @@ from app.graphs.schemas import DiagnosticRead
 
 TYPE_MAP_GB_TO_PY = {
     "number": "int",
+    "float": "float",
     "string": "str",
     "boolean": "bool",
 }

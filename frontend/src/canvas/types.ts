@@ -19,7 +19,7 @@ export type InsertableNodeType = Exclude<NodeType, 'START' | 'END'>;
 export interface StateVariable {
   id: string;
   key: string;
-  type: 'boolean' | 'string' | 'number';
+  type: 'boolean' | 'string' | 'number' | 'float';
   default_value?: any;
   description?: string | null;
 }
