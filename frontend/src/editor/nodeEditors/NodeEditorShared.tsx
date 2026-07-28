@@ -15,6 +15,7 @@ export function ExpressionChip({
     varKey?: string;
     op?: string;
     label?: string;
+    isMissing?: boolean;
   };
 }) {
   const style = getTokenStyle(chip);
@@ -29,9 +30,13 @@ export function ExpressionChip({
   );
 }
 
-export function TargetVariableChip({ varKey }: { varKey: string }) {
+export function TargetVariableChip({ varKey, isMissing }: { varKey: string; isMissing?: boolean }) {
+  const style = isMissing
+    ? { ...TARGET_TOKEN_STYLE, borderColor: 'red', textDecoration: 'line-through', color: 'red' }
+    : TARGET_TOKEN_STYLE;
+    
   return (
-    <Box style={TARGET_TOKEN_STYLE}>
+    <Box style={style}>
       <Text size="1">{varKey}</Text>
     </Box>
   );

@@ -3,6 +3,7 @@ import { useNodes } from '@xyflow/react';
 import { useRunGraph } from '../hooks/graph/useGraphMutations';
 import { FullCodeEditor } from './FullCodeEditor';
 import { NodeEditorRouter } from './nodeEditors/NodeEditorRouter';
+import type { AppFlowNode } from '../canvas/types';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -56,7 +57,7 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
 
         {/* Bottom Panel: Dynamic Node Editor (~300px height) */}
         <Box style={{ height: '300px', minHeight: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          <NodeEditorRouter graphId={graphId} selectedNode={(selectedNode as any) || null} disabled={!isGraphSelected} />
+          <NodeEditorRouter graphId={graphId} selectedNode={(selectedNode as AppFlowNode) || null} disabled={!isGraphSelected} />
         </Box>
       </Flex>
     </Box>

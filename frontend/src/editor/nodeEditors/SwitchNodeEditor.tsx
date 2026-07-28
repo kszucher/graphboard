@@ -106,7 +106,7 @@ export const SwitchNodeEditor = ({
       )}
 
       {slots.map((slot, idx) => {
-        const formattedChips = formatAstToChips(slot.expression);
+        const formattedChips = formatAstToChips(slot.expression, stateVariables);
         const badgeLabel = idx === 0 ? '#1 IF' : `#${idx + 1} ELIF`;
         const hasCondition = formattedChips.length > 0;
 

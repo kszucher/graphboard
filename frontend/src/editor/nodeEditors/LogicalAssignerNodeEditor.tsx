@@ -31,7 +31,7 @@ export const LogicalAssignerNodeEditor = ({
 }: LogicalAssignerNodeEditorProps) => {
   const { node, logicalOps, stateVariables } = useNodeEditorData(graphId, nodeId);
   
-  const nodeRefId = (node as any)?.ref_id || `op_${nodeId}`;
+  const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || `op_${nodeId}`;
 
   const currentOp = useMemo(() => {
     return logicalOps.find((op) => op.id === nodeRefId) || { assignments: [] };
@@ -99,10 +99,11 @@ export const LogicalAssignerNodeEditor = ({
       )}
 
       {assignments.map((asgn) => {
-        const formattedChips = formatAstToChips(asgn.expression);
+        const formattedChips = formatAstToChips(asgn.expression, stateVariables);
+        const isTargetMissing = !stateVariables.some(v => v.key === asgn.target_var_key);
         return (
           <StaticRow key={asgn.id} onDelete={() => handleDeleteAssignment(asgn.id)} disabled={disabled}>
-            <TargetVariableChip varKey={asgn.target_var_key} />
+            <TargetVariableChip varKey={asgn.target_var_key} isMissing={isTargetMissing} />
             <Text size="2" weight="bold" style={{ color: '#61afef' }}>
               =
             </Text>

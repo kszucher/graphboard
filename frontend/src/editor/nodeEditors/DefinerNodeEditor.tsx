@@ -31,7 +31,7 @@ export const DefinerNodeEditor = ({
 }: DefinerNodeEditorProps) => {
   const { node, definerOps } = useNodeEditorData(graphId, nodeId);
   
-  const nodeRefId = (node as any)?.ref_id || 'op_def_main';
+  const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || 'op_def_main';
   
   const currentOp = useMemo(() => {
     return definerOps.find((op) => op.id === nodeRefId) || definerOps[0] || { variables: [] };

@@ -12,7 +12,7 @@ TYPE_MAP_GB_TO_PY = {
 }
 
 
-def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True") -> str:
+def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True", valid_keys: set[str] | None = None) -> str:
     """Recursively converts a slot AST expression dict to Python code string."""
     if not node:
         return default_fallback
@@ -22,14 +22,16 @@ def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True") 
         return repr(node.get("value"))
     elif kind == "stateRef":
         var_key = node.get("varKey", "")
+        if valid_keys is not None and var_key and var_key not in valid_keys:
+            raise ValueError(f"Invalid state reference in expression: variable '{var_key}' is missing or deleted.")
         return f'state.get("{var_key}")' if var_key else "None"
     elif kind == "binaryOp":
-        left = ast_expr_to_py(node.get("left"), default_fallback)
-        right = ast_expr_to_py(node.get("right"), default_fallback)
+        left = ast_expr_to_py(node.get("left"), default_fallback, valid_keys)
+        right = ast_expr_to_py(node.get("right"), default_fallback, valid_keys)
         op = node.get("op", "==")
         return f"({left} {op} {right})"
     elif kind == "unaryOp":
-        expr = ast_expr_to_py(node.get("expr"), default_fallback)
+        expr = ast_expr_to_py(node.get("expr"), default_fallback, valid_keys)
         op = node.get("op", "not")
         return f"({op} {expr})"
     return default_fallback
@@ -62,6 +64,8 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     # Fallback to legacy state_schema if operations.definer is empty
     if not all_variables and payload.get("state_schema"):
         all_variables = payload.get("state_schema", [])
+        
+    valid_keys = {var.get("key") or var.get("name") or var.get("id") for var in all_variables}
 
     if all_variables:
         for var in all_variables:
@@ -123,7 +127,7 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                 for i, slot in enumerate(slots):
                     label = slot.get("raw_string") or f"Slot {i + 1}"
                     expr_dict = slot.get("expression")
-                    cond_str = ast_expr_to_py(expr_dict, default_fallback="False")
+                    cond_str = ast_expr_to_py(expr_dict, default_fallback="False", valid_keys=valid_keys)
 
                     code_lines.append(f"    {'if' if i == 0 else 'elif'} {cond_str}:")
                     code_lines.append(f'        return "{label}"')
@@ -140,10 +144,12 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                 for asgn in assignments:
                     target_key = asgn.get("target_var_key")
                     if target_key:
+                        if target_key not in valid_keys:
+                            raise ValueError(f"Invalid assignment target: variable '{target_key}' is missing or deleted.")
                         val = asgn.get("value")
                         expr_str = repr(val)
                         if asgn.get("expression"):
-                            expr_str = ast_expr_to_py(asgn.get("expression"))
+                            expr_str = ast_expr_to_py(asgn.get("expression"), valid_keys=valid_keys)
                         code_lines.append(f'        "{target_key}": {expr_str},')
                 code_lines.append("    }")
             else:
@@ -157,7 +163,9 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                 code_lines.append("    return {")
                 for m in mutations:
                     target_key = m["target_var_key"]
-                    expr_str = ast_expr_to_py(m.get("expression"))
+                    if target_key not in valid_keys:
+                        raise ValueError(f"Invalid mutation target: variable '{target_key}' is missing or deleted.")
+                    expr_str = ast_expr_to_py(m.get("expression"), valid_keys=valid_keys)
                     code_lines.append(f'        "{target_key}": {expr_str},')
                 code_lines.append("    }")
             else:

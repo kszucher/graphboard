@@ -61,18 +61,20 @@ export function getTokenStyle(chip: {
   kind: 'var' | 'op' | 'val';
   valType?: 'string' | 'number' | 'boolean' | 'float';
   value?: unknown;
+  isMissing?: boolean;
 }) {
   const common = {
     backgroundColor: 'transparent',
-    color: '#ffffff',
-    fontWeight: '600',
-    borderRadius: '12px',
-    padding: '2px 10px',
-    fontSize: '12px',
-    lineHeight: '16px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: 'bold',
     fontFamily: 'monospace',
-    flexShrink: 0,
+    textDecoration: chip.isMissing ? 'line-through' : 'none',
   };
+
+  if (chip.isMissing) {
+    return { ...common, border: '1.5px dashed red', color: 'red' };
+  }
 
   if (chip.kind === 'var') {
     return { ...common, border: '1.5px solid #e06c75' };
@@ -103,20 +105,30 @@ export const TARGET_TOKEN_STYLE = {
  * Formats an ASTExpression tree into static visual token chips for display.
  */
 export function formatAstToChips(
-  expr: ASTExpression | null | undefined
-): Array<{ kind: 'var' | 'op' | 'val'; label: string; value?: unknown }> {
+  expr: ASTExpression | null | undefined,
+  stateVariables?: { key: string }[]
+): Array<{ kind: 'var' | 'op' | 'val'; label: string; value?: unknown; isMissing?: boolean }> {
   if (!expr) return [];
   if (expr.kind === 'literal') {
     return [{ kind: 'val', label: String(expr.value ?? 0), value: expr.value }];
   }
   if (expr.kind === 'stateRef') {
-    return [{ kind: 'var', label: expr.varKey }];
+    let isMissing = false;
+    if (stateVariables) {
+      isMissing = !stateVariables.some((v) => v.key === expr.varKey);
+    }
+    return [{ kind: 'var', label: expr.varKey, isMissing }];
   }
   if (expr.kind === 'binaryOp') {
-    const left = formatAstToChips(expr.left);
+    const left = formatAstToChips(expr.left, stateVariables);
     const opChip = { kind: 'op' as const, label: expr.op };
-    const right = formatAstToChips(expr.right);
+    const right = formatAstToChips(expr.right, stateVariables);
     return [...left, opChip, ...right];
+  }
+  if (expr.kind === 'unaryOp') {
+    const opChip = { kind: 'op' as const, label: expr.op };
+    const right = formatAstToChips(expr.expr, stateVariables);
+    return [opChip, ...right];
   }
   return [];
 }
