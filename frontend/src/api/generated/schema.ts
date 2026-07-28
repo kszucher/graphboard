@@ -555,7 +555,8 @@ export interface components {
      * NodeType
      * @enum {string}
      */
-    NodeType: "START" | "END" | "STEP" | "SWITCH";
+    NodeType: "START" | "END" | "STEP" | "SWITCH" | "DEFINER" | "LOGICAL_ASSIGNER" | "AGENTIC_ASSIGNER";
+
     /** NodeUpdateRequest */
     NodeUpdateRequest: {
       /** New Id */

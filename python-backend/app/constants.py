@@ -20,6 +20,9 @@ class NodeType(str, Enum):
     END = "END"
     STEP = "STEP"
     SWITCH = "SWITCH"
+    DEFINER = "DEFINER"
+    LOGICAL_ASSIGNER = "LOGICAL_ASSIGNER"
+    AGENTIC_ASSIGNER = "AGENTIC_ASSIGNER"
 
 
 class SlotType(str, Enum):

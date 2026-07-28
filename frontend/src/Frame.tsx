@@ -13,6 +13,9 @@ import { useGraphQuery } from './hooks/graph/useGraphQuery';
 const NODE_TYPES: NodeType[] = [
   'STEP',
   'SWITCH',
+  'DEFINER',
+  'LOGICAL_ASSIGNER',
+  'AGENTIC_ASSIGNER',
 ];
 
 export const Frame = () => {

@@ -70,7 +70,9 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     nodes = payload.get("nodes", [])
     edges = payload.get("edges", [])
 
-    logic_nodes = [n for n in nodes if n.get("node_type") in ("STEP", "SWITCH")]
+    logic_nodes = [
+        n for n in nodes if n.get("node_type") in ("STEP", "SWITCH", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
+    ]
 
     for node in logic_nodes:
         node_name = node["id"]

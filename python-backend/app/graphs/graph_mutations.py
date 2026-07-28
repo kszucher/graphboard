@@ -27,7 +27,7 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
         "id": node_id,
         "node_type": node_type,
         "is_input": True,
-        "is_output": node_type == "STEP",
+        "is_output": node_type in ("STEP", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"),
         "slots": slots,
         "code": "",
         "selected": False,
@@ -118,8 +118,8 @@ def shortcircuit_node(flow_json: dict, node_id: str) -> dict:
     edges = flow_json.get("edges", [])
 
     target_node = next((n for n in nodes if n["id"] == node_id), None)
-    if not target_node or target_node["node_type"] != "STEP":
-        return flow_json  # Can only shortcircuit STEP nodes
+    if not target_node or target_node["node_type"] not in ("STEP", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"):
+        return flow_json  # Can only shortcircuit sequential step-like nodes
 
     incoming = [e for e in edges if e["target_id"] == node_id]
     outgoing = [e for e in edges if e["source_id"] == node_id]

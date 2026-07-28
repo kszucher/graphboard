@@ -6,11 +6,15 @@ import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/gra
 import { useDeleteEdge, useDeleteNode, useInsertNode, useShortcircuitNode } from '../../hooks/graph/useGraphMutations';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import type { InsertableNodeType } from '../types';
+import type { InsertableNodeType, NodeType } from '../types';
+
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
   { type: 'STEP', label: 'Step' },
   { type: 'SWITCH', label: 'Switch' },
+  { type: 'DEFINER', label: 'Definer' },
+  { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
+  { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
 ];
 
 export interface FlowNodeActionsContentProps {
@@ -77,7 +81,9 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
   const isStart = nodeData.node_type === 'START';
   const isEnd = nodeData.node_type === 'END';
 
-  const canShortcircuit = nodeData ? nodeData.node_type === 'STEP' : false;
+  const canShortcircuit = nodeData
+    ? (['STEP', 'DEFINER', 'LOGICAL_ASSIGNER', 'AGENTIC_ASSIGNER'] as NodeType[]).includes(nodeData.node_type)
+    : false;
 
   const renderAddConnectedSubmenu = (direction: 'before' | 'after') => {
     const isAfter = direction === 'after';

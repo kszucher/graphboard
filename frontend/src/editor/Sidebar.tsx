@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Text } from '@radix-ui/themes';
+import { Box, Button, Flex, Separator, Text } from '@radix-ui/themes';
 import { useRunGraph } from '../hooks/graph/useGraphMutations';
 import { FullCodeEditor } from './FullCodeEditor';
 
@@ -25,7 +25,8 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
         flexDirection: 'column',
       }}
     >
-      <Flex direction="column" gap="4" p="4" style={{ width: '500px', height: '100%', minHeight: 0 }}>
+      <Flex direction="column" gap="3" p="4"
+            style={{ width: '500px', height: '100%', minHeight: 0, boxSizing: 'border-box' }}>
         {/* Header */}
         <Flex justify="between" align="center" style={{ flexShrink: 0 }}>
           <Text size="3" weight="bold">Workflow Code</Text>
@@ -41,7 +42,25 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
           </Button>
         </Flex>
 
-        <FullCodeEditor graphId={graphId}/>
+        {/* Top Panel: Workflow Code Viewer */}
+        <Box style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <FullCodeEditor graphId={graphId}/>
+        </Box>
+
+        {/* Separator Divider */}
+        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
+
+        {/* Bottom Panel: Blank Editor Space (~300px height) */}
+        <Box
+          style={{
+            height: '300px',
+            minHeight: '300px',
+            flexShrink: 0,
+            backgroundColor: 'var(--gray-1)',
+            border: '1px solid var(--gray-5)',
+            borderRadius: 'var(--radius-3)',
+          }}
+        />
       </Flex>
     </Box>
   );
