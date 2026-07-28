@@ -1,9 +1,9 @@
-import { TrashIcon } from '@radix-ui/react-icons';
-import { Box, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
-import { useMemo, type ReactNode } from 'react';
-import type { DefinerVariable } from '../../canvas/types';
+import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
+import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
+import { useCallback, useState, useMemo, type ReactNode } from 'react';
+import type { ASTExpression, DefinerVariable } from '../../canvas/types';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
-import { getTokenStyle, TARGET_TOKEN_STYLE } from './ExpressionEngine';
+import { coerceTypedValue, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst, type DraftToken } from './ExpressionEngine';
 
 export function ExpressionChip({
   chip,
@@ -220,3 +220,213 @@ export function NodeEditorCard({
     </Card>
   );
 }
+
+/**
+ * Shared Expression Builder UI for drafting tokenized AST expressions.
+ */
+export function ExpressionBuilder({
+  stateVariables,
+  disabled,
+  allowedOperators,
+  baseVarType,
+  onSave,
+  onCancel,
+}: {
+  stateVariables: DefinerVariable[];
+  disabled: boolean;
+  allowedOperators: string[];
+  baseVarType?: 'string' | 'number' | 'float' | 'boolean';
+  onSave: (ast: ASTExpression) => void;
+  onCancel: () => void;
+}) {
+  const [draftStep, setDraftStep] = useState<'operand_type_choice' | 'operand_input' | 'operator_or_save'>('operand_type_choice');
+  const [draftTokens, setDraftTokens] = useState<DraftToken[]>([]);
+  const [operandType, setOperandType] = useState<'var' | 'val' | ''>('');
+  const [literalValue, setLiteralValue] = useState<string>('');
+
+  const targetVarType = useMemo(() => {
+    if (baseVarType) return baseVarType;
+    const firstVar = draftTokens.find(t => t.kind === 'var');
+    if (firstVar) {
+      const v = stateVariables.find((sv) => sv.key === firstVar.varKey);
+      return v?.type || 'string';
+    }
+    return 'string';
+  }, [baseVarType, draftTokens, stateVariables]);
+
+  const compatibleStateVars = useMemo(() => {
+    return stateVariables.filter((v) => {
+      if (targetVarType === 'number' || targetVarType === 'float') {
+        return v.type === 'number' || v.type === 'float';
+      }
+      return v.type === targetVarType;
+    });
+  }, [stateVariables, targetVarType]);
+
+  const handleChooseOperandType = useCallback((kind: 'var' | 'val') => {
+    setOperandType(kind);
+    setLiteralValue('');
+    setDraftStep('operand_input');
+  }, []);
+
+  const handleSelectStateVarToken = useCallback((varKey: string) => {
+    if (!varKey) return;
+    setDraftTokens((prev) => [...prev, { kind: 'var', varKey }]);
+    setOperandType('');
+    setDraftStep('operator_or_save');
+  }, []);
+
+  const handleAddValOperand = useCallback(() => {
+    const parsed = coerceTypedValue(targetVarType, literalValue);
+    const valType = targetVarType === 'number' || targetVarType === 'float' ? 'number' : targetVarType === 'boolean' ? 'boolean' : 'string';
+    setDraftTokens((prev) => [...prev, { kind: 'val', value: parsed, valType }]);
+    setOperandType('');
+    setLiteralValue('');
+    setDraftStep('operator_or_save');
+  }, [literalValue, targetVarType]);
+
+  const handleAddOperator = useCallback((op: string) => {
+    setDraftTokens((prev) => [...prev, { kind: 'op', op }]);
+    setOperandType('');
+    setDraftStep('operand_type_choice');
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (draftTokens.length === 0) return;
+    const ast = tokensToAst(draftTokens, 'x'); // defaultTargetKey 'x' is safe here
+    if (ast) onSave(ast);
+  }, [draftTokens, onSave]);
+
+  return (
+    <>
+      {draftTokens.map((t, idx) => (
+        <ExpressionChip key={idx} chip={t} />
+      ))}
+
+      {draftStep === 'operand_type_choice' && (
+        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
+          <IconButton
+            size="1"
+            variant="soft"
+            color="red"
+            title="Add State Variable"
+            onClick={() => handleChooseOperandType('var')}
+            disabled={disabled || compatibleStateVars.length === 0}
+            style={{ cursor: 'pointer' }}
+          >
+            <CubeIcon width="14" height="14" />
+          </IconButton>
+          <IconButton
+            size="1"
+            variant="soft"
+            color="amber"
+            title={`Add ${targetVarType} Value`}
+            onClick={() => handleChooseOperandType('val')}
+            disabled={disabled}
+            style={{ cursor: 'pointer' }}
+          >
+            <Pencil1Icon width="14" height="14" />
+          </IconButton>
+        </Flex>
+      )}
+
+      {draftStep === 'operand_input' && (
+        <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+          {operandType === 'var' ? (
+            <Box style={{ width: '130px' }}>
+              <Select.Root
+                size="1"
+                value=""
+                onValueChange={(vk) => {
+                  if (vk) handleSelectStateVarToken(vk);
+                }}
+                disabled={disabled || compatibleStateVars.length === 0}
+              >
+                <Select.Trigger
+                  placeholder="Select Var..."
+                  color="red"
+                  variant="surface"
+                  style={{ width: '100%', fontFamily: 'monospace' }}
+                />
+                <Select.Content color="red">
+                  {compatibleStateVars.map((v) => (
+                    <Select.Item key={v.id} value={v.key}>
+                      {v.key}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
+            </Box>
+          ) : (
+            <>
+              <TypedValueInput
+                targetVarType={targetVarType}
+                value={literalValue}
+                onChange={(val) => setLiteralValue(val)}
+                disabled={disabled}
+                onEnter={handleAddValOperand}
+              />
+              <Button
+                size="1"
+                variant="solid"
+                color={targetVarType === 'number' || targetVarType === 'float' ? 'amber' : 'green'}
+                onClick={handleAddValOperand}
+                disabled={disabled}
+              >
+                Add
+              </Button>
+            </>
+          )}
+        </Flex>
+      )}
+
+      {draftStep === 'operator_or_save' && (
+        <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+          <Box style={{ width: '85px' }}>
+            <Select.Root
+              size="1"
+              value=""
+              onValueChange={(op: any) => {
+                if (op) handleAddOperator(op);
+              }}
+              disabled={disabled}
+            >
+              <Select.Trigger placeholder="Op..." color="blue" variant="surface" style={{ width: '100%', fontWeight: 'bold' }} />
+              <Select.Content color="blue">
+                {allowedOperators.map((op) => (
+                  <Select.Item key={op} value={op}>
+                    {op}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Box>
+
+          <Button
+            size="1"
+            variant="solid"
+            color="green"
+            onClick={handleSave}
+            disabled={disabled}
+            style={{ cursor: 'pointer' }}
+          >
+            <PlusIcon width="14" height="14" /> Save
+          </Button>
+        </Flex>
+      )}
+
+      <IconButton
+        size="1"
+        variant="ghost"
+        color="gray"
+        title="Reset / Cancel Draft"
+        onClick={onCancel}
+        disabled={disabled}
+        style={{ cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
+      >
+        <ResetIcon width="12" height="12" />
+      </IconButton>
+    </>
+  );
+}
+

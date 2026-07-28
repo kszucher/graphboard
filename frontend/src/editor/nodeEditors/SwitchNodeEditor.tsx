@@ -1,18 +1,16 @@
-import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon } from '@radix-ui/react-icons';
-import { Badge, Box, Button, Flex, IconButton, Select, Text } from '@radix-ui/themes';
+import { Badge, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
 import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
 import {
   COMPARISON_OPERATORS,
-  coerceTypedValue,
   formatAstToChips,
 } from './ExpressionEngine';
 import {
+  ExpressionBuilder,
   ExpressionChip,
   NodeEditorCard,
   StaticRow,
   TargetVariableChip,
-  TypedValueInput,
   useNodeEditorData,
 } from './NodeEditorShared';
 
@@ -21,14 +19,6 @@ interface SwitchNodeEditorProps {
   nodeId: string;
   disabled?: boolean;
 }
-
-export type SwitchDraftStep =
-  | 'slot'
-  | 'lhs_type'
-  | 'lhs_input'
-  | 'operator'
-  | 'rhs_type'
-  | 'rhs_input_and_save';
 
 export const SwitchNodeEditor = ({
   graphId,
@@ -47,14 +37,7 @@ export const SwitchNodeEditor = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Draft Workbench State
-  const [draftStep, setDraftStep] = useState<SwitchDraftStep>('slot');
-  const [lhsType, setLhsType] = useState<'var' | 'val'>('var');
-  const [lhsVarKey, setLhsVarKey] = useState<string>('');
-  const [lhsLiteral, setLhsLiteral] = useState<string>('');
-  const [selectedOp, setSelectedOp] = useState<string>('==');
-  const [rhsType, setRhsType] = useState<'var' | 'val'>('val');
-  const [rhsVarKey, setRhsVarKey] = useState<string>('');
-  const [rhsLiteral, setRhsLiteral] = useState<string>('');
+  const [draftStep, setDraftStep] = useState<'slot' | 'expression'>('slot');
 
   // Resilient active slot resolution
   const activeSlot = useMemo(() => {
@@ -64,90 +47,25 @@ export const SwitchNodeEditor = ({
 
   const targetSlotId = activeSlot?.id || '';
 
-  // Inferred LHS variable type for cross-operand coercion
-  const lhsVarType = useMemo(() => {
-    if (lhsType === 'var') {
-      const v = stateVariables.find((sv) => sv.key === lhsVarKey);
-      return v?.type || 'string';
-    }
-    return 'string';
-  }, [lhsType, lhsVarKey, stateVariables]);
-
-  const compatibleRhsStateVars = useMemo(() => {
-    return stateVariables.filter((v) => {
-      if (lhsVarType === 'number' || lhsVarType === 'float') {
-        return v.type === 'number' || v.type === 'float';
-      }
-      return v.type === lhsVarType;
-    });
-  }, [stateVariables, lhsVarType]);
-
   const handleResetDraft = useCallback(() => {
     setDraftStep('slot');
-    setLhsType('var');
-    setLhsVarKey('');
-    setLhsLiteral('');
-    setSelectedOp('==');
-    setRhsType('val');
-    setRhsVarKey('');
-    setRhsLiteral('');
     setErrorMsg(null);
   }, []);
 
   const handleLockSlot = useCallback(() => {
     if (!targetSlotId) return;
-    setDraftStep('lhs_type');
+    setDraftStep('expression');
   }, [targetSlotId]);
 
-  const handleChooseLhsType = useCallback((kind: 'var' | 'val') => {
-    setLhsType(kind);
-    setLhsVarKey(stateVariables[0]?.key || '');
-    setLhsLiteral('');
-    setDraftStep('lhs_input');
-  }, [stateVariables]);
-
-  const handleConfirmLhs = useCallback(() => {
-    setDraftStep('operator');
-  }, []);
-
-  const handleChooseOp = useCallback((op: string) => {
-    setSelectedOp(op);
-    setDraftStep('rhs_type');
-  }, []);
-
-  const handleChooseRhsType = useCallback((kind: 'var' | 'val') => {
-    setRhsType(kind);
-    setRhsVarKey(compatibleRhsStateVars[0]?.key || '');
-    setRhsLiteral('');
-    setDraftStep('rhs_input_and_save');
-  }, [compatibleRhsStateVars]);
-
-  const handleSaveCondition = useCallback(async () => {
+  const handleSaveCondition = useCallback(async (ast: any) => {
     if (disabled || !targetSlotId) return;
     setErrorMsg(null);
-
-    const lhsAst =
-      lhsType === 'var'
-        ? { kind: 'stateRef', varKey: lhsVarKey || stateVariables[0]?.key || 'x' }
-        : { kind: 'literal', value: coerceTypedValue('string', lhsLiteral) };
-
-    const rhsAst =
-      rhsType === 'var'
-        ? { kind: 'stateRef', varKey: rhsVarKey || compatibleRhsStateVars[0]?.key || 'x' }
-        : { kind: 'literal', value: coerceTypedValue(lhsVarType, rhsLiteral) };
-
-    const expression = {
-      kind: 'binaryOp',
-      op: selectedOp,
-      left: lhsAst,
-      right: rhsAst,
-    };
 
     try {
       await updateSlotMutation({
         slotId: targetSlotId,
         rawString: activeSlot?.raw_string,
-        expression,
+        expression: ast,
       });
       handleResetDraft();
     } catch (e: any) {
@@ -157,16 +75,6 @@ export const SwitchNodeEditor = ({
     disabled,
     targetSlotId,
     activeSlot,
-    lhsType,
-    lhsVarKey,
-    lhsLiteral,
-    rhsType,
-    rhsVarKey,
-    rhsLiteral,
-    lhsVarType,
-    selectedOp,
-    stateVariables,
-    compatibleRhsStateVars,
     updateSlotMutation,
     handleResetDraft,
   ]);
@@ -277,193 +185,15 @@ export const SwitchNodeEditor = ({
         </>
       )}
 
-      {/* Step 1: LHS Operand Type Choice */}
-      {draftStep === 'lhs_type' && (
-        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-          <IconButton
-            size="1"
-            variant="soft"
-            color="red"
-            title="LHS State Variable"
-            onClick={() => handleChooseLhsType('var')}
-            disabled={disabled || stateVariables.length === 0}
-            style={{ cursor: 'pointer' }}
-          >
-            <CubeIcon width="14" height="14" />
-          </IconButton>
-          <IconButton
-            size="1"
-            variant="soft"
-            color="amber"
-            title="LHS Value"
-            onClick={() => handleChooseLhsType('val')}
-            disabled={disabled}
-            style={{ cursor: 'pointer' }}
-          >
-            <Pencil1Icon width="14" height="14" />
-          </IconButton>
-        </Flex>
-      )}
-
-      {/* Step 2: LHS Input */}
-      {draftStep === 'lhs_input' && (
-        <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-          {lhsType === 'var' ? (
-            <Box style={{ width: '120px' }}>
-              <Select.Root
-                size="1"
-                value={lhsVarKey || (stateVariables[0]?.key ?? '')}
-                onValueChange={(vk) => setLhsVarKey(vk)}
-                disabled={disabled}
-              >
-                <Select.Trigger color="red" variant="surface" style={{ width: '100%', fontFamily: 'monospace' }} />
-                <Select.Content color="red">
-                  {stateVariables.map((v) => (
-                    <Select.Item key={v.id} value={v.key}>
-                      {v.key}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Box>
-          ) : (
-            <TypedValueInput
-              targetVarType="string"
-              value={lhsLiteral}
-              onChange={(val) => setLhsLiteral(val)}
-              disabled={disabled}
-              onEnter={handleConfirmLhs}
-            />
-          )}
-          <Button size="1" variant="solid" color="blue" onClick={handleConfirmLhs} disabled={disabled}>
-            Next
-          </Button>
-        </Flex>
-      )}
-
-      {/* Render LHS Chip preview after step 2 */}
-      {['operator', 'rhs_type', 'rhs_input_and_save'].includes(draftStep) && (
-        <ExpressionChip
-          chip={
-            lhsType === 'var'
-              ? { kind: 'var', varKey: lhsVarKey || stateVariables[0]?.key || 'x' }
-              : { kind: 'val', value: lhsLiteral }
-          }
-        />
-      )}
-
-      {/* Step 3: Comparison Operator Selection */}
-      {draftStep === 'operator' && (
-        <Box style={{ width: '85px', flexShrink: 0 }}>
-          <Select.Root
-            size="1"
-            value=""
-            onValueChange={(op: any) => {
-              if (op) handleChooseOp(op);
-            }}
-            disabled={disabled}
-          >
-            <Select.Trigger placeholder="cmp..." color="blue" variant="surface" style={{ width: '100%', fontWeight: 'bold' }} />
-            <Select.Content color="blue">
-              {COMPARISON_OPERATORS.map((op) => (
-                <Select.Item key={op} value={op}>
-                  {op}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </Box>
-      )}
-
-      {/* Render Operator Chip preview after step 3 */}
-      {['rhs_type', 'rhs_input_and_save'].includes(draftStep) && (
-        <ExpressionChip chip={{ kind: 'op', op: selectedOp }} />
-      )}
-
-      {/* Step 4: RHS Operand Type Choice */}
-      {draftStep === 'rhs_type' && (
-        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-          <IconButton
-            size="1"
-            variant="soft"
-            color="red"
-            title="RHS State Variable"
-            onClick={() => handleChooseRhsType('var')}
-            disabled={disabled || compatibleRhsStateVars.length === 0}
-            style={{ cursor: 'pointer' }}
-          >
-            <CubeIcon width="14" height="14" />
-          </IconButton>
-          <IconButton
-            size="1"
-            variant="soft"
-            color="amber"
-            title={`RHS ${lhsVarType} Value`}
-            onClick={() => handleChooseRhsType('val')}
-            disabled={disabled}
-            style={{ cursor: 'pointer' }}
-          >
-            <Pencil1Icon width="14" height="14" />
-          </IconButton>
-        </Flex>
-      )}
-
-      {/* Step 5: RHS Input & Save */}
-      {draftStep === 'rhs_input_and_save' && (
-        <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-          {rhsType === 'var' ? (
-            <Box style={{ width: '120px' }}>
-              <Select.Root
-                size="1"
-                value={rhsVarKey || (compatibleRhsStateVars[0]?.key ?? '')}
-                onValueChange={(vk) => setRhsVarKey(vk)}
-                disabled={disabled}
-              >
-                <Select.Trigger color="red" variant="surface" style={{ width: '100%', fontFamily: 'monospace' }} />
-                <Select.Content color="red">
-                  {compatibleRhsStateVars.map((v) => (
-                    <Select.Item key={v.id} value={v.key}>
-                      {v.key}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Box>
-          ) : (
-            <TypedValueInput
-              targetVarType={lhsVarType}
-              value={rhsLiteral}
-              onChange={(val) => setRhsLiteral(val)}
-              disabled={disabled}
-              onEnter={handleSaveCondition}
-            />
-          )}
-          <Button
-            size="1"
-            variant="solid"
-            color="green"
-            onClick={handleSaveCondition}
-            disabled={disabled}
-            style={{ cursor: 'pointer' }}
-          >
-            <PlusIcon width="14" height="14" /> Save
-          </Button>
-        </Flex>
-      )}
-
-      {/* Revert / Cancel Button */}
-      {draftStep !== 'slot' && (
-        <IconButton
-          size="1"
-          variant="ghost"
-          color="gray"
-          title="Reset / Cancel Draft"
-          onClick={handleResetDraft}
+      {/* Step 1: Expression Builder */}
+      {draftStep === 'expression' && (
+        <ExpressionBuilder
+          stateVariables={stateVariables}
           disabled={disabled}
-          style={{ cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
-        >
-          <ResetIcon width="12" height="12" />
-        </IconButton>
+          allowedOperators={COMPARISON_OPERATORS}
+          onSave={handleSaveCondition}
+          onCancel={handleResetDraft}
+        />
       )}
     </Flex>
   );
