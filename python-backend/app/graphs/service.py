@@ -4,7 +4,10 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from app.constants import EventName
-from app.graphs.schemas import GraphSyncPayload
+from app.graphs import operations as graph_operations
+from app.graphs import topology as graph_topology
+from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics
+from app.graphs.schemas import EdgeRead, GraphSyncPayload, NodeRead, SlotRead
 
 if TYPE_CHECKING:
     from app import models
@@ -19,9 +22,6 @@ async def create_graph(
     graph = await uow.graphs.create(user_id=user_id, name=graph_name)
 
     import uuid as py_uuid
-
-    from app.graphs.langgraph_sync import generate_graph_code
-    from app.graphs.schemas import EdgeRead, NodeRead, SlotRead
 
     default_nodes = [
         NodeRead(id="start", node_type="START", is_input=False, is_output=True, slots=[]),
@@ -150,41 +150,28 @@ async def sync_graph_flow(
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    payload_dict = payload.model_dump(mode="json")
-    return await _commit_state_snapshot(uow, graph, payload_dict)
+    flow_data = {
+        "nodes": [n.model_dump(mode="json") for n in payload.nodes],
+        "edges": [e.model_dump(mode="json") for e in payload.edges],
+        "operations": payload.operations.model_dump(mode="json"),
+    }
+    return await _commit_state_snapshot(uow, graph, flow_data)
 
 
 async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
-    """
-    Compiles and executes the graph, updating state variables in the database.
-    """
     graph = await uow.graphs.get(graph_id)
     if not graph:
-        from fastapi import HTTPException
+        from app.exceptions import ValidationError
 
-        raise HTTPException(status_code=404, detail="Graph not found")
-
-    from fastapi import HTTPException
+        raise ValidationError(f"Graph {graph_id} not found")
 
     from app.graphs.compiler import compile_flow_with_langgraph
-    from app.graphs.schemas import GraphFlowRead
 
-    flow_json = dict(graph.flow_json) if graph.flow_json else {"nodes": [], "edges": [], "state_schema": []}
-    flow = GraphFlowRead.model_validate(flow_json)
+    flow_data = graph.flow_json or {}
+    exec_result = compile_flow_with_langgraph(flow_data)
 
-    try:
-        app = compile_flow_with_langgraph(flow)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Compilation Error: {str(e)}")
-
-    initial_input = {v.key: v.default_value for v in flow.state_schema}
-
-    try:
-        final_state = await app.ainvoke(initial_input)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Execution Error: {str(e)}")
-
-    return {"state": final_state}
+    uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph.id, payload={})
+    return exec_result
 
 
 async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
@@ -196,7 +183,6 @@ async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict
 
     flow_data = graph.flow_json or {}
 
-    # Reset/clear history snapshots on graph load only if snapshot 0 doesn't exist
     existing_snapshot = await uow.graph_history.get_by_sequence(graph_id, 0)
     if not existing_snapshot:
         await uow.graph_history.clear_by_graph(graph_id)
@@ -208,8 +194,6 @@ async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict
 
 
 async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data: dict) -> dict:
-    from app.graphs.langgraph_sync import run_ruff_diagnostics
-
     next_snap = await uow.graph_history.get_by_sequence(graph.id, graph.current_history_sequence + 1)
     code = flow_data.get("code", "")
     diagnostics = run_ruff_diagnostics(code)
@@ -224,13 +208,10 @@ async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data
 
 
 async def _commit_state_snapshot(uow: UnitOfWork, graph: models.Graph, flow_data: dict) -> dict:
-    from app.constants import EventName
-    from app.graphs.langgraph_sync import generate_graph_code
-
     # Clear future history branches
     await uow.graph_history.delete_future_snapshots(graph.id, graph.current_history_sequence)
 
-    # Reformat/Compile Python code based on the new visual elements
+    # Reformat/Compile Python code based on visual topology & operations
     generated_code = generate_graph_code(flow_data)
 
     # Prepare final flow structure
@@ -262,19 +243,18 @@ async def undo_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
         raise ValidationError(f"Graph {graph_id} not found")
 
     if graph.current_history_sequence <= 0:
-        return graph.flow_json
+        return await _prepare_response_flow(uow, graph, graph.flow_json or {})
 
     prev_seq = graph.current_history_sequence - 1
-    snapshot = await uow.graph_history.get_by_sequence(graph_id, prev_seq)
-    if snapshot:
-        graph.flow_json = snapshot.flow_json
-        graph.current_history_sequence = prev_seq
-        await uow.session.flush()
+    prev_snapshot = await uow.graph_history.get_by_sequence(graph.id, prev_seq)
+    if not prev_snapshot:
+        return await _prepare_response_flow(uow, graph, graph.flow_json or {})
 
-        from app.constants import EventName
+    graph.flow_json = prev_snapshot.flow_json
+    graph.current_history_sequence = prev_seq
+    await uow.session.flush()
 
-        uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph_id, payload={})
-
+    uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph.id, payload={})
     return await _prepare_response_flow(uow, graph, graph.flow_json)
 
 
@@ -286,19 +266,19 @@ async def redo_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
         raise ValidationError(f"Graph {graph_id} not found")
 
     next_seq = graph.current_history_sequence + 1
-    snapshot = await uow.graph_history.get_by_sequence(graph_id, next_seq)
-    if snapshot:
-        graph.flow_json = snapshot.flow_json
-        graph.current_history_sequence = next_seq
-        await uow.session.flush()
+    next_snapshot = await uow.graph_history.get_by_sequence(graph.id, next_seq)
+    if not next_snapshot:
+        return await _prepare_response_flow(uow, graph, graph.flow_json or {})
 
-        from app.constants import EventName
+    graph.flow_json = next_snapshot.flow_json
+    graph.current_history_sequence = next_seq
+    await uow.session.flush()
 
-        uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph_id, payload={})
-
+    uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph.id, payload={})
     return await _prepare_response_flow(uow, graph, graph.flow_json)
 
 
+# Node Mutations Service Layer
 async def add_node(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
@@ -312,33 +292,7 @@ async def add_node(
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.add_node(graph.flow_json, node_type, connector_id, direction)
-    return await _commit_state_snapshot(uow, graph, mutated)
-
-
-async def update_node(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str, updates: dict) -> dict:
-    graph = await uow.graphs.get(graph_id)
-    if not graph:
-        from app.exceptions import ValidationError
-
-        raise ValidationError(f"Graph {graph_id} not found")
-
-    flow_data = graph.flow_json or {}
-
-    new_id = updates.get("new_id")
-    if new_id:
-        from app.graphs.ast_editor import CodeASTEditor
-
-        editor = CodeASTEditor(flow_data.get("code", ""))
-        if editor.rename_function(node_id, new_id):
-            flow_data["code"] = editor.get_code()
-
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.update_node(flow_data, node_id, updates)
-
+    mutated = graph_topology.add_node(graph.flow_json, node_type, connector_id, direction)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -349,9 +303,7 @@ async def delete_node(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str) -> dic
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.delete_node(graph.flow_json, node_id)
+    mutated = graph_topology.delete_node(graph.flow_json, node_id)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -362,12 +314,39 @@ async def shortcircuit_node(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str) 
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.shortcircuit_node(graph.flow_json, node_id)
+    mutated = graph_topology.shortcircuit_node(graph.flow_json, node_id)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
+async def update_node(
+    uow: UnitOfWork,
+    graph_id: uuid.UUID,
+    node_id: str,
+    new_id: str | None = None,
+    is_input: bool | None = None,
+    is_output: bool | None = None,
+    ref_id: str | None = None,
+) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    mutated = graph_topology.update_node(
+        graph.flow_json, node_id, new_id=new_id, is_input=is_input, is_output=is_output, ref_id=ref_id
+    )
+
+    if new_id and new_id != node_id:
+        from app.graphs.ast_editor import CodeASTEditor
+
+        editor = CodeASTEditor(mutated.get("code", ""))
+        mutated["code"] = editor.rename_function(node_id, new_id)
+
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+# Slot Mutations Service Layer
 async def create_slot(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str, index: int) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
@@ -375,9 +354,7 @@ async def create_slot(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str, index:
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.create_slot(graph.flow_json, node_id, index)
+    mutated = graph_topology.create_slot(graph.flow_json, node_id, index)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -388,9 +365,7 @@ async def update_slot(uow: UnitOfWork, graph_id: uuid.UUID, slot_id: str, raw_st
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.update_slot(graph.flow_json, slot_id, raw_string)
+    mutated = graph_topology.update_slot(graph.flow_json, slot_id, raw_string)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -401,9 +376,7 @@ async def delete_slot(uow: UnitOfWork, graph_id: uuid.UUID, slot_id: str) -> dic
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.delete_slot(graph.flow_json, slot_id)
+    mutated = graph_topology.delete_slot(graph.flow_json, slot_id)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -414,12 +387,11 @@ async def move_slot(uow: UnitOfWork, graph_id: uuid.UUID, slot_id: str, directio
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.move_slot(graph.flow_json, slot_id, direction)
+    mutated = graph_topology.move_slot(graph.flow_json, slot_id, direction)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
+# Edge Mutations Service Layer
 async def delete_edge(uow: UnitOfWork, graph_id: uuid.UUID, edge_id: uuid.UUID) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
@@ -427,9 +399,7 @@ async def delete_edge(uow: UnitOfWork, graph_id: uuid.UUID, edge_id: uuid.UUID) 
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.delete_edge(graph.flow_json, edge_id)
+    mutated = graph_topology.delete_edge(graph.flow_json, edge_id)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -442,9 +412,7 @@ async def create_edge(
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.create_edge(graph.flow_json, source, target, source_handle, target_handle)
+    mutated = graph_topology.create_edge(graph.flow_json, source, target, source_handle, target_handle)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -463,12 +431,11 @@ async def reconnect_edge(
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.reconnect_edge(graph.flow_json, edge_id, source, target, source_handle, target_handle)
+    mutated = graph_topology.reconnect_edge(graph.flow_json, edge_id, source, target, source_handle, target_handle)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
+# Definer Operations Service Layer
 async def create_definer_variable(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
@@ -484,9 +451,7 @@ async def create_definer_variable(
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.create_definer_variable(
+    mutated = graph_operations.create_definer_variable(
         graph.flow_json, node_id, key, var_type, default_value, description
     )
     return await _commit_state_snapshot(uow, graph, mutated)
@@ -499,9 +464,7 @@ async def update_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: 
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.update_definer_variable(graph.flow_json, var_id, updates)
+    mutated = graph_operations.update_definer_variable(graph.flow_json, var_id, updates)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
@@ -512,7 +475,5 @@ async def delete_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: 
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs import graph_mutations
-
-    mutated = graph_mutations.delete_definer_variable(graph.flow_json, var_id)
+    mutated = graph_operations.delete_definer_variable(graph.flow_json, var_id)
     return await _commit_state_snapshot(uow, graph, mutated)

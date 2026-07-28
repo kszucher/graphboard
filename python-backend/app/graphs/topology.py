@@ -1,44 +1,7 @@
-import re
 import uuid
-from typing import Any, Literal
 
-PYTHON_KEYWORDS = {
-    "False",
-    "None",
-    "True",
-    "and",
-    "as",
-    "assert",
-    "async",
-    "await",
-    "break",
-    "class",
-    "continue",
-    "def",
-    "del",
-    "elif",
-    "else",
-    "except",
-    "finally",
-    "for",
-    "from",
-    "global",
-    "if",
-    "import",
-    "in",
-    "is",
-    "lambda",
-    "nonlocal",
-    "not",
-    "or",
-    "pass",
-    "raise",
-    "return",
-    "try",
-    "while",
-    "with",
-    "yield",
-}
+SENTINEL_NODE_TYPES = {"START", "END", "DEFINER"}
+SEQUENTIAL_STEP_TYPES = {"STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"}
 
 
 def generate_node_id(node_type: str, existing_nodes: list[dict]) -> str:
@@ -140,7 +103,7 @@ def delete_node(flow_json: dict, node_id: str) -> dict:
         return flow_json
 
     # Sentinel protection: START, END, DEFINER nodes cannot be deleted
-    if target_node.get("node_type") in ("START", "END", "DEFINER"):
+    if target_node.get("node_type") in SENTINEL_NODE_TYPES:
         return flow_json
 
     ref_id = target_node.get("ref_id")
@@ -168,85 +131,103 @@ def shortcircuit_node(flow_json: dict, node_id: str) -> dict:
     edges = flow_json.get("edges", [])
 
     target_node = next((n for n in nodes if n["id"] == node_id), None)
-    if not target_node or target_node["node_type"] not in ("STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"):
+    if not target_node or target_node["node_type"] not in SEQUENTIAL_STEP_TYPES:
         return flow_json  # START, END, DEFINER, SWITCH nodes cannot be shortcircuited
 
     incoming = [e for e in edges if e["target_id"] == node_id]
     outgoing = [e for e in edges if e["source_id"] == node_id]
 
-    # Filter out all edges connected to the node
     next_edges = [e for e in edges if e["source_id"] != node_id and e["target_id"] != node_id]
 
     if incoming and outgoing:
-        # Route first outgoing edge's target to incoming edges
-        sorted_outgoing = sorted(outgoing, key=lambda x: str(x["id"]))
-        primary_target_id = sorted_outgoing[0]["target_id"]
-        primary_target_type = sorted_outgoing[0]["target_type"]
-
-        for inc_edge in incoming:
-            re_routed = inc_edge.copy()
-            re_routed["target_id"] = primary_target_id
-            re_routed["target_type"] = primary_target_type
-            next_edges.append(re_routed)
+        for inc in incoming:
+            for out in outgoing:
+                next_edges.append(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "source_id": inc["source_id"],
+                        "target_id": out["target_id"],
+                        "source_handle": inc.get("source_handle", inc["source_id"]),
+                        "target_handle": out.get("target_handle", out["target_id"]),
+                        "source_type": inc.get("source_type", "node"),
+                        "target_type": out.get("target_type", "node"),
+                    }
+                )
 
     flow_json["nodes"] = [n for n in nodes if n["id"] != node_id]
     flow_json["edges"] = next_edges
     return flow_json
 
 
-def rename_node(flow_json: dict, old_id: str, new_id: str) -> dict:
+def update_node(
+    flow_json: dict,
+    node_id: str,
+    new_id: str | None = None,
+    is_input: bool | None = None,
+    is_output: bool | None = None,
+    ref_id: str | None = None,
+) -> dict:
     nodes = flow_json.get("nodes", [])
     edges = flow_json.get("edges", [])
 
-    # Rename node
-    for node in nodes:
-        if node["id"] == old_id:
-            node["id"] = new_id
+    target_node = next((n for n in nodes if n["id"] == node_id), None)
+    if not target_node:
+        return flow_json
 
-    # Rename edge references
-    for edge in edges:
-        if edge["source_id"] == old_id:
-            edge["source_id"] = new_id
-        if edge["target_id"] == old_id:
-            edge["target_id"] = new_id
-
-    return flow_json
-
-
-def update_node(flow_json: dict, node_id: str, updates: dict) -> dict:
-    nodes = flow_json.get("nodes", [])
-    edges = flow_json.get("edges", [])
-
-    new_id = updates.get("new_id")
     if new_id and new_id != node_id:
-        flow_json = rename_node(flow_json, node_id, new_id)
-        node_id = new_id
+        target_node["id"] = new_id
+        for slot in target_node.get("slots", []):
+            if slot["id"].startswith(f"{node_id}_"):
+                slot["id"] = slot["id"].replace(f"{node_id}_", f"{new_id}_", 1)
 
-    for node in nodes:
-        if node["id"] == node_id:
-            if "is_input" in updates:
-                node["is_input"] = updates["is_input"]
-                if not updates["is_input"]:
-                    flow_json["edges"] = [
-                        e for e in edges if not (e["target_id"] == node_id and e["target_handle"] == node_id)
-                    ]
-            if "is_output" in updates:
-                node["is_output"] = updates["is_output"]
-                if not updates["is_output"]:
-                    flow_json["edges"] = [
-                        e for e in edges if not (e["source_id"] == node_id and e["source_handle"] == node_id)
-                    ]
-            break
+        for edge in edges:
+            if edge["source_id"] == node_id:
+                edge["source_id"] = new_id
+            elif edge["source_id"].startswith(f"{node_id}_"):
+                edge["source_id"] = edge["source_id"].replace(f"{node_id}_", f"{new_id}_", 1)
+
+            if edge["target_id"] == node_id:
+                edge["target_id"] = new_id
+            elif edge["target_id"].startswith(f"{node_id}_"):
+                edge["target_id"] = edge["target_id"].replace(f"{node_id}_", f"{new_id}_", 1)
+
+            if edge.get("source_handle") == node_id:
+                edge["source_handle"] = new_id
+            elif edge.get("source_handle", "").startswith(f"{node_id}_"):
+                edge["source_handle"] = edge["source_handle"].replace(f"{node_id}_", f"{new_id}_", 1)
+
+            if edge.get("target_handle") == node_id:
+                edge["target_handle"] = new_id
+            elif edge.get("target_handle", "").startswith(f"{node_id}_"):
+                edge["target_handle"] = edge["target_handle"].replace(f"{node_id}_", f"{new_id}_", 1)
+
+    if is_input is not None:
+        target_node["is_input"] = is_input
+    if is_output is not None:
+        target_node["is_output"] = is_output
+    if ref_id is not None:
+        target_node["ref_id"] = ref_id
+
     return flow_json
 
 
 def create_slot(flow_json: dict, node_id: str, index: int) -> dict:
     nodes = flow_json.get("nodes", [])
-    for node in nodes:
-        if node["id"] == node_id:
-            new_slot = {"id": str(uuid.uuid4()), "raw_string": "", "selected": False}
-            node.setdefault("slots", []).insert(index, new_slot)
-            break
+    target_node = next((n for n in nodes if n["id"] == node_id), None)
+    if not target_node:
+        return flow_json
+
+    slots = target_node.setdefault("slots", [])
+    slot_count = len(slots) + 1
+    new_slot_id = f"{node_id}_option_{slot_count}"
+    new_slot = {
+        "id": new_slot_id,
+        "raw_string": f"option_{slot_count}",
+        "selected": False,
+    }
+
+    insert_idx = max(0, min(index, len(slots)))
+    slots.insert(insert_idx, new_slot)
     return flow_json
 
 
@@ -274,23 +255,23 @@ def delete_slot(flow_json: dict, slot_id: str) -> dict:
     return flow_json
 
 
-def move_slot(flow_json: dict, slot_id: str, direction: Literal["up", "down", "top", "bottom"]) -> dict:
+def move_slot(flow_json: dict, slot_id: str, direction: str) -> dict:
     nodes = flow_json.get("nodes", [])
     for node in nodes:
         slots = node.get("slots", [])
         idx = next((i for i, s in enumerate(slots) if s["id"] == slot_id), -1)
         if idx != -1:
-            target_idx = -1
-            if direction == "up" and idx > 0:
-                target_idx = idx - 1
-            elif direction == "down" and idx < len(slots) - 1:
-                target_idx = idx + 1
-            elif direction == "top" and idx > 0:
+            target_idx = idx
+            if direction == "up":
+                target_idx = max(0, idx - 1)
+            elif direction == "down":
+                target_idx = min(len(slots) - 1, idx + 1)
+            elif direction == "top":
                 target_idx = 0
-            elif direction == "bottom" and idx < len(slots) - 1:
+            elif direction == "bottom":
                 target_idx = len(slots) - 1
 
-            if target_idx != -1 and target_idx != idx:
+            if target_idx != idx:
                 slot = slots.pop(idx)
                 slots.insert(target_idx, slot)
             break
@@ -314,7 +295,6 @@ def create_edge(flow_json: dict, source: str, target: str, source_handle: str, t
     source_type = "slot" if (source_node and source_node["node_type"] == "SWITCH") else "node"
     target_type = "node"
 
-    # Map target type if it's connected to a slot of a node
     if target_node:
         is_target_slot = any(s["id"] == target_handle for s in target_node.get("slots", []))
         if is_target_slot:
@@ -367,113 +347,4 @@ def reconnect_edge(
     edge["source_type"] = source_type
     edge["target_type"] = target_type
 
-    return flow_json
-
-
-def get_all_definer_variables(flow_json: dict) -> list[dict]:
-    ops = flow_json.get("operations", {})
-    definer_ops = ops.get("definer", [])
-    variables = []
-    for op in definer_ops:
-        variables.extend(op.get("variables", []))
-    return variables
-
-
-def validate_and_coerce_default(var_type: str, val: Any) -> Any:
-    if val is None or val == "":
-        return None
-    try:
-        if var_type == "number":
-            return int(val)
-        if var_type == "float":
-            return float(val)
-        if var_type == "boolean":
-            if isinstance(val, bool):
-                return val
-            if isinstance(val, str):
-                return val.lower() in ("true", "1", "t", "yes")
-            return bool(val)
-        return str(val)
-    except (ValueError, TypeError):
-        raise ValueError(f"Default value '{val}' cannot be converted to type '{var_type}'.")
-
-
-def create_definer_variable(
-    flow_json: dict,
-    node_id: str,
-    key: str,
-    var_type: str = "string",
-    default_value: Any = None,
-    description: str | None = None,
-) -> dict:
-    key = key.strip()
-    # 1. snake_case regex validation
-    if not re.match(r"^[a-z_][a-z0-9_]*$", key):
-        raise ValueError(f"Variable name '{key}' must be valid snake_case.")
-
-    # 2. Python keyword protection
-    if key in PYTHON_KEYWORDS:
-        raise ValueError(f"Variable name '{key}' cannot be a Python keyword.")
-
-    # 3. Uniqueness validation across all definer operations
-    existing_vars = get_all_definer_variables(flow_json)
-    if any(v["key"] == key for v in existing_vars):
-        raise ValueError(f"Variable name '{key}' already exists in state schema.")
-
-    # 4. Default value type coercion & validation
-    coerced_default = validate_and_coerce_default(var_type, default_value)
-
-    nodes = flow_json.get("nodes", [])
-    target_node = next((n for n in nodes if n["id"] == node_id), None)
-    if not target_node:
-        raise ValueError(f"Node '{node_id}' not found.")
-
-    ops = flow_json.setdefault("operations", {"definer": [], "agentic": [], "logical": [], "switch": []})
-    definer_ops = ops.setdefault("definer", [])
-
-    ref_id = target_node.get("ref_id")
-    target_op = next((o for o in definer_ops if o["id"] == ref_id), None) if ref_id else None
-
-    if not target_op:
-        ref_id = f"op_{node_id}"
-        target_node["ref_id"] = ref_id
-        target_op = {"id": ref_id, "variables": []}
-        definer_ops.append(target_op)
-
-    new_var = {
-        "id": str(uuid.uuid4()),
-        "key": key,
-        "type": var_type,
-        "default_value": coerced_default,
-        "description": description,
-    }
-    target_op.setdefault("variables", []).append(new_var)
-    return flow_json
-
-
-def update_definer_variable(flow_json: dict, var_id: str, updates: dict) -> dict:
-    ops = flow_json.get("operations", {})
-    definer_ops = ops.get("definer", [])
-    for op in definer_ops:
-        for var in op.get("variables", []):
-            if var["id"] == var_id:
-                new_type = updates.get("type") or var.get("type", "string")
-                if "type" in updates and updates["type"]:
-                    var["type"] = updates["type"]
-                if "default_value" in updates:
-                    var["default_value"] = validate_and_coerce_default(new_type, updates["default_value"])
-                if "description" in updates:
-                    var["description"] = updates["description"]
-                return flow_json
-    return flow_json
-
-
-def delete_definer_variable(flow_json: dict, var_id: str) -> dict:
-    ops = flow_json.get("operations", {})
-    definer_ops = ops.get("definer", [])
-    for op in definer_ops:
-        vars_list = op.get("variables", [])
-        if any(v["id"] == var_id for v in vars_list):
-            op["variables"] = [v for v in vars_list if v["id"] != var_id]
-            return flow_json
     return flow_json

@@ -1,3 +1,3 @@
-from app.users.endpoints import router
+from app.users.router import router
 
 __all__ = ["router"]

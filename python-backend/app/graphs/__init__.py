@@ -1,3 +1,3 @@
-from app.graphs.endpoints import router
+from app.graphs.router import router
 
 __all__ = ["router"]

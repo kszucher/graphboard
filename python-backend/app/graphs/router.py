@@ -61,20 +61,20 @@ async def run_graph(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> dict[st
 
 
 @router.post("/{graph_id}/history/undo", response_model=GraphFlowRead)
-async def undo_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
-    updated_flow = await graph_service.undo_graph_flow(uow, graph_id)
+async def undo_graph_flow_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+    flow = await graph_service.undo_graph_flow(uow, graph_id)
     await uow.commit()
-    return GraphFlowRead.model_validate(updated_flow)
+    return GraphFlowRead.model_validate(flow)
 
 
 @router.post("/{graph_id}/history/redo", response_model=GraphFlowRead)
-async def redo_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
-    updated_flow = await graph_service.redo_graph_flow(uow, graph_id)
+async def redo_graph_flow_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+    flow = await graph_service.redo_graph_flow(uow, graph_id)
     await uow.commit()
-    return GraphFlowRead.model_validate(updated_flow)
+    return GraphFlowRead.model_validate(flow)
 
 
-# Nodes REST API
+# Node REST API
 @router.post("/{graph_id}/nodes", response_model=GraphFlowRead)
 async def add_node_endpoint(
     graph_id: uuid.UUID, payload: NodeCreateRequest, uow: Any = Depends(get_uow)
@@ -82,15 +82,6 @@ async def add_node_endpoint(
     updated_flow = await graph_service.add_node(
         uow, graph_id, payload.node_type, payload.connector_id, payload.direction
     )
-    await uow.commit()
-    return GraphFlowRead.model_validate(updated_flow)
-
-
-@router.patch("/{graph_id}/nodes/{node_id}", response_model=GraphFlowRead)
-async def update_node_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: NodeUpdateRequest, uow: Any = Depends(get_uow)
-) -> GraphFlowRead:
-    updated_flow = await graph_service.update_node(uow, graph_id, node_id, payload.model_dump(exclude_unset=True))
     await uow.commit()
     return GraphFlowRead.model_validate(updated_flow)
 
@@ -105,6 +96,23 @@ async def delete_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: Any = Dep
 @router.post("/{graph_id}/nodes/{node_id}/shortcircuit", response_model=GraphFlowRead)
 async def shortcircuit_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: Any = Depends(get_uow)) -> GraphFlowRead:
     updated_flow = await graph_service.shortcircuit_node(uow, graph_id, node_id)
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+@router.patch("/{graph_id}/nodes/{node_id}", response_model=GraphFlowRead)
+async def update_node_endpoint(
+    graph_id: uuid.UUID, node_id: str, payload: NodeUpdateRequest, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updated_flow = await graph_service.update_node(
+        uow,
+        graph_id,
+        node_id,
+        new_id=payload.new_id,
+        is_input=payload.is_input,
+        is_output=payload.is_output,
+        ref_id=payload.ref_id,
+    )
     await uow.commit()
     return GraphFlowRead.model_validate(updated_flow)
 
