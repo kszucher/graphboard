@@ -343,8 +343,8 @@ export const useRunGraph = (graphId: string) => {
       if ('error' in res) throw res.error;
       return res.data;
     },
-    onSuccess: (data) => {
-      handleMutationSuccess(queryClient, graphId, data);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.graphs.flow(graphId) });
     }
   });
 };

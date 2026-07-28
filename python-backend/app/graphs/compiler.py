@@ -1,8 +1,27 @@
 import json
+import shutil
 import subprocess
+import sys
+from pathlib import Path
 from typing import Any
 
 from app.graphs.schemas import DiagnosticRead
+
+
+def _get_ruff_path() -> str:
+    """Resolves the local virtual environment's ruff binary if available, falling back to PATH."""
+    exe_dir = Path(sys.executable).parent
+    ruff_name = "ruff.exe" if sys.platform == "win32" else "ruff"
+    local_ruff = exe_dir / ruff_name
+    if local_ruff.exists():
+        return str(local_ruff)
+
+    which_ruff = shutil.which("ruff")
+    if which_ruff:
+        return which_ruff
+
+    return "ruff"
+
 
 TYPE_MAP_GB_TO_PY = {
     "number": "int",
@@ -12,7 +31,9 @@ TYPE_MAP_GB_TO_PY = {
 }
 
 
-def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True", valid_keys: set[str] | None = None) -> str:
+def ast_expr_to_py(
+    node: dict[str, Any] | None, default_fallback: str = "True", valid_keys: set[str] | None = None
+) -> str:
     """Recursively converts a slot AST expression dict to Python code string."""
     if not node:
         return default_fallback
@@ -64,7 +85,7 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     # Fallback to legacy state_schema if operations.definer is empty
     if not all_variables and payload.get("state_schema"):
         all_variables = payload.get("state_schema", [])
-        
+
     valid_keys = {var.get("key") or var.get("name") or var.get("id") for var in all_variables}
 
     if all_variables:
@@ -119,6 +140,9 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
         node_name = node["id"]
         if node.get("node_type") == "SWITCH":
             slots = node.get("slots", [])
+            code_lines.append(f"def {node_name}_node(state: State) -> None:")
+            code_lines.append("    pass")
+            code_lines.append("")
             code_lines.append(f"def {node_name}(state: State) -> str:")
             if not slots:
                 code_lines.append("    # Add output slots in the UI first")
@@ -145,7 +169,9 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                     target_key = asgn.get("target_var_key")
                     if target_key:
                         if target_key not in valid_keys:
-                            raise ValueError(f"Invalid assignment target: variable '{target_key}' is missing or deleted.")
+                            raise ValueError(
+                                f"Invalid assignment target: variable '{target_key}' is missing or deleted."
+                            )
                         val = asgn.get("value")
                         expr_str = repr(val)
                         if asgn.get("expression"):
@@ -180,7 +206,10 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     code_lines.append("")
 
     for node in executable_logic_nodes:
-        code_lines.append(f'workflow.add_node("{node["id"]}", {node["id"]})')
+        if node.get("node_type") == "SWITCH":
+            code_lines.append(f'workflow.add_node("{node["id"]}", {node["id"]}_node)')
+        else:
+            code_lines.append(f'workflow.add_node("{node["id"]}", {node["id"]})')
     code_lines.append("")
 
     # Bypass resolution for START -> definer -> first_target (with cycle protection)
@@ -247,7 +276,11 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     # Format code with ruff if available
     try:
         process = subprocess.Popen(
-            ["ruff", "format", "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            [_get_ruff_path(), "format", "-"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
         stdout, _ = process.communicate(input=generated_code)
         if process.returncode == 0 and stdout:
@@ -265,7 +298,7 @@ def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
 
     try:
         process = subprocess.Popen(
-            ["ruff", "check", "--output-format=json", "-"],
+            [_get_ruff_path(), "check", "--output-format=json", "-"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -294,3 +327,30 @@ def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
         return diagnostics
     except Exception:
         return []
+
+
+def compile_flow_with_langgraph(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Compiles the flow payload into executable python code, executes it,
+    runs the compiled LangGraph workflow with its initial state, and returns the final state.
+    """
+    namespace: dict[str, Any] = {}
+    try:
+        code = generate_graph_code(payload)
+        exec(code, namespace)
+    except Exception as e:
+        return {"variables": [], "error": f"Compilation/Execution failed: {str(e)}"}
+
+    app = namespace.get("app")
+    initial_state = namespace.get("initial_state", {})
+
+    if not app:
+        return {"variables": [], "error": "Compiled workflow does not define 'app'"}
+
+    try:
+        final_state = app.invoke(initial_state)
+    except Exception as e:
+        return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
+
+    variables_list = [{"key": k, "value": v} for k, v in final_state.items()]
+    return {"variables": variables_list}

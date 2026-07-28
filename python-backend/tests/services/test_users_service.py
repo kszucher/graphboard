@@ -1,0 +1,106 @@
+import uuid
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Graph, GraphHistory, User
+from app.users import service as users_service
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_existing(
+    db_session: AsyncSession,
+    dummy_user: User,
+):
+    # Call service with the real session
+    user_id = await users_service.get_or_create_user(db_session)
+
+    # Assertions
+    assert user_id == dummy_user.id
+
+    # Check that no new user was created
+    result = await db_session.execute(select(User))
+    users = result.scalars().all()
+    assert len(users) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_new(
+    db_session: AsyncSession,
+):
+    # Call service when no users exist
+    user_id = await users_service.get_or_create_user(db_session)
+
+    # Assertions
+    assert isinstance(user_id, uuid.UUID)
+
+    # Check that a user was created
+    result = await db_session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    assert user is not None
+    assert user.name == "User"
+
+
+@pytest.mark.asyncio
+async def test_create_user(
+    db_session: AsyncSession,
+):
+    # Call service to create a user named Alice
+    user_id = await users_service.create_user(db_session, "Alice")
+
+    # Assertions
+    assert isinstance(user_id, uuid.UUID)
+
+    # Check database
+    result = await db_session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    assert user is not None
+    assert user.name == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_set_active_graph(
+    db_session: AsyncSession,
+    dummy_user: User,
+    dummy_graph: Graph,
+):
+    # Call service to set active graph
+    await users_service.set_active_graph(db_session, dummy_user.id, dummy_graph.id)
+
+    # Assertions
+    # Check user has active graph set
+    await db_session.refresh(dummy_user)
+    assert dummy_user.selected_graph_id == dummy_graph.id
+
+    # Check graph has sequence reset and snapshot saved
+    await db_session.refresh(dummy_graph)
+    assert dummy_graph.current_history_sequence == 0
+
+    # Check history snapshot exists in DB
+    result = await db_session.execute(select(GraphHistory).where(GraphHistory.graph_id == dummy_graph.id))
+    history = result.scalars().all()
+    assert len(history) == 1
+    assert history[0].sequence_number == 0
+
+
+@pytest.mark.asyncio
+async def test_get_active_graph_id(
+    db_session: AsyncSession,
+    dummy_user: User,
+    dummy_graph: Graph,
+):
+    # Setup: Associate the graph to user first
+    dummy_user.selected_graph_id = dummy_graph.id
+    db_session.add(dummy_user)
+    await db_session.commit()
+
+    # Call service
+    graph_id = await users_service.get_active_graph_id(db_session, dummy_user.id)
+
+    # Assertions
+    assert graph_id == dummy_graph.id
+
+    # Check graph history is reset
+    await db_session.refresh(dummy_graph)
+    assert dummy_graph.current_history_sequence == 0
