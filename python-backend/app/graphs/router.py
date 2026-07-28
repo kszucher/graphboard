@@ -133,7 +133,7 @@ async def create_slot_endpoint(
 async def update_slot_endpoint(
     graph_id: uuid.UUID, slot_id: str, payload: SlotUpdateRequest, uow: Any = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.update_slot(uow, graph_id, slot_id, payload.raw_string)
+    updated_flow = await graph_service.update_slot(uow, graph_id, slot_id, payload.raw_string, payload.expression)
     await uow.commit()
     return GraphFlowRead.model_validate(updated_flow)
 

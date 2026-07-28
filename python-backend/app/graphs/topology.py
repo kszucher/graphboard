@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 SENTINEL_NODE_TYPES = {"START", "END", "DEFINER"}
 SEQUENTIAL_STEP_TYPES = {"STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"}
@@ -237,12 +238,20 @@ def create_slot(flow_json: dict, node_id: str, index: int) -> dict:
     return flow_json
 
 
-def update_slot(flow_json: dict, slot_id: str, raw_string: str) -> dict:
+def update_slot(
+    flow_json: dict,
+    slot_id: str,
+    raw_string: str | None = None,
+    expression: dict[str, Any] | None = None,
+) -> dict:
     nodes = flow_json.get("nodes", [])
     for node in nodes:
         for slot in node.get("slots", []):
             if slot["id"] == slot_id:
-                slot["raw_string"] = raw_string
+                if raw_string is not None:
+                    slot["raw_string"] = raw_string
+                if expression is not None:
+                    slot["expression"] = expression
                 return flow_json
     return flow_json
 

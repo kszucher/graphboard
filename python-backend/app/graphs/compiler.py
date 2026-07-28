@@ -12,10 +12,10 @@ TYPE_MAP_GB_TO_PY = {
 }
 
 
-def ast_expr_to_py(node: dict[str, Any] | None) -> str:
+def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True") -> str:
     """Recursively converts a slot AST expression dict to Python code string."""
     if not node:
-        return "True"
+        return default_fallback
 
     kind = node.get("kind")
     if kind == "literal":
@@ -24,15 +24,15 @@ def ast_expr_to_py(node: dict[str, Any] | None) -> str:
         var_key = node.get("varKey", "")
         return f'state.get("{var_key}")' if var_key else "None"
     elif kind == "binaryOp":
-        left = ast_expr_to_py(node.get("left"))
-        right = ast_expr_to_py(node.get("right"))
+        left = ast_expr_to_py(node.get("left"), default_fallback)
+        right = ast_expr_to_py(node.get("right"), default_fallback)
         op = node.get("op", "==")
         return f"({left} {op} {right})"
     elif kind == "unaryOp":
-        expr = ast_expr_to_py(node.get("expr"))
+        expr = ast_expr_to_py(node.get("expr"), default_fallback)
         op = node.get("op", "not")
         return f"({op} {expr})"
-    return "True"
+    return default_fallback
 
 
 def generate_graph_code(payload: dict[str, Any]) -> str:
@@ -123,7 +123,7 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                 for i, slot in enumerate(slots):
                     label = slot.get("raw_string") or f"Slot {i + 1}"
                     expr_dict = slot.get("expression")
-                    cond_str = ast_expr_to_py(expr_dict)
+                    cond_str = ast_expr_to_py(expr_dict, default_fallback="False")
 
                     code_lines.append(f"    {'if' if i == 0 else 'elif'} {cond_str}:")
                     code_lines.append(f'        return "{label}"')

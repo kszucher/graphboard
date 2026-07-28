@@ -2,6 +2,7 @@ import { Box, Text } from '@radix-ui/themes';
 import type { NodeType } from '../../canvas/types';
 import { DefinerNodeEditor } from './DefinerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
+import { SwitchNodeEditor } from './SwitchNodeEditor';
 
 interface NodeEditorRouterProps {
   graphId: string;
@@ -25,6 +26,10 @@ export const NodeEditorRouter = ({
     return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
   }
 
+  if (selectedNodeType === 'SWITCH' && selectedNodeId) {
+    return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+  }
+
   return (
     <Box
       style={{
@@ -39,7 +44,7 @@ export const NodeEditorRouter = ({
       }}
     >
       <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-        Select a <Text weight="bold">DEFINER</Text> or <Text weight="bold">LOGICAL_ASSIGNER</Text> node on the canvas to edit operation settings.
+        Select a <Text weight="bold">DEFINER</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text weight="bold">SWITCH</Text> node on the canvas to edit operation settings.
       </Text>
     </Box>
   );

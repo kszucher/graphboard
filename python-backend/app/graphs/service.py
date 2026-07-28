@@ -382,14 +382,20 @@ async def create_slot(uow: UnitOfWork, graph_id: uuid.UUID, node_id: str, index:
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
-async def update_slot(uow: UnitOfWork, graph_id: uuid.UUID, slot_id: str, raw_string: str) -> dict:
+async def update_slot(
+    uow: UnitOfWork,
+    graph_id: uuid.UUID,
+    slot_id: str,
+    raw_string: str | None = None,
+    expression: dict[str, Any] | None = None,
+) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
         from app.exceptions import ValidationError
 
         raise ValidationError(f"Graph {graph_id} not found")
 
-    mutated = graph_topology.update_slot(graph.flow_json, slot_id, raw_string)
+    mutated = graph_topology.update_slot(graph.flow_json, slot_id, raw_string, expression)
     return await _commit_state_snapshot(uow, graph, mutated)
 
 

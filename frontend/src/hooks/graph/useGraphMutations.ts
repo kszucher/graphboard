@@ -195,11 +195,19 @@ export const useDeleteSlot = (graphId: string) => {
 export const useUpdateSlot = (graphId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ slotId, rawString }: { slotId: string; rawString: string }) => {
+    mutationFn: async ({
+      slotId,
+      rawString,
+      expression,
+    }: {
+      slotId: string;
+      rawString?: string;
+      expression?: any;
+    }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/slots/{slot_id}', {
         params: { path: { graph_id: graphId, slot_id: slotId } },
         headers: { 'X-Client-Id': getClientId() },
-        body: { raw_string: rawString }
+        body: { raw_string: rawString, expression } as any
       });
       if ('error' in res) throw res.error;
       return res.data;

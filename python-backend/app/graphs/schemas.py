@@ -153,7 +153,7 @@ class SlotCreateRequest(BaseModel):
 
 
 class SlotUpdateRequest(BaseModel):
-    raw_string: str
+    raw_string: str | None = None
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
     ref_id: str | None = None
