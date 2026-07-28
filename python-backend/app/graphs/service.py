@@ -49,8 +49,22 @@ async def create_graph(
                 ),
             ],
         ),
-        NodeRead(id="step_a", node_type="STEP", is_input=True, is_output=True, slots=[]),
-        NodeRead(id="step_b", node_type="STEP", is_input=True, is_output=True, slots=[]),
+        NodeRead(
+            id="logical_assigner",
+            node_type="LOGICAL_ASSIGNER",
+            ref_id="op_log_main",
+            is_input=True,
+            is_output=True,
+            slots=[],
+        ),
+        NodeRead(
+            id="agentic_assigner",
+            node_type="AGENTIC_ASSIGNER",
+            ref_id="op_agent_main",
+            is_input=True,
+            is_output=True,
+            slots=[],
+        ),
         NodeRead(id="end", node_type="END", is_input=True, is_output=False, slots=[]),
     ]
     default_edges = [
@@ -69,29 +83,29 @@ async def create_graph(
             target_type="node",
         ),
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "switch_step_option_a->step_a"),
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "switch_step_option_a->logical_assigner"),
             source_id="switch_step_option_a",
             source_type="slot",
-            target_id="step_a",
+            target_id="logical_assigner",
             target_type="node",
         ),
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "switch_step_option_b->step_b"),
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "switch_step_option_b->agentic_assigner"),
             source_id="switch_step_option_b",
             source_type="slot",
-            target_id="step_b",
+            target_id="agentic_assigner",
             target_type="node",
         ),
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "step_a->end"),
-            source_id="step_a",
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "logical_assigner->end"),
+            source_id="logical_assigner",
             source_type="node",
             target_id="end",
             target_type="node",
         ),
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "step_b->end"),
-            source_id="step_b",
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "agentic_assigner->end"),
+            source_id="agentic_assigner",
             source_type="node",
             target_id="end",
             target_type="node",
@@ -104,8 +118,18 @@ async def create_graph(
                 "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
             }
         ],
-        "agentic": [],
-        "logical": [],
+        "logical": [
+            {
+                "id": "op_log_main",
+                "assignments": [],
+            }
+        ],
+        "agentic": [
+            {
+                "id": "op_agent_main",
+                "prompt": "",
+            }
+        ],
         "switch": [],
     }
 
