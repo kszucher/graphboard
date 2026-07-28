@@ -379,6 +379,25 @@ def get_all_definer_variables(flow_json: dict) -> list[dict]:
     return variables
 
 
+def validate_and_coerce_default(var_type: str, val: Any) -> Any:
+    if val is None or val == "":
+        return None
+    try:
+        if var_type == "number":
+            return int(val)
+        if var_type == "float":
+            return float(val)
+        if var_type == "boolean":
+            if isinstance(val, bool):
+                return val
+            if isinstance(val, str):
+                return val.lower() in ("true", "1", "t", "yes")
+            return bool(val)
+        return str(val)
+    except (ValueError, TypeError):
+        raise ValueError(f"Default value '{val}' cannot be converted to type '{var_type}'.")
+
+
 def create_definer_variable(
     flow_json: dict,
     node_id: str,
@@ -401,6 +420,9 @@ def create_definer_variable(
     if any(v["key"] == key for v in existing_vars):
         raise ValueError(f"Variable name '{key}' already exists in state schema.")
 
+    # 4. Default value type coercion & validation
+    coerced_default = validate_and_coerce_default(var_type, default_value)
+
     nodes = flow_json.get("nodes", [])
     target_node = next((n for n in nodes if n["id"] == node_id), None)
     if not target_node:
@@ -422,7 +444,7 @@ def create_definer_variable(
         "id": str(uuid.uuid4()),
         "key": key,
         "type": var_type,
-        "default_value": default_value,
+        "default_value": coerced_default,
         "description": description,
     }
     target_op.setdefault("variables", []).append(new_var)
@@ -435,10 +457,11 @@ def update_definer_variable(flow_json: dict, var_id: str, updates: dict) -> dict
     for op in definer_ops:
         for var in op.get("variables", []):
             if var["id"] == var_id:
+                new_type = updates.get("type") or var.get("type", "string")
                 if "type" in updates and updates["type"]:
                     var["type"] = updates["type"]
                 if "default_value" in updates:
-                    var["default_value"] = updates["default_value"]
+                    var["default_value"] = validate_and_coerce_default(new_type, updates["default_value"])
                 if "description" in updates:
                     var["description"] = updates["description"]
                 return flow_json

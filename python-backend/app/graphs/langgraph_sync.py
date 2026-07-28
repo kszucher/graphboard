@@ -129,13 +129,19 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
         code_lines.append(f'workflow.add_node("{node["id"]}", {node["id"]})')
     code_lines.append("")
 
-    # Bypass resolution for START -> definer -> first_target
-    def resolve_target(target_id: str) -> str:
+    # Bypass resolution for START -> definer -> first_target (with cycle protection)
+    def resolve_target(target_id: str, visited: set[str] | None = None) -> str:
+        if visited is None:
+            visited = set()
+        if target_id in visited:
+            return "END"
+        visited.add(target_id)
+
         if target_id in definer_node_ids:
             # Trace outgoing edge from definer node
             definer_out = next((e for e in edges if e.get("source_id") == target_id), None)
             if definer_out:
-                return resolve_target(definer_out.get("target_id", "end"))
+                return resolve_target(definer_out.get("target_id", "end"), visited)
             return "END"
         return "END" if target_id == "end" else f'"{target_id}"'
 
