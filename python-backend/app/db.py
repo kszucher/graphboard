@@ -38,4 +38,8 @@ async def get_uow(
     from .context import UnitOfWork
 
     uow = UnitOfWork(session, broker, x_client_id)
-    yield uow
+    try:
+        yield uow
+    except Exception:
+        await uow.rollback()
+        raise

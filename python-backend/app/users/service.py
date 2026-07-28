@@ -1,60 +1,47 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import AsyncSession
+if TYPE_CHECKING:
+    from app.context import UnitOfWork
 
-from app.users.repository import UserRepository
 
-
-async def get_or_create_user(session: AsyncSession) -> uuid.UUID:
-    repo = UserRepository(session)
-    user = await repo.get_first()
+async def get_or_create_user(uow: UnitOfWork) -> uuid.UUID:
+    user = await uow.users.get_first()
     if user:
         return user.id
-    created = await repo.create(name="User")
-    await session.commit()
+    created = await uow.users.create(name="User")
+    await uow.session.flush()
     return created.id
 
 
-async def create_user(session: AsyncSession, user_name: str) -> uuid.UUID:
-    repo = UserRepository(session)
-    user = await repo.create(name=user_name)
-    await session.commit()
+async def create_user(uow: UnitOfWork, user_name: str) -> uuid.UUID:
+    user = await uow.users.create(name=user_name)
+    await uow.session.flush()
     return user.id
 
 
-async def get_active_graph_id(session: AsyncSession, user_id: uuid.UUID) -> uuid.UUID | None:
-    repo = UserRepository(session)
-    graph_id = await repo.get_active_graph_id(user_id)
+async def get_active_graph_id(uow: UnitOfWork, user_id: uuid.UUID) -> uuid.UUID | None:
+    graph_id = await uow.users.get_active_graph_id(user_id)
     if graph_id:
-        from app.graphs.repository import GraphHistoryRepository, GraphRepository
-
-        graph_repo = GraphRepository(session)
-        history_repo = GraphHistoryRepository(session)
-        graph = await graph_repo.get(graph_id)
+        graph = await uow.graphs.get(graph_id)
         if graph:
             flow_data = graph.flow_json or {}
-            await history_repo.clear_by_graph(graph_id)
+            await uow.graph_history.clear_by_graph(graph_id)
             graph.current_history_sequence = 0
-            await history_repo.save_snapshot(graph_id, flow_data, 0)
-            await session.commit()
+            await uow.graph_history.save_snapshot(graph_id, flow_data, 0)
+            await uow.session.flush()
     return graph_id
 
 
-async def set_active_graph(session: AsyncSession, user_id: uuid.UUID, graph_id: uuid.UUID) -> None:
-    repo = UserRepository(session)
-    await repo.set_active_graph(user_id, graph_id)
+async def set_active_graph(uow: UnitOfWork, user_id: uuid.UUID, graph_id: uuid.UUID) -> None:
+    await uow.users.set_active_graph(user_id, graph_id)
 
-    from app.graphs.repository import GraphHistoryRepository, GraphRepository
-
-    graph_repo = GraphRepository(session)
-    history_repo = GraphHistoryRepository(session)
-    graph = await graph_repo.get(graph_id)
+    graph = await uow.graphs.get(graph_id)
     if graph:
         flow_data = graph.flow_json or {}
-        await history_repo.clear_by_graph(graph_id)
+        await uow.graph_history.clear_by_graph(graph_id)
         graph.current_history_sequence = 0
-        await history_repo.save_snapshot(graph_id, flow_data, 0)
-
-    await session.commit()
+        await uow.graph_history.save_snapshot(graph_id, flow_data, 0)
+        await uow.session.flush()

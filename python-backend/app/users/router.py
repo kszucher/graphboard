@@ -3,9 +3,9 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_session
+from app.context import UnitOfWork
+from app.db import get_uow
 from app.users import service as user_service
 from app.users.schemas import ActiveGraphResponse, SetActiveGraph, UserCreate
 
@@ -13,23 +13,29 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/get-or-create", response_model=uuid.UUID)
-async def get_or_create_user(session: AsyncSession = Depends(get_session)) -> uuid.UUID:
-    return await user_service.get_or_create_user(session)
+async def get_or_create_user(uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
+    user_id = await user_service.get_or_create_user(uow)
+    await uow.commit()
+    return user_id
 
 
 @router.post("/", response_model=uuid.UUID, status_code=status.HTTP_201_CREATED)
-async def create_user(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> uuid.UUID:
-    return await user_service.create_user(session, payload.user_name)
+async def create_user(payload: UserCreate, uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
+    user_id = await user_service.create_user(uow, payload.user_name)
+    await uow.commit()
+    return user_id
 
 
 @router.get("/{user_id}/active-graph", response_model=ActiveGraphResponse)
-async def get_active_graph_id(user_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> ActiveGraphResponse:
-    graph_id = await user_service.get_active_graph_id(session, user_id)
+async def get_active_graph_id(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> ActiveGraphResponse:
+    graph_id = await user_service.get_active_graph_id(uow, user_id)
+    await uow.commit()
     if graph_id is None:
         return ActiveGraphResponse(graph_id=None)
     return ActiveGraphResponse(graph_id=graph_id)
 
 
 @router.post("/set-active-graph", status_code=status.HTTP_204_NO_CONTENT)
-async def set_active_graph(payload: SetActiveGraph, session: AsyncSession = Depends(get_session)) -> None:
-    await user_service.set_active_graph(session, payload.user_id, payload.graph_id)
+async def set_active_graph(payload: SetActiveGraph, uow: UnitOfWork = Depends(get_uow)) -> None:
+    await user_service.set_active_graph(uow, payload.user_id, payload.graph_id)
+    await uow.commit()

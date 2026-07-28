@@ -22,7 +22,7 @@ class GraphRead(OrmModel):
 
 
 class DefinerVariableSchema(BaseModel):
-    id: str
+    id: str = ""
     key: str
     type: Literal["boolean", "string", "number", "float"]
     default_value: Any = None
@@ -55,8 +55,8 @@ class OperationsContainerSchema(BaseModel):
 
 
 class SlotRead(BaseModel):
-    id: str
-    raw_string: str
+    id: str = ""
+    raw_string: str = ""
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
     ref_id: str | None = None
@@ -75,11 +75,11 @@ class NodeRead(BaseModel):
 
 
 class EdgeRead(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     source_id: str
-    source_type: Literal["node", "slot"]
+    source_type: Literal["node", "slot"] = "node"
     target_id: str
-    target_type: Literal["node", "slot"]
+    target_type: Literal["node", "slot"] = "node"
 
 
 class DiagnosticRead(BaseModel):
@@ -105,6 +105,13 @@ class GraphFlowRead(BaseModel):
 class GraphSyncPayload(BaseModel):
     nodes: list[NodeRead]
     edges: list[EdgeRead]
+    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
+
+
+class GraphFlowData(BaseModel):
+    code: str = ""
+    nodes: list[NodeRead] = Field(default_factory=list)
+    edges: list[EdgeRead] = Field(default_factory=list)
     operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
 
 
