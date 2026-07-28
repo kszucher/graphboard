@@ -1,70 +1,38 @@
-import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
-import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
+import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon } from '@radix-ui/react-icons';
+import { Box, Button, Card, Flex, IconButton, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
-import type { ASTExpression, DefinerVariable, LogicalAssignment } from '../canvas/types';
+import type { DefinerVariable, LogicalAssignment } from '../../canvas/types';
 import {
   useCreateLogicalAssignment,
   useDeleteLogicalAssignment,
-} from '../hooks/graph/useGraphMutations';
-import { useGraphQuery } from '../hooks/graph/useGraphQuery';
+} from '../../hooks/graph/useGraphMutations';
+import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
+import {
+  ARITHMETIC_OPERATORS,
+  coerceTypedValue,
+  formatAstToChips,
+  tokensToAst,
+  type DraftStep,
+  type DraftToken,
+} from './ExpressionEngine';
+import {
+  ExpressionChip,
+  StaticRow,
+  TargetVariableChip,
+  TypedValueInput,
+} from './NodeEditorShared';
 
-interface LogicalAssignerEditorProps {
+interface LogicalAssignerNodeEditorProps {
   graphId: string;
   nodeId: string;
   disabled?: boolean;
 }
 
-export type DraftStep = 'target' | 'operand_type_choice' | 'operand_input' | 'operator_or_save';
-
-export type DraftToken =
-  | { kind: 'var'; varKey: string }
-  | { kind: 'val'; value: any; valType?: 'string' | 'number' | 'boolean' }
-  | { kind: 'op'; op: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<' };
-
-// Outlined Token Styling Helper matching CodeMirror Syntax Theme
-function getTokenStyle(chip: { kind: 'var' | 'op' | 'val'; valType?: 'string' | 'number' | 'boolean'; value?: any }) {
-  const common = {
-    backgroundColor: 'transparent',
-    color: '#ffffff',
-    fontWeight: '600',
-    borderRadius: '12px',
-    padding: '2px 10px',
-    fontSize: '12px',
-    lineHeight: '16px',
-    fontFamily: 'monospace',
-    flexShrink: 0,
-  };
-
-  if (chip.kind === 'var') {
-    return { ...common, border: '1.5px solid #e06c75' };
-  }
-  if (chip.kind === 'op') {
-    return { ...common, border: '1.5px solid #61afef' };
-  }
-  const v = chip.value;
-  if (typeof v === 'number' || chip.valType === 'number') {
-    return { ...common, border: '1.5px solid #e5a95d' };
-  }
-  return { ...common, border: '1.5px solid #98c379' };
-}
-
-const TARGET_TOKEN_STYLE = {
-  backgroundColor: 'transparent',
-  border: '1.5px solid #e06c75',
-  color: '#ffffff',
-  fontWeight: '600',
-  fontFamily: 'monospace',
-  padding: '2px 10px',
-  borderRadius: '12px',
-  fontSize: '12px',
-  flexShrink: 0,
-};
-
-export const LogicalAssignerEditor = ({
+export const LogicalAssignerNodeEditor = ({
   graphId,
   nodeId,
   disabled = false,
-}: LogicalAssignerEditorProps) => {
+}: LogicalAssignerNodeEditorProps) => {
   const { data: graphFlow } = useGraphQuery(graphId);
   const rawFlow = (graphFlow || {}) as Record<string, any>;
   const definerOps = rawFlow.operations?.definer || [];
@@ -91,7 +59,7 @@ export const LogicalAssignerEditor = ({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Strict Left-to-Right Workbench State
+  // Workbench State
   const [draftStep, setDraftStep] = useState<DraftStep>('target');
   const [draftTarget, setDraftTarget] = useState<string>(stateVariables[0]?.key || '');
   const [draftTokens, setDraftTokens] = useState<DraftToken[]>([]);
@@ -111,13 +79,6 @@ export const LogicalAssignerEditor = ({
       return v.type === targetVarType;
     });
   }, [stateVariables, targetVarType]);
-
-  const compatibleOperators = useMemo(() => {
-    if (targetVarType === 'number' || targetVarType === 'float') {
-      return ['+', '-', '*', '/', '==', '!=', '>', '<'];
-    }
-    return ['+', '==', '!='];
-  }, [targetVarType]);
 
   const handleLockTarget = useCallback(() => {
     if (!draftTarget && stateVariables[0]?.key) {
@@ -142,22 +103,15 @@ export const LogicalAssignerEditor = ({
   }, []);
 
   const handleAddValOperand = useCallback(() => {
-    let parsed: any = literalValue;
-    let valType: 'string' | 'number' | 'boolean' = 'string';
-    if (targetVarType === 'number' || targetVarType === 'float') {
-      parsed = parseInt(literalValue || '0', 10) || 0;
-      valType = 'number';
-    } else if (targetVarType === 'boolean') {
-      parsed = literalValue === 'true';
-      valType = 'boolean';
-    }
+    const parsed = coerceTypedValue(targetVarType, literalValue);
+    const valType = targetVarType === 'number' || targetVarType === 'float' ? 'number' : targetVarType === 'boolean' ? 'boolean' : 'string';
     setDraftTokens((prev) => [...prev, { kind: 'val', value: parsed, valType }]);
     setOperandType('');
     setLiteralValue('');
     setDraftStep('operator_or_save');
   }, [literalValue, targetVarType]);
 
-  const handleAddOperator = useCallback((op: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<') => {
+  const handleAddOperator = useCallback((op: string) => {
     setDraftTokens((prev) => [...prev, { kind: 'op', op }]);
     setOperandType('');
     setDraftStep('operand_type_choice');
@@ -234,14 +188,20 @@ export const LogicalAssignerEditor = ({
               </Text>
             )}
 
-            {assignments.map((asgn) => (
-              <StaticAssignmentRow
-                key={asgn.id}
-                assignment={asgn}
-                onDelete={() => handleDeleteAssignment(asgn.id)}
-                disabled={disabled}
-              />
-            ))}
+            {assignments.map((asgn) => {
+              const formattedChips = formatAstToChips(asgn.expression);
+              return (
+                <StaticRow key={asgn.id} onDelete={() => handleDeleteAssignment(asgn.id)} disabled={disabled}>
+                  <TargetVariableChip varKey={asgn.target_var_key} />
+                  <Text size="2" weight="bold" style={{ color: '#61afef' }}>
+                    =
+                  </Text>
+                  {formattedChips.map((chip, idx) => (
+                    <ExpressionChip key={idx} chip={chip} />
+                  ))}
+                </StaticRow>
+              );
+            })}
           </Flex>
         </Box>
 
@@ -255,12 +215,9 @@ export const LogicalAssignerEditor = ({
           }}
         >
           <Flex align="center" gap="2" style={{ overflowX: 'auto' }}>
-            {/* Draft Expression Chips */}
             {draftStep !== 'target' && (
               <>
-                <Box style={TARGET_TOKEN_STYLE}>
-                  <Text size="1">{draftTarget || stateVariables[0]?.key || 'x'}</Text>
-                </Box>
+                <TargetVariableChip varKey={draftTarget || stateVariables[0]?.key || 'x'} />
                 <Text size="2" weight="bold" style={{ color: '#61afef', flexShrink: 0 }}>
                   =
                 </Text>
@@ -386,7 +343,7 @@ export const LogicalAssignerEditor = ({
               </Flex>
             )}
 
-            {/* Step 3: Operator / Save */}
+            {/* Step 3: Operator / Save - Restricted to Arithmetic Operators (+, -, *, /) */}
             {draftStep === 'operator_or_save' && (
               <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
                 <Box style={{ width: '85px' }}>
@@ -400,7 +357,7 @@ export const LogicalAssignerEditor = ({
                   >
                     <Select.Trigger placeholder="+ Act..." color="blue" variant="surface" style={{ width: '100%', fontWeight: 'bold' }} />
                     <Select.Content color="blue">
-                      {compatibleOperators.map((op) => (
+                      {ARITHMETIC_OPERATORS.map((op) => (
                         <Select.Item key={op} value={op}>
                           {op}
                         </Select.Item>
@@ -442,177 +399,3 @@ export const LogicalAssignerEditor = ({
     </Card>
   );
 };
-
-function ExpressionChip({
-  chip,
-}: {
-  chip: {
-    kind: 'var' | 'op' | 'val';
-    valType?: 'string' | 'number' | 'boolean';
-    value?: any;
-    varKey?: string;
-    op?: string;
-    label?: string;
-  };
-}) {
-  const style = getTokenStyle(chip);
-  const text = chip.label ?? (chip.kind === 'var' ? chip.varKey : chip.kind === 'op' ? chip.op : String(chip.value ?? ''));
-  return (
-    <Box style={style}>
-      <Text size="1">{text}</Text>
-    </Box>
-  );
-}
-
-function TypedValueInput({
-  targetVarType,
-  value,
-  onChange,
-  disabled,
-  onEnter,
-}: {
-  targetVarType: 'boolean' | 'string' | 'number' | 'float';
-  value: string;
-  onChange: (val: string) => void;
-  disabled: boolean;
-  onEnter?: () => void;
-}) {
-  if (targetVarType === 'boolean') {
-    return (
-      <Box style={{ width: '75px' }}>
-        <Select.Root
-          size="1"
-          value={value === 'true' ? 'true' : 'false'}
-          onValueChange={(val) => onChange(val)}
-          disabled={disabled}
-        >
-          <Select.Trigger variant="surface" color="green" style={{ width: '100%', fontFamily: 'monospace' }} />
-          <Select.Content color="green">
-            <Select.Item value="true">true</Select.Item>
-            <Select.Item value="false">false</Select.Item>
-          </Select.Content>
-        </Select.Root>
-      </Box>
-    );
-  }
-
-  const isNum = targetVarType === 'number' || targetVarType === 'float';
-
-  return (
-    <TextField.Root
-      size="1"
-      type={isNum ? 'number' : 'text'}
-      placeholder={isNum ? 'enter number...' : 'enter string...'}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && onEnter) onEnter();
-      }}
-      disabled={disabled}
-      color={isNum ? 'amber' : 'green'}
-      style={{ width: '110px', fontFamily: 'monospace' }}
-    />
-  );
-}
-
-function StaticAssignmentRow({
-  assignment,
-  onDelete,
-  disabled,
-}: {
-  assignment: LogicalAssignment;
-  onDelete: () => void;
-  disabled: boolean;
-}) {
-  const formattedChips = formatAstToStaticChips(assignment.expression);
-
-  return (
-    <Flex
-      align="center"
-      justify="between"
-      p="1"
-      px="2"
-      style={{
-        backgroundColor: 'var(--gray-3)',
-        borderRadius: 'var(--radius-1)',
-      }}
-    >
-      <Flex align="center" gap="1" style={{ flexWrap: 'wrap', overflow: 'hidden' }}>
-        <Box style={TARGET_TOKEN_STYLE}>
-          <Text size="1">{assignment.target_var_key}</Text>
-        </Box>
-        <Text size="2" weight="bold" style={{ color: '#61afef' }}>
-          =
-        </Text>
-
-        {formattedChips.map((chip, idx) => (
-          <ExpressionChip key={idx} chip={chip} />
-        ))}
-      </Flex>
-
-      <IconButton
-        size="1"
-        variant="ghost"
-        color="red"
-        onClick={onDelete}
-        disabled={disabled}
-        style={{ flexShrink: 0, marginLeft: '6px' }}
-      >
-        <TrashIcon width="12" height="12" />
-      </IconButton>
-    </Flex>
-  );
-}
-
-function formatAstToStaticChips(
-  expr: ASTExpression | null | undefined
-): { kind: 'var' | 'op' | 'val'; label: string; value?: any }[] {
-  if (!expr) return [];
-  if (expr.kind === 'literal') {
-    return [{ kind: 'val', label: String(expr.value ?? 0), value: expr.value }];
-  }
-  if (expr.kind === 'stateRef') {
-    return [{ kind: 'var', label: expr.varKey }];
-  }
-  if (expr.kind === 'binaryOp') {
-    const left = formatAstToStaticChips(expr.left);
-    const opChip = { kind: 'op' as const, label: expr.op };
-    const right = formatAstToStaticChips(expr.right);
-    return [...left, opChip, ...right];
-  }
-  return [];
-}
-
-function tokensToAst(tokens: DraftToken[], targetKey: string): ASTExpression | null {
-  if (tokens.length === 0) return null;
-
-  const tokenToAstNode = (t: DraftToken): ASTExpression => {
-    if (t.kind === 'var') {
-      return { kind: 'stateRef', varKey: t.varKey || targetKey } as ASTExpression;
-    }
-    if (t.kind === 'val') {
-      return { kind: 'literal', value: t.value } as ASTExpression;
-    }
-    return { kind: 'literal', value: 0 } as ASTExpression;
-  };
-
-  let leftAst = tokenToAstNode(tokens[0]);
-
-  for (let i = 1; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (token.kind === 'op') {
-      const op = token.op;
-      const nextOperandToken = tokens[i + 1];
-      const rightAst = nextOperandToken ? tokenToAstNode(nextOperandToken) : ({ kind: 'literal', value: 0 } as ASTExpression);
-      leftAst = {
-        kind: 'binaryOp',
-        op: op as any,
-        left: leftAst,
-        right: rightAst,
-      } as ASTExpression;
-      if (nextOperandToken) i++;
-    }
-  }
-
-  return leftAst;
-}

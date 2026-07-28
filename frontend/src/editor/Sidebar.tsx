@@ -1,9 +1,8 @@
 import { Box, Button, Flex, Separator, Text } from '@radix-ui/themes';
 import { useNodes } from '@xyflow/react';
 import { useRunGraph } from '../hooks/graph/useGraphMutations';
-import { DefinerVariableEditor } from './DefinerVariableEditor';
 import { FullCodeEditor } from './FullCodeEditor';
-import { LogicalAssignerEditor } from './LogicalAssignerEditor';
+import { NodeEditorRouter } from './nodeEditors/NodeEditorRouter';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -15,8 +14,6 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
   const { mutate: runGraph } = useRunGraph(graphId);
   const nodes = useNodes();
   const selectedNode = nodes.find((n) => n.selected);
-  const selectedNodeType = (selectedNode?.data as any)?.node?.node_type;
-  const selectedNodeId = selectedNode?.id;
 
   return (
     <Box
@@ -59,31 +56,9 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
 
         {/* Bottom Panel: Dynamic Node Editor (~300px height) */}
         <Box style={{ height: '300px', minHeight: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          {selectedNodeType === 'DEFINER' && selectedNodeId ? (
-            <DefinerVariableEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
-          ) : selectedNodeType === 'LOGICAL_ASSIGNER' && selectedNodeId ? (
-            <LogicalAssignerEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
-          ) : (
-            <Box
-              style={{
-                height: '100%',
-                backgroundColor: 'var(--gray-1)',
-                border: '1px solid var(--gray-5)',
-                borderRadius: 'var(--radius-3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px',
-              }}
-            >
-              <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-                Select a <Text weight="bold">DEFINER</Text> or <Text weight="bold">LOGICAL_ASSIGNER</Text> node on the canvas to edit operation settings.
-              </Text>
-            </Box>
-          )}
+          <NodeEditorRouter graphId={graphId} selectedNode={selectedNode} disabled={!isGraphSelected} />
         </Box>
       </Flex>
     </Box>
   );
 };
-

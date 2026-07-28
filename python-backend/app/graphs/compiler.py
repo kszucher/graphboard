@@ -66,11 +66,37 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     if all_variables:
         for var in all_variables:
             var_key = var.get("key") or var.get("name") or var.get("id")
-            py_type = TYPE_MAP_GB_TO_PY.get(var.get("type", "string"), "str")
-            code_lines.append(f"    {var_key}: {py_type}")
+            var_type = var.get("type", "string")
+            py_type = TYPE_MAP_GB_TO_PY.get(var_type, "str")
+            default_val = var.get("default_value")
+            if default_val is None:
+                if var_type in ("number", "float"):
+                    default_val = 0 if var_type == "number" else 0.0
+                elif var_type == "boolean":
+                    default_val = False
+                else:
+                    default_val = ""
+            code_lines.append(f"    {var_key}: {py_type}  # default: {repr(default_val)}")
     else:
         code_lines.append("    pass")
     code_lines.append("")
+
+    if all_variables:
+        code_lines.append("initial_state: State = {")
+        for var in all_variables:
+            var_key = var.get("key") or var.get("name") or var.get("id")
+            var_type = var.get("type", "string")
+            default_val = var.get("default_value")
+            if default_val is None:
+                if var_type in ("number", "float"):
+                    default_val = 0 if var_type == "number" else 0.0
+                elif var_type == "boolean":
+                    default_val = False
+                else:
+                    default_val = ""
+            code_lines.append(f'    "{var_key}": {repr(default_val)},')
+        code_lines.append("}")
+        code_lines.append("")
 
     # 2. Nodes (Excludes DEFINER nodes - 0 python functions!)
     code_lines.append("# ----------------------------------------------------")
