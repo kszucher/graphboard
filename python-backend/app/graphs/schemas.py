@@ -21,7 +21,7 @@ class GraphRead(OrmModel):
     user_id: uuid.UUID
 
 
-class StateVariableSchema(BaseModel):
+class DefinerVariableSchema(BaseModel):
     id: str
     key: str
     type: Literal["boolean", "string", "number", "float"]
@@ -29,20 +29,34 @@ class StateVariableSchema(BaseModel):
     description: str | None = None
 
 
+class DefinerOperationSchema(BaseModel):
+    id: str
+    variables: list[DefinerVariableSchema] = Field(default_factory=list)
+
+
+class OperationsContainerSchema(BaseModel):
+    definer: list[DefinerOperationSchema] = Field(default_factory=list)
+    agentic: list[dict[str, Any]] = Field(default_factory=list)
+    logical: list[dict[str, Any]] = Field(default_factory=list)
+    switch: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class SlotRead(BaseModel):
     id: str
     raw_string: str
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
+    ref_id: str | None = None
     selected: bool = False
 
 
 class NodeRead(BaseModel):
     id: str
     node_type: NodeType
+    ref_id: str | None = None
     is_input: bool = False
     is_output: bool = False
-    slots: list[SlotRead]
+    slots: list[SlotRead] = Field(default_factory=list)
     code: str = ""
     selected: bool = False
 
@@ -69,8 +83,8 @@ class GraphFlowRead(BaseModel):
     code: str = ""
     nodes: list[NodeRead]
     edges: list[EdgeRead]
-    state_schema: list[StateVariableSchema] = []
-    diagnostics: list[DiagnosticRead] = []
+    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
+    diagnostics: list[DiagnosticRead] = Field(default_factory=list)
     can_undo: bool = False
     can_redo: bool = False
 
@@ -78,7 +92,7 @@ class GraphFlowRead(BaseModel):
 class GraphSyncPayload(BaseModel):
     nodes: list[NodeRead]
     edges: list[EdgeRead]
-    state_schema: list[StateVariableSchema] = []
+    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
 
 
 class NodeCreateRequest(BaseModel):
@@ -91,6 +105,20 @@ class NodeUpdateRequest(BaseModel):
     new_id: str | None = None
     is_input: bool | None = None
     is_output: bool | None = None
+    ref_id: str | None = None
+
+
+class DefinerVariableCreateRequest(BaseModel):
+    key: str
+    type: Literal["boolean", "string", "number", "float"] = "string"
+    default_value: Any = None
+    description: str | None = None
+
+
+class DefinerVariableUpdateRequest(BaseModel):
+    type: Literal["boolean", "string", "number", "float"] | None = None
+    default_value: Any = None
+    description: str | None = None
 
 
 class SlotCreateRequest(BaseModel):
@@ -101,6 +129,7 @@ class SlotUpdateRequest(BaseModel):
     raw_string: str
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
+    ref_id: str | None = None
 
 
 class SlotMoveRequest(BaseModel):

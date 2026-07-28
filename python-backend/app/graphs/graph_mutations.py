@@ -1,5 +1,44 @@
+import re
 import uuid
-from typing import Literal
+from typing import Any, Literal
+
+PYTHON_KEYWORDS = {
+    "False",
+    "None",
+    "True",
+    "and",
+    "as",
+    "assert",
+    "async",
+    "await",
+    "break",
+    "class",
+    "continue",
+    "def",
+    "del",
+    "elif",
+    "else",
+    "except",
+    "finally",
+    "for",
+    "from",
+    "global",
+    "if",
+    "import",
+    "in",
+    "is",
+    "lambda",
+    "nonlocal",
+    "not",
+    "or",
+    "pass",
+    "raise",
+    "return",
+    "try",
+    "while",
+    "with",
+    "yield",
+}
 
 
 def generate_node_id(node_type: str, existing_nodes: list[dict]) -> str:
@@ -14,18 +53,24 @@ def generate_node_id(node_type: str, existing_nodes: list[dict]) -> str:
 def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, direction: str | None = None) -> dict:
     nodes = flow_json.setdefault("nodes", [])
     edges = flow_json.setdefault("edges", [])
+    ops = flow_json.setdefault("operations", {"definer": [], "agentic": [], "logical": [], "switch": []})
     node_id = generate_node_id(node_type, nodes)
 
     slots = []
+    ref_id = None
     if node_type == "SWITCH":
         slots = [
             {"id": f"{node_id}_option_a", "raw_string": "option_a", "selected": False},
             {"id": f"{node_id}_option_b", "raw_string": "option_b", "selected": False},
         ]
+    elif node_type == "DEFINER":
+        ref_id = f"op_{node_id}"
+        ops.setdefault("definer", []).append({"id": ref_id, "variables": []})
 
     new_node = {
         "id": node_id,
         "node_type": node_type,
+        "ref_id": ref_id,
         "is_input": True,
         "is_output": node_type in ("STEP", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"),
         "slots": slots,
@@ -36,7 +81,6 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
 
     if connector_id and direction:
         is_after = direction == "after"
-        # Find old edges connected to the connector
         old_edges = [
             e for e in edges if (e.get("source_id") == connector_id if is_after else e.get("target_id") == connector_id)
         ]
@@ -44,7 +88,6 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
         to_slot_id = node_id
         from_slot_id = slots[0]["id"] if (node_type == "SWITCH" and slots) else node_id
 
-        # Find target/source node
         target_or_source_node = next((n for n in nodes if n["id"] == connector_id), None)
         if not target_or_source_node:
             target_or_source_node = next(
@@ -67,7 +110,6 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
                 "slot" if any(s["id"] == connector_id for s in target_or_source_node.get("slots", [])) else "node"
             )
 
-        # Update old edges to route through the new node
         updated_old_edges = []
         for old_edge in old_edges:
             upd = old_edge.copy()
@@ -91,17 +133,25 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
 def delete_node(flow_json: dict, node_id: str) -> dict:
     nodes = flow_json.get("nodes", [])
     edges = flow_json.get("edges", [])
+    ops = flow_json.get("operations", {})
 
-    # Find the node to get its slots
     target_node = next((n for n in nodes if n["id"] == node_id), None)
-    slot_ids = set()
-    if target_node:
-        slot_ids = {s["id"] for s in target_node.get("slots", [])}
+    if not target_node:
+        return flow_json
 
-    # Filter out the node
+    # Sentinel protection: START, END, DEFINER nodes cannot be deleted
+    if target_node.get("node_type") in ("START", "END", "DEFINER"):
+        return flow_json
+
+    ref_id = target_node.get("ref_id")
+    if ref_id and ops:
+        for op_type in ("definer", "agentic", "logical", "switch"):
+            if op_type in ops:
+                ops[op_type] = [o for o in ops[op_type] if o.get("id") != ref_id]
+
+    slot_ids = {s["id"] for s in target_node.get("slots", [])}
+
     flow_json["nodes"] = [n for n in nodes if n["id"] != node_id]
-
-    # Filter out connected edges
     flow_json["edges"] = [
         e
         for e in edges
@@ -118,8 +168,8 @@ def shortcircuit_node(flow_json: dict, node_id: str) -> dict:
     edges = flow_json.get("edges", [])
 
     target_node = next((n for n in nodes if n["id"] == node_id), None)
-    if not target_node or target_node["node_type"] not in ("STEP", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"):
-        return flow_json  # Can only shortcircuit sequential step-like nodes
+    if not target_node or target_node["node_type"] not in ("STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"):
+        return flow_json  # START, END, DEFINER, SWITCH nodes cannot be shortcircuited
 
     incoming = [e for e in edges if e["target_id"] == node_id]
     outgoing = [e for e in edges if e["source_id"] == node_id]
@@ -317,4 +367,90 @@ def reconnect_edge(
     edge["source_type"] = source_type
     edge["target_type"] = target_type
 
+    return flow_json
+
+
+def get_all_definer_variables(flow_json: dict) -> list[dict]:
+    ops = flow_json.get("operations", {})
+    definer_ops = ops.get("definer", [])
+    variables = []
+    for op in definer_ops:
+        variables.extend(op.get("variables", []))
+    return variables
+
+
+def create_definer_variable(
+    flow_json: dict,
+    node_id: str,
+    key: str,
+    var_type: str = "string",
+    default_value: Any = None,
+    description: str | None = None,
+) -> dict:
+    key = key.strip()
+    # 1. snake_case regex validation
+    if not re.match(r"^[a-z_][a-z0-9_]*$", key):
+        raise ValueError(f"Variable name '{key}' must be valid snake_case.")
+
+    # 2. Python keyword protection
+    if key in PYTHON_KEYWORDS:
+        raise ValueError(f"Variable name '{key}' cannot be a Python keyword.")
+
+    # 3. Uniqueness validation across all definer operations
+    existing_vars = get_all_definer_variables(flow_json)
+    if any(v["key"] == key for v in existing_vars):
+        raise ValueError(f"Variable name '{key}' already exists in state schema.")
+
+    nodes = flow_json.get("nodes", [])
+    target_node = next((n for n in nodes if n["id"] == node_id), None)
+    if not target_node:
+        raise ValueError(f"Node '{node_id}' not found.")
+
+    ops = flow_json.setdefault("operations", {"definer": [], "agentic": [], "logical": [], "switch": []})
+    definer_ops = ops.setdefault("definer", [])
+
+    ref_id = target_node.get("ref_id")
+    target_op = next((o for o in definer_ops if o["id"] == ref_id), None) if ref_id else None
+
+    if not target_op:
+        ref_id = f"op_{node_id}"
+        target_node["ref_id"] = ref_id
+        target_op = {"id": ref_id, "variables": []}
+        definer_ops.append(target_op)
+
+    new_var = {
+        "id": str(uuid.uuid4()),
+        "key": key,
+        "type": var_type,
+        "default_value": default_value,
+        "description": description,
+    }
+    target_op.setdefault("variables", []).append(new_var)
+    return flow_json
+
+
+def update_definer_variable(flow_json: dict, var_id: str, updates: dict) -> dict:
+    ops = flow_json.get("operations", {})
+    definer_ops = ops.get("definer", [])
+    for op in definer_ops:
+        for var in op.get("variables", []):
+            if var["id"] == var_id:
+                if "type" in updates and updates["type"]:
+                    var["type"] = updates["type"]
+                if "default_value" in updates:
+                    var["default_value"] = updates["default_value"]
+                if "description" in updates:
+                    var["description"] = updates["description"]
+                return flow_json
+    return flow_json
+
+
+def delete_definer_variable(flow_json: dict, var_id: str) -> dict:
+    ops = flow_json.get("operations", {})
+    definer_ops = ops.get("definer", [])
+    for op in definer_ops:
+        vars_list = op.get("variables", [])
+        if any(v["id"] == var_id for v in vars_list):
+            op["variables"] = [v for v in vars_list if v["id"] != var_id]
+            return flow_json
     return flow_json

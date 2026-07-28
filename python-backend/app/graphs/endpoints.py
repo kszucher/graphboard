@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, status
 from app.db import get_uow
 from app.graphs import service as graph_service
 from app.graphs.schemas import (
+    DefinerVariableCreateRequest,
+    DefinerVariableUpdateRequest,
     EdgeCreateRequest,
     EdgeReconnectRequest,
     GraphCreate,
@@ -177,5 +179,36 @@ async def reconnect_edge_endpoint(
         payload.source_handle,
         payload.target_handle,
     )
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+# Definer Variables REST API
+@router.post("/{graph_id}/nodes/{node_id}/definer/variables", response_model=GraphFlowRead)
+async def create_definer_variable_endpoint(
+    graph_id: uuid.UUID, node_id: str, payload: DefinerVariableCreateRequest, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updated_flow = await graph_service.create_definer_variable(
+        uow, graph_id, node_id, payload.key, payload.type, payload.default_value, payload.description
+    )
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+@router.patch("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
+async def update_definer_variable_endpoint(
+    graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updates = payload.model_dump(exclude_unset=True)
+    updated_flow = await graph_service.update_definer_variable(uow, graph_id, var_id, updates)
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+@router.delete("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
+async def delete_definer_variable_endpoint(
+    graph_id: uuid.UUID, var_id: str, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updated_flow = await graph_service.delete_definer_variable(uow, graph_id, var_id)
     await uow.commit()
     return GraphFlowRead.model_validate(updated_flow)

@@ -237,13 +237,31 @@ export interface paths {
     put?: never;
     /** Shortcircuit Node Endpoint */
     post: operations["shortcircuit_node_endpoint_graphs__graph_id__nodes__node_id__shortcircuit_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
     patch?: never;
     trace?: never;
   };
+  "/graphs/{graph_id}/nodes/{node_id}/definer/variables": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    post: operations["create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post"];
+  };
+  "/graphs/{graph_id}/definer/variables/{var_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    patch: operations["update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch"];
+    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete"];
+  };
   "/graphs/{graph_id}/nodes/{node_id}/slots": {
+
+
     parameters: {
       query?: never;
       header?: never;
@@ -365,12 +383,23 @@ export interface paths {
   };
 }
 
-export type webhooks = Record<string, never>;
-
 export interface components {
   schemas: {
+    DefinerVariableCreateRequest: {
+      key: string;
+      type: "boolean" | "string" | "number" | "float";
+      default_value?: unknown;
+      description?: string | null;
+    };
+
+    DefinerVariableUpdateRequest: {
+      type?: ("boolean" | "string" | "number" | "float") | null;
+      default_value?: unknown;
+      description?: string | null;
+    };
     /** ActiveGraphResponse */
     ActiveGraphResponse: {
+
       /** Graph Id */
       graph_id: string | null;
     };
@@ -936,7 +965,77 @@ export interface operations {
       };
     };
   };
+  create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post: {
+
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        node_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DefinerVariableCreateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
+  update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        var_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["DefinerVariableUpdateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
+  delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        var_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
   undo_endpoint_graphs__graph_id__history_undo_post: {
+
     parameters: {
       query?: never;
       header?: {

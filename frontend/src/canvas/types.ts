@@ -16,13 +16,28 @@ export type ApiSlot = components['schemas']['SlotRead'] & {
 export type NodeType = components['schemas']['NodeType'];
 export type InsertableNodeType = Exclude<NodeType, 'START' | 'END'>;
 
-export interface StateVariable {
+export interface DefinerVariable {
   id: string;
   key: string;
   type: 'boolean' | 'string' | 'number' | 'float';
   default_value?: any;
   description?: string | null;
 }
+
+export interface DefinerOperation {
+  id: string;
+  variables: DefinerVariable[];
+}
+
+export interface OperationsContainer {
+  definer: DefinerOperation[];
+  agentic?: any[];
+  logical?: any[];
+  switch?: any[];
+}
+
+export type StateVariable = DefinerVariable;
+
 
 export interface Diagnostic {
   line: number;

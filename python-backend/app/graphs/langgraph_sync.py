@@ -52,9 +52,19 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     code_lines.append("# State Definition")
     code_lines.append("# ----------------------------------------------------")
     code_lines.append("class State(TypedDict):")
-    state_schema = payload.get("state_schema", [])
-    if state_schema:
-        for var in state_schema:
+
+    ops = payload.get("operations", {})
+    definer_ops = ops.get("definer", []) if isinstance(ops, dict) else []
+    all_variables = []
+    for op in definer_ops:
+        all_variables.extend(op.get("variables", []))
+
+    # Fallback to legacy state_schema if operations.definer is empty
+    if not all_variables and payload.get("state_schema"):
+        all_variables = payload.get("state_schema", [])
+
+    if all_variables:
+        for var in all_variables:
             var_key = var.get("key") or var.get("name") or var.get("id")
             py_type = TYPE_MAP_GB_TO_PY.get(var.get("type", "string"), "str")
             code_lines.append(f"    {var_key}: {py_type}")
@@ -62,7 +72,7 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
         code_lines.append("    pass")
     code_lines.append("")
 
-    # 2. Nodes
+    # 2. Nodes (Excludes DEFINER nodes - 0 python functions!)
     code_lines.append("# ----------------------------------------------------")
     code_lines.append("# Nodes")
     code_lines.append("# ----------------------------------------------------")
@@ -70,11 +80,12 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     nodes = payload.get("nodes", [])
     edges = payload.get("edges", [])
 
-    logic_nodes = [
-        n for n in nodes if n.get("node_type") in ("STEP", "SWITCH", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
+    definer_node_ids = {n["id"] for n in nodes if n.get("node_type") == "DEFINER"}
+    executable_logic_nodes = [
+        n for n in nodes if n.get("node_type") in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
     ]
 
-    for node in logic_nodes:
+    for node in executable_logic_nodes:
         node_name = node["id"]
         if node.get("node_type") == "SWITCH":
             slots = node.get("slots", [])
@@ -92,7 +103,7 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                     code_lines.append(f'        return "{label}"')
                 code_lines.append('    return ""')
         else:
-            # STEP node
+            # STEP / ASSIGNER nodes
             code_lines.append(f"def {node_name}(state: State) -> dict:")
             slots = node.get("slots", [])
             mutations = [s for s in slots if s.get("target_var_key")]
@@ -114,24 +125,39 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
     code_lines.append("workflow = StateGraph(State)")
     code_lines.append("")
 
-    for node in logic_nodes:
+    for node in executable_logic_nodes:
         code_lines.append(f'workflow.add_node("{node["id"]}", {node["id"]})')
     code_lines.append("")
 
+    # Bypass resolution for START -> definer -> first_target
+    def resolve_target(target_id: str) -> str:
+        if target_id in definer_node_ids:
+            # Trace outgoing edge from definer node
+            definer_out = next((e for e in edges if e.get("source_id") == target_id), None)
+            if definer_out:
+                return resolve_target(definer_out.get("target_id", "end"))
+            return "END"
+        return "END" if target_id == "end" else f'"{target_id}"'
+
     start_edges = [e for e in edges if e.get("source_id") == "start"]
     for e in start_edges:
-        code_lines.append(f'workflow.add_edge(START, "{e.get("target_id")}")')
+        target = resolve_target(e.get("target_id", "end"))
+        code_lines.append(f"workflow.add_edge(START, {target})")
 
     static_edges = [
         e
         for e in edges
-        if e.get("source_id") != "start" and e.get("source_type") == "node" and e.get("target_id") != "start"
+        if e.get("source_id") != "start"
+        and e.get("source_id") not in definer_node_ids
+        and e.get("source_type") == "node"
+        and e.get("target_id") != "start"
     ]
     for e in static_edges:
-        tgt = "END" if e.get("target_id") == "end" else f'"{e.get("target_id")}"'
+        tgt = resolve_target(e.get("target_id", "end"))
         code_lines.append(f'workflow.add_edge("{e.get("source_id")}", {tgt})')
 
-    switch_nodes = [n for n in logic_nodes if n.get("node_type") == "SWITCH"]
+    switch_nodes = [n for n in executable_logic_nodes if n.get("node_type") == "SWITCH"]
+
     for switch in switch_nodes:
         node_name = switch["id"]
         switch_slots = {s["id"]: s.get("raw_string") for s in switch.get("slots", [])}

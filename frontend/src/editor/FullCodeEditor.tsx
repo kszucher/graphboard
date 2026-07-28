@@ -12,7 +12,8 @@ interface FullCodeEditorProps {
 export const FullCodeEditor = ({ graphId }: FullCodeEditorProps) => {
   const { data: graphFlow } = useGraphQuery(graphId);
   const rawFlow = (graphFlow || {}) as Record<string, any>;
-  const stateVariables: StateVariable[] = rawFlow.state_schema || [];
+  const definerOps = rawFlow.operations?.definer || [];
+  const stateVariables: StateVariable[] = definerOps.flatMap((op: any) => op.variables || []);
   const diagnostics: Diagnostic[] = rawFlow.diagnostics || [];
 
   const code = rawFlow.code || '';

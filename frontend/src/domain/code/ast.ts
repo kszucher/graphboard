@@ -55,15 +55,21 @@ export function findFunctionAt(state: EditorState, pos: number): { name: string;
   return result;
 }
 
-// Helper to find a function definition by name
 export function findFunctionByName(state: EditorState, name: string): { from: number; to: number } | null {
   let result: { from: number; to: number } | null = null;
   const docStr = state.doc.toString();
+  const lowerName = name.toLowerCase();
+
   syntaxTree(state).iterate({
     enter(node) {
       if (node.name === 'FunctionDefinition') {
         const nameNode = node.node.getChild('VariableName');
         if (nameNode && docStr.slice(nameNode.from, nameNode.to) === name) {
+          result = { from: node.from, to: node.to };
+        }
+      } else if (node.name === 'ClassDefinition' && (lowerName === 'definer' || lowerName.startsWith('definer'))) {
+        const nameNode = node.node.getChild('VariableName');
+        if (nameNode && docStr.slice(nameNode.from, nameNode.to) === 'State') {
           result = { from: node.from, to: node.to };
         }
       }

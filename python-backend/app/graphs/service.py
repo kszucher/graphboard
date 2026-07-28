@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.constants import EventName
 from app.graphs.schemas import GraphSyncPayload
@@ -21,11 +21,11 @@ async def create_graph(
     import uuid as py_uuid
 
     from app.graphs.langgraph_sync import generate_graph_code
-    from app.graphs.schemas import EdgeRead, NodeRead, SlotRead, StateVariableSchema
+    from app.graphs.schemas import EdgeRead, NodeRead, SlotRead
 
     default_nodes = [
         NodeRead(id="start", node_type="START", is_input=False, is_output=True, slots=[]),
-        NodeRead(id="process_step", node_type="STEP", is_input=True, is_output=True, slots=[]),
+        NodeRead(id="definer", node_type="DEFINER", ref_id="op_def_main", is_input=True, is_output=True, slots=[]),
         NodeRead(
             id="switch_step",
             node_type="SWITCH",
@@ -55,15 +55,15 @@ async def create_graph(
     ]
     default_edges = [
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "start->process_step"),
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "start->definer"),
             source_id="start",
             source_type="node",
-            target_id="process_step",
+            target_id="definer",
             target_type="node",
         ),
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "process_step->switch_step"),
-            source_id="process_step",
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "definer->switch_step"),
+            source_id="definer",
             source_type="node",
             target_id="switch_step",
             target_type="node",
@@ -97,12 +97,22 @@ async def create_graph(
             target_type="node",
         ),
     ]
-    state_schema = [StateVariableSchema(id="x", key="x", type="number", default_value=0)]
+    operations_container = {
+        "definer": [
+            {
+                "id": "op_def_main",
+                "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
+            }
+        ],
+        "agentic": [],
+        "logical": [],
+        "switch": [],
+    }
 
     payload = {
         "nodes": [n.model_dump(mode="json") for n in default_nodes],
         "edges": [e.model_dump(mode="json") for e in default_edges],
-        "state_schema": [s.model_dump(mode="json") for s in state_schema],
+        "operations": operations_container,
     }
     compiled_code = generate_graph_code(payload)
 
@@ -110,7 +120,7 @@ async def create_graph(
         "code": compiled_code,
         "nodes": payload["nodes"],
         "edges": payload["edges"],
-        "state_schema": payload["state_schema"],
+        "operations": payload["operations"],
     }
     graph.flow_json = initial_flow
     await uow.session.flush()
@@ -228,7 +238,7 @@ async def _commit_state_snapshot(uow: UnitOfWork, graph: models.Graph, flow_data
         "code": generated_code,
         "nodes": flow_data.get("nodes", []),
         "edges": flow_data.get("edges", []),
-        "state_schema": flow_data.get("state_schema", []),
+        "operations": flow_data.get("operations", {"definer": [], "agentic": [], "logical": [], "switch": []}),
     }
 
     # Increment sequence and save snapshot
@@ -456,4 +466,53 @@ async def reconnect_edge(
     from app.graphs import graph_mutations
 
     mutated = graph_mutations.reconnect_edge(graph.flow_json, edge_id, source, target, source_handle, target_handle)
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+async def create_definer_variable(
+    uow: UnitOfWork,
+    graph_id: uuid.UUID,
+    node_id: str,
+    key: str,
+    var_type: str = "string",
+    default_value: Any = None,
+    description: str | None = None,
+) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    from app.graphs import graph_mutations
+
+    mutated = graph_mutations.create_definer_variable(
+        graph.flow_json, node_id, key, var_type, default_value, description
+    )
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+async def update_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: str, updates: dict) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    from app.graphs import graph_mutations
+
+    mutated = graph_mutations.update_definer_variable(graph.flow_json, var_id, updates)
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+async def delete_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: str) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    from app.graphs import graph_mutations
+
+    mutated = graph_mutations.delete_definer_variable(graph.flow_json, var_id)
     return await _commit_state_snapshot(uow, graph, mutated)

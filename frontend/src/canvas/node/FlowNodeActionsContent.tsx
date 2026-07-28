@@ -78,11 +78,10 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
 
   if (!nodeData) return null;
 
-  const isStart = nodeData.node_type === 'START';
-  const isEnd = nodeData.node_type === 'END';
+  const isSentinel = nodeData.node_type === 'START' || nodeData.node_type === 'END' || nodeData.node_type === 'DEFINER';
 
   const canShortcircuit = nodeData
-    ? (['STEP', 'DEFINER', 'LOGICAL_ASSIGNER', 'AGENTIC_ASSIGNER'] as NodeType[]).includes(nodeData.node_type)
+    ? (['STEP', 'LOGICAL_ASSIGNER', 'AGENTIC_ASSIGNER'] as NodeType[]).includes(nodeData.node_type)
     : false;
 
   const renderAddConnectedSubmenu = (direction: 'before' | 'after') => {
@@ -133,7 +132,7 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
 
   return (
     <>
-      {!isStart && !isEnd && (
+      {!isSentinel && (
         <>
           {showAddBefore && renderAddConnectedSubmenu('before')}
           {showAddAfter && renderAddConnectedSubmenu('after')}
@@ -146,19 +145,21 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
         </>
       )}
 
-      {!isStart && !isEnd && canShortcircuit && (
+      {!isSentinel && canShortcircuit && (
         <DropdownMenu.Item onClick={handleShortcircuit}>
           {'Shortcircuit'}
         </DropdownMenu.Item>
       )}
-      {!isStart && !isEnd && (
+      {!isSentinel && (
         <DropdownMenu.Item onClick={onRenameClick}>
           {'Rename'}
         </DropdownMenu.Item>
       )}
-      <DropdownMenu.Item onClick={handleDelete}>
-        {'Delete'}
-      </DropdownMenu.Item>
+      {!isSentinel && (
+        <DropdownMenu.Item onClick={handleDelete}>
+          {'Delete'}
+        </DropdownMenu.Item>
+      )}
     </>
   );
 };

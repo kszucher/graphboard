@@ -340,3 +340,74 @@ export const useRunGraph = (graphId: string) => {
     }
   });
 };
+
+export const useCreateDefinerVariable = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      nodeId,
+      key,
+      type,
+      defaultValue,
+    }: {
+      nodeId: string;
+      key: string;
+      type: 'boolean' | 'string' | 'number' | 'float';
+      defaultValue?: any;
+    }) => {
+      const res = await apiClient.POST('/graphs/{graph_id}/nodes/{node_id}/definer/variables', {
+        params: { path: { graph_id: graphId, node_id: nodeId } },
+        headers: { 'X-Client-Id': getClientId() },
+        body: { key, type, default_value: defaultValue }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
+
+export const useUpdateDefinerVariable = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      varId,
+      type,
+      defaultValue,
+    }: {
+      varId: string;
+      type?: 'boolean' | 'string' | 'number' | 'float';
+      defaultValue?: any;
+    }) => {
+      const res = await apiClient.PATCH('/graphs/{graph_id}/definer/variables/{var_id}', {
+        params: { path: { graph_id: graphId, var_id: varId } },
+        headers: { 'X-Client-Id': getClientId() },
+        body: { type, default_value: defaultValue }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
+
+export const useDeleteDefinerVariable = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (varId: string) => {
+      const res = await apiClient.DELETE('/graphs/{graph_id}/definer/variables/{var_id}', {
+        params: { path: { graph_id: graphId, var_id: varId } },
+        headers: { 'X-Client-Id': getClientId() }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
