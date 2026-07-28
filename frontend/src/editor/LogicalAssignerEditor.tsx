@@ -1,11 +1,10 @@
-import { Cross2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons';
-import { Badge, Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
+import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
+import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
 import type { ASTExpression, DefinerVariable, LogicalAssignment } from '../canvas/types';
 import {
   useCreateLogicalAssignment,
   useDeleteLogicalAssignment,
-  useUpdateLogicalAssignment,
 } from '../hooks/graph/useGraphMutations';
 import { useGraphQuery } from '../hooks/graph/useGraphQuery';
 
@@ -15,16 +14,51 @@ interface LogicalAssignerEditorProps {
   disabled?: boolean;
 }
 
-export type LegoTokenType = 'var' | 'op' | 'val';
+export type DraftStep = 'target' | 'operand_type_choice' | 'operand_input' | 'operator_or_save';
 
-export interface LegoToken {
-  id: string;
-  type: LegoTokenType;
-  varKey?: string;
-  op?: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<';
-  valType?: 'number' | 'string' | 'boolean' | 'float';
-  value?: any;
+export type DraftToken =
+  | { kind: 'var'; varKey: string }
+  | { kind: 'val'; value: any; valType?: 'string' | 'number' | 'boolean' }
+  | { kind: 'op'; op: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<' };
+
+// Outlined Token Styling Helper matching CodeMirror Syntax Theme
+function getTokenStyle(chip: { kind: 'var' | 'op' | 'val'; valType?: 'string' | 'number' | 'boolean'; value?: any }) {
+  const common = {
+    backgroundColor: 'transparent',
+    color: '#ffffff',
+    fontWeight: '600',
+    borderRadius: '12px',
+    padding: '2px 10px',
+    fontSize: '12px',
+    lineHeight: '16px',
+    fontFamily: 'monospace',
+    flexShrink: 0,
+  };
+
+  if (chip.kind === 'var') {
+    return { ...common, border: '1.5px solid #e06c75' };
+  }
+  if (chip.kind === 'op') {
+    return { ...common, border: '1.5px solid #61afef' };
+  }
+  const v = chip.value;
+  if (typeof v === 'number' || chip.valType === 'number') {
+    return { ...common, border: '1.5px solid #e5a95d' };
+  }
+  return { ...common, border: '1.5px solid #98c379' };
 }
+
+const TARGET_TOKEN_STYLE = {
+  backgroundColor: 'transparent',
+  border: '1.5px solid #e06c75',
+  color: '#ffffff',
+  fontWeight: '600',
+  fontFamily: 'monospace',
+  padding: '2px 10px',
+  borderRadius: '12px',
+  fontSize: '12px',
+  flexShrink: 0,
+};
 
 export const LogicalAssignerEditor = ({
   graphId,
@@ -53,43 +87,109 @@ export const LogicalAssignerEditor = ({
   const assignments: LogicalAssignment[] = currentOp.assignments || [];
 
   const { mutateAsync: createAsgn } = useCreateLogicalAssignment(graphId);
-  const { mutateAsync: updateAsgn } = useUpdateLogicalAssignment(graphId);
   const { mutateAsync: deleteAsgn } = useDeleteLogicalAssignment(graphId);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const getVarType = useCallback(
-    (key: string): 'boolean' | 'string' | 'number' | 'float' => {
-      const v = stateVariables.find((sv) => sv.key === key);
-      return v?.type || 'string';
-    },
-    [stateVariables]
-  );
+  // Strict Left-to-Right Workbench State
+  const [draftStep, setDraftStep] = useState<DraftStep>('target');
+  const [draftTarget, setDraftTarget] = useState<string>(stateVariables[0]?.key || '');
+  const [draftTokens, setDraftTokens] = useState<DraftToken[]>([]);
+  const [operandType, setOperandType] = useState<'var' | 'val' | ''>('');
+  const [literalValue, setLiteralValue] = useState<string>('');
 
-  const handleAddLine = useCallback(async () => {
-    if (disabled) return;
-    const defaultTarget = stateVariables[0]?.key;
-    if (!defaultTarget) {
-      setErrorMsg('No state variable available. Declare variables in DEFINER first.');
-      return;
+  const targetVarType = useMemo(() => {
+    const v = stateVariables.find((sv) => sv.key === (draftTarget || stateVariables[0]?.key || ''));
+    return v?.type || 'string';
+  }, [draftTarget, stateVariables]);
+
+  const compatibleStateVars = useMemo(() => {
+    return stateVariables.filter((v) => {
+      if (targetVarType === 'number' || targetVarType === 'float') {
+        return v.type === 'number' || v.type === 'float';
+      }
+      return v.type === targetVarType;
+    });
+  }, [stateVariables, targetVarType]);
+
+  const compatibleOperators = useMemo(() => {
+    if (targetVarType === 'number' || targetVarType === 'float') {
+      return ['+', '-', '*', '/', '==', '!=', '>', '<'];
     }
+    return ['+', '==', '!='];
+  }, [targetVarType]);
+
+  const handleLockTarget = useCallback(() => {
+    if (!draftTarget && stateVariables[0]?.key) {
+      setDraftTarget(stateVariables[0].key);
+    }
+    setDraftTokens([]);
+    setOperandType('');
+    setDraftStep('operand_type_choice');
+  }, [draftTarget, stateVariables]);
+
+  const handleChooseOperandType = useCallback((kind: 'var' | 'val') => {
+    setOperandType(kind);
+    setLiteralValue('');
+    setDraftStep('operand_input');
+  }, []);
+
+  const handleSelectStateVarToken = useCallback((varKey: string) => {
+    if (!varKey) return;
+    setDraftTokens((prev) => [...prev, { kind: 'var', varKey }]);
+    setOperandType('');
+    setDraftStep('operator_or_save');
+  }, []);
+
+  const handleAddValOperand = useCallback(() => {
+    let parsed: any = literalValue;
+    let valType: 'string' | 'number' | 'boolean' = 'string';
+    if (targetVarType === 'number' || targetVarType === 'float') {
+      parsed = parseInt(literalValue || '0', 10) || 0;
+      valType = 'number';
+    } else if (targetVarType === 'boolean') {
+      parsed = literalValue === 'true';
+      valType = 'boolean';
+    }
+    setDraftTokens((prev) => [...prev, { kind: 'val', value: parsed, valType }]);
+    setOperandType('');
+    setLiteralValue('');
+    setDraftStep('operator_or_save');
+  }, [literalValue, targetVarType]);
+
+  const handleAddOperator = useCallback((op: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<') => {
+    setDraftTokens((prev) => [...prev, { kind: 'op', op }]);
+    setOperandType('');
+    setDraftStep('operand_type_choice');
+  }, []);
+
+  const handleResetDraft = useCallback(() => {
+    setDraftStep('target');
+    setDraftTokens([]);
+    setOperandType('');
+    setLiteralValue('');
     setErrorMsg(null);
-    const varType = getVarType(defaultTarget);
-    const initialAst: ASTExpression = { kind: 'stateRef', varKey: defaultTarget };
+  }, []);
+
+  const handleSaveDraft = useCallback(async () => {
+    if (disabled || draftStep !== 'operator_or_save' || draftTokens.length === 0) return;
+    setErrorMsg(null);
+    const ast = tokensToAst(draftTokens, draftTarget);
 
     try {
       await createAsgn({
         nodeId,
-        targetVarKey: defaultTarget,
-        valueType: varType,
-        expression: initialAst,
+        targetVarKey: draftTarget,
+        valueType: targetVarType,
+        expression: ast || undefined,
       });
+      handleResetDraft();
     } catch (e: any) {
-      setErrorMsg(e?.message || 'Failed to add physical line');
+      setErrorMsg(e?.message || 'Failed to save expression');
     }
-  }, [disabled, stateVariables, getVarType, createAsgn, nodeId]);
+  }, [disabled, draftStep, draftTokens, draftTarget, targetVarType, createAsgn, nodeId, handleResetDraft]);
 
-  const handleDelete = useCallback(
+  const handleDeleteAssignment = useCallback(
     (assignmentId: string) => {
       if (disabled) return;
       void deleteAsgn(assignmentId);
@@ -110,15 +210,12 @@ export const LogicalAssignerEditor = ({
         boxSizing: 'border-box',
       }}
     >
-      <Flex direction="column" gap="2" style={{ height: '100%' }}>
+      <Flex direction="column" gap="3" style={{ height: '100%' }}>
         {/* Header */}
         <Flex align="center" justify="between" style={{ flexShrink: 0 }}>
           <Text size="2" weight="bold">
             Logical Assigner ({nodeId})
           </Text>
-          <Badge color="purple" variant="soft" size="1">
-            Grammar-Aware Expression Lines
-          </Badge>
         </Flex>
 
         {/* Error Feedback */}
@@ -128,348 +225,373 @@ export const LogicalAssignerEditor = ({
           </Text>
         )}
 
-        {/* Physical Line List */}
+        {/* Saved Assignments List */}
         <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
-          <Flex direction="column" gap="2">
+          <Flex direction="column" gap="1">
             {assignments.length === 0 && (
-              <Text size="1" color="gray" style={{ fontStyle: 'italic', padding: '8px 0' }}>
-                No assignment lines created yet. Click "+ Add Expression Line" below to add a line.
+              <Text size="1" color="gray" style={{ fontStyle: 'italic', padding: '4px 0' }}>
+                No saved expressions.
               </Text>
             )}
 
             {assignments.map((asgn) => (
-              <PhysicalAssignmentLine
+              <StaticAssignmentRow
                 key={asgn.id}
                 assignment={asgn}
-                stateVariables={stateVariables}
+                onDelete={() => handleDeleteAssignment(asgn.id)}
                 disabled={disabled}
-                onUpdate={async (updatedTarget, ast) => {
-                  const vType = getVarType(updatedTarget);
-                  await updateAsgn({
-                    assignmentId: asgn.id,
-                    targetVarKey: updatedTarget,
-                    valueType: vType,
-                    expression: ast,
-                  });
-                }}
-                onDelete={() => handleDelete(asgn.id)}
               />
             ))}
           </Flex>
         </Box>
 
-        {/* Add New Physical Line Button */}
-        <Flex align="center" justify="end" style={{ flexShrink: 0, paddingTop: '4px' }}>
-          <Button
-            size="1"
-            variant="solid"
-            color="purple"
-            onClick={handleAddLine}
-            disabled={disabled || stateVariables.length === 0}
-            style={{ cursor: disabled || stateVariables.length === 0 ? 'default' : 'pointer' }}
-          >
-            <PlusIcon width="14" height="14" /> Add Expression Line
-          </Button>
-        </Flex>
+        {/* Single Line Continuous Draft Workbench */}
+        <Box
+          style={{
+            flexShrink: 0,
+            backgroundColor: 'var(--gray-3)',
+            borderRadius: 'var(--radius-2)',
+            padding: '8px 10px',
+          }}
+        >
+          <Flex align="center" gap="2" style={{ overflowX: 'auto' }}>
+            {/* Draft Expression Chips */}
+            {draftStep !== 'target' && (
+              <>
+                <Box style={TARGET_TOKEN_STYLE}>
+                  <Text size="1">{draftTarget || stateVariables[0]?.key || 'x'}</Text>
+                </Box>
+                <Text size="2" weight="bold" style={{ color: '#61afef', flexShrink: 0 }}>
+                  =
+                </Text>
+              </>
+            )}
+
+            {draftTokens.map((t, idx) => (
+              <ExpressionChip key={idx} chip={t} />
+            ))}
+
+            {/* Step 0: Target Select */}
+            {draftStep === 'target' && (
+              <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+                <Box style={{ width: '130px' }}>
+                  <Select.Root
+                    size="1"
+                    value={draftTarget || (stateVariables[0]?.key ?? '')}
+                    onValueChange={(val) => setDraftTarget(val)}
+                    disabled={disabled || stateVariables.length === 0}
+                  >
+                    <Select.Trigger
+                      color="red"
+                      variant="surface"
+                      style={{ width: '100%', fontFamily: 'monospace', fontWeight: 'bold' }}
+                    />
+                    <Select.Content color="red">
+                      {stateVariables.map((v) => (
+                        <Select.Item key={v.id} value={v.key}>
+                          {v.key} ({v.type})
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+                <Button
+                  size="1"
+                  variant="solid"
+                  color="blue"
+                  onClick={handleLockTarget}
+                  disabled={disabled || stateVariables.length === 0}
+                >
+                  =
+                </Button>
+              </Flex>
+            )}
+
+            {/* Step 1: Operand Choice Icons */}
+            {draftStep === 'operand_type_choice' && (
+              <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
+                <IconButton
+                  size="1"
+                  variant="soft"
+                  color="red"
+                  title="Add State Variable"
+                  onClick={() => handleChooseOperandType('var')}
+                  disabled={disabled || compatibleStateVars.length === 0}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <CubeIcon width="14" height="14" />
+                </IconButton>
+                <IconButton
+                  size="1"
+                  variant="soft"
+                  color="amber"
+                  title={`Add ${targetVarType} Value`}
+                  onClick={() => handleChooseOperandType('val')}
+                  disabled={disabled}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <Pencil1Icon width="14" height="14" />
+                </IconButton>
+              </Flex>
+            )}
+
+            {/* Step 2: Operand Input */}
+            {draftStep === 'operand_input' && (
+              <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+                {operandType === 'var' ? (
+                  <Box style={{ width: '130px' }}>
+                    <Select.Root
+                      size="1"
+                      value=""
+                      onValueChange={(vk) => {
+                        if (vk) handleSelectStateVarToken(vk);
+                      }}
+                      disabled={disabled || compatibleStateVars.length === 0}
+                    >
+                      <Select.Trigger
+                        placeholder="Select Var..."
+                        color="red"
+                        variant="surface"
+                        style={{ width: '100%', fontFamily: 'monospace' }}
+                      />
+                      <Select.Content color="red">
+                        {compatibleStateVars.map((v) => (
+                          <Select.Item key={v.id} value={v.key}>
+                            {v.key}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  </Box>
+                ) : (
+                  <>
+                    <TypedValueInput
+                      targetVarType={targetVarType}
+                      value={literalValue}
+                      onChange={(val) => setLiteralValue(val)}
+                      disabled={disabled}
+                      onEnter={handleAddValOperand}
+                    />
+                    <Button
+                      size="1"
+                      variant="solid"
+                      color={targetVarType === 'number' || targetVarType === 'float' ? 'amber' : 'green'}
+                      onClick={handleAddValOperand}
+                      disabled={disabled}
+                    >
+                      Add
+                    </Button>
+                  </>
+                )}
+              </Flex>
+            )}
+
+            {/* Step 3: Operator / Save */}
+            {draftStep === 'operator_or_save' && (
+              <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+                <Box style={{ width: '85px' }}>
+                  <Select.Root
+                    size="1"
+                    value=""
+                    onValueChange={(op: any) => {
+                      if (op) handleAddOperator(op);
+                    }}
+                    disabled={disabled}
+                  >
+                    <Select.Trigger placeholder="+ Act..." color="blue" variant="surface" style={{ width: '100%', fontWeight: 'bold' }} />
+                    <Select.Content color="blue">
+                      {compatibleOperators.map((op) => (
+                        <Select.Item key={op} value={op}>
+                          {op}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+
+                <Button
+                  size="1"
+                  variant="solid"
+                  color="green"
+                  onClick={handleSaveDraft}
+                  disabled={disabled}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <PlusIcon width="14" height="14" /> Save
+                </Button>
+              </Flex>
+            )}
+
+            {/* Reset Button */}
+            {draftStep !== 'target' && (
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                title="Reset / Cancel Draft"
+                onClick={handleResetDraft}
+                disabled={disabled}
+                style={{ cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
+              >
+                <ResetIcon width="12" height="12" />
+              </IconButton>
+            )}
+          </Flex>
+        </Box>
       </Flex>
     </Card>
   );
 };
 
-interface PhysicalAssignmentLineProps {
-  assignment: LogicalAssignment;
-  stateVariables: DefinerVariable[];
-  disabled: boolean;
-  onUpdate: (targetKey: string, ast: ASTExpression | null) => Promise<void>;
-  onDelete: () => void;
+function ExpressionChip({
+  chip,
+}: {
+  chip: {
+    kind: 'var' | 'op' | 'val';
+    valType?: 'string' | 'number' | 'boolean';
+    value?: any;
+    varKey?: string;
+    op?: string;
+    label?: string;
+  };
+}) {
+  const style = getTokenStyle(chip);
+  const text = chip.label ?? (chip.kind === 'var' ? chip.varKey : chip.kind === 'op' ? chip.op : String(chip.value ?? ''));
+  return (
+    <Box style={style}>
+      <Text size="1">{text}</Text>
+    </Box>
+  );
 }
 
-function PhysicalAssignmentLine({
-  assignment,
-  stateVariables,
+function TypedValueInput({
+  targetVarType,
+  value,
+  onChange,
   disabled,
-  onUpdate,
+  onEnter,
+}: {
+  targetVarType: 'boolean' | 'string' | 'number' | 'float';
+  value: string;
+  onChange: (val: string) => void;
+  disabled: boolean;
+  onEnter?: () => void;
+}) {
+  if (targetVarType === 'boolean') {
+    return (
+      <Box style={{ width: '75px' }}>
+        <Select.Root
+          size="1"
+          value={value === 'true' ? 'true' : 'false'}
+          onValueChange={(val) => onChange(val)}
+          disabled={disabled}
+        >
+          <Select.Trigger variant="surface" color="green" style={{ width: '100%', fontFamily: 'monospace' }} />
+          <Select.Content color="green">
+            <Select.Item value="true">true</Select.Item>
+            <Select.Item value="false">false</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </Box>
+    );
+  }
+
+  const isNum = targetVarType === 'number' || targetVarType === 'float';
+
+  return (
+    <TextField.Root
+      size="1"
+      type={isNum ? 'number' : 'text'}
+      placeholder={isNum ? 'enter number...' : 'enter string...'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && onEnter) onEnter();
+      }}
+      disabled={disabled}
+      color={isNum ? 'amber' : 'green'}
+      style={{ width: '110px', fontFamily: 'monospace' }}
+    />
+  );
+}
+
+function StaticAssignmentRow({
+  assignment,
   onDelete,
-}: PhysicalAssignmentLineProps) {
-  const [targetKey, setTargetKey] = useState<string>(assignment.target_var_key);
-
-  // Placed Static Tokens
-  const [tokens, setTokens] = useState<LegoToken[]>(() => {
-    const parsed = astToTokens(assignment.expression);
-    if (parsed.length > 0) return parsed;
-    return [{ id: `tk_${Date.now()}`, type: 'var', varKey: assignment.target_var_key }];
-  });
-
-  const [valInput, setValInput] = useState<string>('');
-
-  // Grammatical State Check:
-  // Last token type determines whether we expect an Action or an Operand (Var/Val)
-  const lastToken = tokens[tokens.length - 1];
-  const isExpectingAction = lastToken && (lastToken.type === 'var' || lastToken.type === 'val');
-  const isExpectingOperand = !lastToken || lastToken.type === 'op';
-
-  const syncUpdate = useCallback(
-    (newTarget: string, newTokens: LegoToken[]) => {
-      const ast = tokensToAst(newTokens, stateVariables[0]?.key || '');
-      void onUpdate(newTarget, ast);
-    },
-    [onUpdate, stateVariables]
-  );
-
-  // Instant Add Variable Token
-  const handleSelectVar = useCallback(
-    (varToPlace: string) => {
-      if (!varToPlace) return;
-      const newTokens = [...tokens, { id: `tk_${Date.now()}_${Math.random()}`, type: 'var' as const, varKey: varToPlace }];
-      setTokens(newTokens);
-      syncUpdate(targetKey, newTokens);
-    },
-    [tokens, syncUpdate, targetKey]
-  );
-
-  // Instant Add Action Token
-  const handleSelectOp = useCallback(
-    (opToPlace: '+' | '-' | '*' | '/' | '==' | '!=' | '>' | '<') => {
-      const newTokens = [...tokens, { id: `tk_${Date.now()}_${Math.random()}`, type: 'op' as const, op: opToPlace }];
-      setTokens(newTokens);
-      syncUpdate(targetKey, newTokens);
-    },
-    [tokens, syncUpdate, targetKey]
-  );
-
-  // Instant Add Value Token on Enter
-  const handleAddValToken = useCallback(() => {
-    if (!valInput.trim()) return;
-    let parsed: any = valInput.trim();
-    if (!isNaN(Number(valInput))) parsed = Number(valInput);
-    if (valInput === 'true' || valInput === 'false') parsed = valInput === 'true';
-
-    const newTokens = [
-      ...tokens,
-      { id: `tk_${Date.now()}_${Math.random()}`, type: 'val' as const, value: parsed },
-    ];
-    setTokens(newTokens);
-    syncUpdate(targetKey, newTokens);
-    setValInput('');
-  }, [tokens, valInput, syncUpdate, targetKey]);
-
-  const removeToken = useCallback(
-    (id: string) => {
-      if (tokens.length <= 1) return;
-      const newTokens = tokens.filter((t) => t.id !== id);
-      setTokens(newTokens);
-      syncUpdate(targetKey, newTokens);
-    },
-    [tokens, syncUpdate, targetKey]
-  );
+  disabled,
+}: {
+  assignment: LogicalAssignment;
+  onDelete: () => void;
+  disabled: boolean;
+}) {
+  const formattedChips = formatAstToStaticChips(assignment.expression);
 
   return (
     <Flex
       align="center"
-      gap="2"
-      p="2"
+      justify="between"
+      p="1"
+      px="2"
       style={{
         backgroundColor: 'var(--gray-3)',
-        border: '1px solid var(--gray-5)',
-        borderRadius: 'var(--radius-2)',
-        overflowX: 'auto',
+        borderRadius: 'var(--radius-1)',
       }}
     >
-      {/* Target Variable Dropdown */}
-      <Box style={{ width: getAdaptiveWidth(targetKey || 'x', 1, 28), flexShrink: 0 }}>
-        <Select.Root
-          size="1"
-          value={targetKey}
-          onValueChange={(val) => {
-            setTargetKey(val);
-            syncUpdate(val, tokens);
-          }}
-          disabled={disabled}
-        >
-          <Select.Trigger style={{ width: '100%', fontFamily: 'monospace', fontWeight: 'bold' }} />
-          <Select.Content>
-            {stateVariables.map((v) => (
-              <Select.Item key={v.id} value={v.key}>
-                {v.key}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </Box>
+      <Flex align="center" gap="1" style={{ flexWrap: 'wrap', overflow: 'hidden' }}>
+        <Box style={TARGET_TOKEN_STYLE}>
+          <Text size="1">{assignment.target_var_key}</Text>
+        </Box>
+        <Text size="2" weight="bold" style={{ color: '#61afef' }}>
+          =
+        </Text>
 
-      <Text size="2" weight="bold" color="purple" style={{ flexShrink: 0 }}>
-        =
-      </Text>
-
-      {/* Inline Physical Expression Line (Placed Chips + Tail-End Active Controls) */}
-      <Flex align="center" gap="1" style={{ flexGrow: 1, minWidth: 0, overflowX: 'auto' }}>
-        {tokens.map((token) => (
-          <Flex
-            key={token.id}
-            align="center"
-            gap="1"
-            style={{
-              padding: '2px 6px',
-              borderRadius: 'var(--radius-1)',
-              backgroundColor:
-                token.type === 'var'
-                  ? 'var(--blue-3)'
-                  : token.type === 'op'
-                  ? 'var(--purple-3)'
-                  : 'var(--green-3)',
-              border:
-                token.type === 'var'
-                  ? '1px solid var(--blue-6)'
-                  : token.type === 'op'
-                  ? '1px solid var(--purple-6)'
-                  : '1px solid var(--green-6)',
-              flexShrink: 0,
-            }}
-          >
-            <Text
-              size="1"
-              weight={token.type === 'op' ? 'bold' : 'regular'}
-              style={{
-                fontFamily: 'monospace',
-                color:
-                  token.type === 'var'
-                    ? 'var(--blue-11)'
-                    : token.type === 'op'
-                    ? 'var(--purple-11)'
-                    : 'var(--green-11)',
-              }}
-            >
-              {token.type === 'var'
-                ? token.varKey
-                : token.type === 'op'
-                ? token.op
-                : String(token.value ?? '')}
-            </Text>
-
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={() => removeToken(token.id)}
-              disabled={disabled || tokens.length <= 1}
-              style={{ cursor: 'pointer', padding: 0, width: '14px', height: '14px' }}
-            >
-              <Cross2Icon width="10" height="10" />
-            </IconButton>
-          </Flex>
+        {formattedChips.map((chip, idx) => (
+          <ExpressionChip key={idx} chip={chip} />
         ))}
-
-        {/* Tail-End Grammatically Active Adders (Renders ONLY what makes sense next!) */}
-        {isExpectingAction && (
-          <Box style={{ width: '110px', flexShrink: 0 }}>
-            <Select.Root
-              size="1"
-              value=""
-              onValueChange={(op: any) => {
-                if (op) handleSelectOp(op);
-              }}
-              disabled={disabled}
-            >
-              <Select.Trigger placeholder="+ Action..." style={{ width: '100%', fontWeight: 'bold' }} />
-              <Select.Content>
-                <Select.Item value="+">+</Select.Item>
-                <Select.Item value="-">-</Select.Item>
-                <Select.Item value="*">*</Select.Item>
-                <Select.Item value="/">/</Select.Item>
-                <Select.Item value="==">==</Select.Item>
-                <Select.Item value="!=">!=</Select.Item>
-                <Select.Item value=">">&gt;</Select.Item>
-                <Select.Item value="<">&lt;</Select.Item>
-              </Select.Content>
-            </Select.Root>
-          </Box>
-        )}
-
-        {isExpectingOperand && (
-          <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-            <Box style={{ width: '120px' }}>
-              <Select.Root
-                size="1"
-                value=""
-                onValueChange={(v) => {
-                  if (v) handleSelectVar(v);
-                }}
-                disabled={disabled || stateVariables.length === 0}
-              >
-                <Select.Trigger placeholder="+ Variable..." style={{ width: '100%', fontFamily: 'monospace' }} />
-                <Select.Content>
-                  {stateVariables.map((v) => (
-                    <Select.Item key={v.id} value={v.key}>
-                      {v.key}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Box>
-
-            <TextField.Root
-              size="1"
-              placeholder="+ Val..."
-              value={valInput}
-              onChange={(e) => setValInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddValToken();
-              }}
-              disabled={disabled}
-              style={{
-                width: getAdaptiveWidth(valInput || 'val', 1, 16),
-                fontFamily: 'monospace',
-              }}
-            />
-          </Flex>
-        )}
       </Flex>
 
-      {/* Trash Line Button */}
-      <IconButton size="1" variant="ghost" color="red" onClick={onDelete} disabled={disabled} style={{ flexShrink: 0 }}>
-        <TrashIcon width="14" height="14" />
+      <IconButton
+        size="1"
+        variant="ghost"
+        color="red"
+        onClick={onDelete}
+        disabled={disabled}
+        style={{ flexShrink: 0, marginLeft: '6px' }}
+      >
+        <TrashIcon width="12" height="12" />
       </IconButton>
     </Flex>
   );
 }
 
-// Convert AST to Tokens Array
-function astToTokens(expr: ASTExpression | null | undefined): LegoToken[] {
+function formatAstToStaticChips(
+  expr: ASTExpression | null | undefined
+): { kind: 'var' | 'op' | 'val'; label: string; value?: any }[] {
   if (!expr) return [];
   if (expr.kind === 'literal') {
-    return [
-      {
-        id: `tk_${Math.random()}`,
-        type: 'val',
-        value: expr.value,
-      },
-    ];
+    return [{ kind: 'val', label: String(expr.value ?? 0), value: expr.value }];
   }
   if (expr.kind === 'stateRef') {
-    return [{ id: `tk_${Math.random()}`, type: 'var', varKey: expr.varKey }];
+    return [{ kind: 'var', label: expr.varKey }];
   }
   if (expr.kind === 'binaryOp') {
-    const leftToks = astToTokens(expr.left);
-    const opTok: LegoToken = { id: `tk_${Math.random()}`, type: 'op', op: expr.op as any };
-    const rightToks = astToTokens(expr.right);
-    return [...leftToks, opTok, ...rightToks];
+    const left = formatAstToStaticChips(expr.left);
+    const opChip = { kind: 'op' as const, label: expr.op };
+    const right = formatAstToStaticChips(expr.right);
+    return [...left, opChip, ...right];
   }
   return [];
 }
 
-// Convert Tokens Array back to ASTExpression
-function tokensToAst(tokens: LegoToken[], fallbackVarKey: string): ASTExpression | null {
+function tokensToAst(tokens: DraftToken[], targetKey: string): ASTExpression | null {
   if (tokens.length === 0) return null;
 
-  const tokenToAstNode = (t: LegoToken): ASTExpression => {
-    if (t.type === 'var') {
-      return { kind: 'stateRef', varKey: t.varKey || fallbackVarKey } as ASTExpression;
+  const tokenToAstNode = (t: DraftToken): ASTExpression => {
+    if (t.kind === 'var') {
+      return { kind: 'stateRef', varKey: t.varKey || targetKey } as ASTExpression;
     }
-    if (t.type === 'val') {
-      let v: any = t.value;
-      if (!isNaN(Number(t.value))) v = Number(t.value);
-      if (String(t.value) === 'true' || String(t.value) === 'false') v = String(t.value) === 'true';
-      return { kind: 'literal', value: v } as ASTExpression;
+    if (t.kind === 'val') {
+      return { kind: 'literal', value: t.value } as ASTExpression;
     }
     return { kind: 'literal', value: 0 } as ASTExpression;
   };
@@ -478,8 +600,8 @@ function tokensToAst(tokens: LegoToken[], fallbackVarKey: string): ASTExpression
 
   for (let i = 1; i < tokens.length; i++) {
     const token = tokens[i];
-    if (token.type === 'op') {
-      const op = token.op || '+';
+    if (token.kind === 'op') {
+      const op = token.op;
       const nextOperandToken = tokens[i + 1];
       const rightAst = nextOperandToken ? tokenToAstNode(nextOperandToken) : ({ kind: 'literal', value: 0 } as ASTExpression);
       leftAst = {
@@ -488,15 +610,9 @@ function tokensToAst(tokens: LegoToken[], fallbackVarKey: string): ASTExpression
         left: leftAst,
         right: rightAst,
       } as ASTExpression;
-      if (nextOperandToken) i++; // Consume operand
+      if (nextOperandToken) i++;
     }
   }
 
   return leftAst;
-}
-
-// Adaptive width calculator for crisp, auto-hugging inline elements
-function getAdaptiveWidth(text: string, minChar: number = 2, padding: number = 28): string {
-  const len = Math.max((text || '').length, minChar);
-  return `${len * 7.5 + padding}px`;
 }
