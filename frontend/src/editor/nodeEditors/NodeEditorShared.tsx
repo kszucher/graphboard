@@ -1,6 +1,8 @@
 import { TrashIcon } from '@radix-ui/react-icons';
-import { Box, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
-import type { ReactNode } from 'react';
+import { Box, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
+import { useMemo, type ReactNode } from 'react';
+import type { DefinerVariable } from '../../canvas/types';
+import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import { getTokenStyle, TARGET_TOKEN_STYLE } from './ExpressionEngine';
 
 export function ExpressionChip({
@@ -123,5 +125,98 @@ export function StaticRow({
         </IconButton>
       )}
     </Flex>
+  );
+}
+
+/** 
+ * Custom hook to abstract common data fetching and graph parsing for all node editors 
+ */
+export function useNodeEditorData(graphId: string, nodeId: string) {
+  const { data: graphFlow } = useGraphQuery(graphId);
+  const rawFlow = (graphFlow || {}) as Record<string, any>;
+  const nodes = rawFlow.nodes || [];
+  const definerOps = rawFlow.operations?.definer || [];
+  const logicalOps = rawFlow.operations?.logical || [];
+  
+  const node = useMemo(() => {
+    return nodes.find((n: any) => n.id === nodeId);
+  }, [nodes, nodeId]);
+
+  const stateVariables: DefinerVariable[] = useMemo(() => {
+    return definerOps.flatMap((op: any) => op.variables || []);
+  }, [definerOps]);
+
+  return {
+    rawFlow,
+    nodes,
+    node,
+    definerOps,
+    logicalOps,
+    stateVariables,
+  };
+}
+
+/**
+ * Shared container layout for node editors.
+ */
+export function NodeEditorCard({
+  nodeId,
+  title,
+  errorMsg,
+  listContent,
+  workbenchContent,
+}: {
+  nodeId: string;
+  title: string;
+  errorMsg?: string | null;
+  listContent: ReactNode;
+  workbenchContent: ReactNode;
+}) {
+  return (
+    <Card
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: 'var(--gray-2)',
+        border: '1px solid var(--gray-5)',
+        borderRadius: 'var(--radius-3)',
+        padding: '12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <Flex direction="column" gap="3" style={{ height: '100%' }}>
+        {/* Header */}
+        <Flex align="center" justify="between" style={{ flexShrink: 0 }}>
+          <Text size="2" weight="bold">
+            {title} ({nodeId})
+          </Text>
+        </Flex>
+
+        {/* Error Feedback */}
+        {errorMsg && (
+          <Text size="1" color="red">
+            ⚠️ {errorMsg}
+          </Text>
+        )}
+
+        {/* Static List Content */}
+        <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
+          {listContent}
+        </Box>
+
+        {/* Draft Workbench Content */}
+        <Box
+          style={{
+            flexShrink: 0,
+            backgroundColor: 'var(--gray-3)',
+            borderRadius: 'var(--radius-2)',
+            padding: '8px 10px',
+          }}
+        >
+          {workbenchContent}
+        </Box>
+      </Flex>
+    </Card>
   );
 }
