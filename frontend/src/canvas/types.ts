@@ -29,14 +29,28 @@ export interface DefinerOperation {
   variables: DefinerVariable[];
 }
 
+export interface LogicalAssignment {
+  id: string;
+  target_var_key: string;
+  value_type: 'boolean' | 'string' | 'number' | 'float';
+  value?: any;
+  expression?: ASTExpression | null;
+}
+
+export interface LogicalOperation {
+  id: string;
+  assignments: LogicalAssignment[];
+}
+
 export interface OperationsContainer {
   definer: DefinerOperation[];
   agentic?: any[];
-  logical?: any[];
+  logical?: LogicalOperation[];
   switch?: any[];
 }
 
 export type StateVariable = DefinerVariable;
+
 
 
 export interface Diagnostic {

@@ -278,6 +278,25 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/graphs/{graph_id}/nodes/{node_id}/logical/assignments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    post: operations["create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post"];
+  };
+  "/graphs/{graph_id}/logical/assignments/{assignment_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    patch: operations["update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch"];
+    delete: operations["delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete"];
+  };
   "/graphs/{graph_id}/slots/{slot_id}": {
     parameters: {
       query?: never;
@@ -385,6 +404,18 @@ export interface paths {
 
 export interface components {
   schemas: {
+    LogicalAssignmentCreateRequest: {
+      target_var_key: string;
+      value_type?: "boolean" | "string" | "number" | "float";
+      value?: unknown;
+      expression?: unknown;
+    };
+    LogicalAssignmentUpdateRequest: {
+      target_var_key?: string | null;
+      value_type?: ("boolean" | "string" | "number" | "float") | null;
+      value?: unknown;
+      expression?: unknown;
+    };
     DefinerVariableCreateRequest: {
       key: string;
       type: "boolean" | "string" | "number" | "float";
@@ -1034,6 +1065,75 @@ export interface operations {
       };
     };
   };
+  create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        node_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LogicalAssignmentCreateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
+  update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        assignment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["LogicalAssignmentUpdateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
+  delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        assignment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["GraphFlowRead"] };
+      };
+    };
+  };
+
   undo_endpoint_graphs__graph_id__history_undo_post: {
 
     parameters: {

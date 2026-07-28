@@ -3,6 +3,7 @@ import { useNodes } from '@xyflow/react';
 import { useRunGraph } from '../hooks/graph/useGraphMutations';
 import { DefinerVariableEditor } from './DefinerVariableEditor';
 import { FullCodeEditor } from './FullCodeEditor';
+import { LogicalAssignerEditor } from './LogicalAssignerEditor';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -16,7 +17,6 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
   const selectedNode = nodes.find((n) => n.selected);
   const selectedNodeType = (selectedNode?.data as any)?.node?.node_type;
   const selectedNodeId = selectedNode?.id;
-
 
   return (
     <Box
@@ -61,6 +61,8 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
         <Box style={{ height: '300px', minHeight: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           {selectedNodeType === 'DEFINER' && selectedNodeId ? (
             <DefinerVariableEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
+          ) : selectedNodeType === 'LOGICAL_ASSIGNER' && selectedNodeId ? (
+            <LogicalAssignerEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
           ) : (
             <Box
               style={{
@@ -75,7 +77,7 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
               }}
             >
               <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-                Select a <Text weight="bold">DEFINER</Text> node on the canvas to edit state variables.
+                Select a <Text weight="bold">DEFINER</Text> or <Text weight="bold">LOGICAL_ASSIGNER</Text> node on the canvas to edit operation settings.
               </Text>
             </Box>
           )}
@@ -84,3 +86,4 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
     </Box>
   );
 };
+

@@ -102,8 +102,28 @@ def generate_graph_code(payload: dict[str, Any]) -> str:
                     code_lines.append(f"    {'if' if i == 0 else 'elif'} {cond_str}:")
                     code_lines.append(f'        return "{label}"')
                 code_lines.append('    return ""')
+        elif node.get("node_type") == "LOGICAL_ASSIGNER":
+            code_lines.append(f"def {node_name}(state: State) -> dict:")
+            ref_id = node.get("ref_id")
+            logical_ops = ops.get("logical", []) if isinstance(ops, dict) else []
+            target_op = next((o for o in logical_ops if o.get("id") == ref_id), None) if ref_id else None
+            assignments = target_op.get("assignments", []) if target_op else []
+
+            if assignments:
+                code_lines.append("    return {")
+                for asgn in assignments:
+                    target_key = asgn.get("target_var_key")
+                    if target_key:
+                        val = asgn.get("value")
+                        expr_str = repr(val)
+                        if asgn.get("expression"):
+                            expr_str = ast_expr_to_py(asgn.get("expression"))
+                        code_lines.append(f'        "{target_key}": {expr_str},')
+                code_lines.append("    }")
+            else:
+                code_lines.append("    return {}")
         else:
-            # STEP / ASSIGNER nodes
+            # STEP / AGENTIC_ASSIGNER nodes
             code_lines.append(f"def {node_name}(state: State) -> dict:")
             slots = node.get("slots", [])
             mutations = [s for s in slots if s.get("target_var_key")]

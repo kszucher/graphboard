@@ -501,3 +501,47 @@ async def delete_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: 
 
     mutated = graph_operations.delete_definer_variable(graph.flow_json, var_id)
     return await _commit_state_snapshot(uow, graph, mutated)
+
+
+# Logical Assigner Operations Service Layer
+async def create_logical_assignment(
+    uow: UnitOfWork,
+    graph_id: uuid.UUID,
+    node_id: str,
+    target_var_key: str,
+    value_type: str = "string",
+    value: Any = None,
+    expression: dict[str, Any] | None = None,
+) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    mutated = graph_operations.create_logical_assignment(
+        graph.flow_json, node_id, target_var_key, value_type, value, expression
+    )
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+async def update_logical_assignment(uow: UnitOfWork, graph_id: uuid.UUID, assignment_id: str, updates: dict) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    mutated = graph_operations.update_logical_assignment(graph.flow_json, assignment_id, updates)
+    return await _commit_state_snapshot(uow, graph, mutated)
+
+
+async def delete_logical_assignment(uow: UnitOfWork, graph_id: uuid.UUID, assignment_id: str) -> dict:
+    graph = await uow.graphs.get(graph_id)
+    if not graph:
+        from app.exceptions import ValidationError
+
+        raise ValidationError(f"Graph {graph_id} not found")
+
+    mutated = graph_operations.delete_logical_assignment(graph.flow_json, assignment_id)
+    return await _commit_state_snapshot(uow, graph, mutated)

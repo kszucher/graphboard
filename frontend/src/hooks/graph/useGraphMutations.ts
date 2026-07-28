@@ -411,3 +411,82 @@ export const useDeleteDefinerVariable = (graphId: string) => {
     }
   });
 };
+
+export const useCreateLogicalAssignment = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      nodeId,
+      targetVarKey,
+      valueType = 'string',
+      value,
+      expression,
+    }: {
+      nodeId: string;
+      targetVarKey: string;
+      valueType?: 'boolean' | 'string' | 'number' | 'float';
+      value?: any;
+      expression?: any;
+    }) => {
+      const res = await apiClient.POST('/graphs/{graph_id}/nodes/{node_id}/logical/assignments', {
+        params: { path: { graph_id: graphId, node_id: nodeId } },
+        headers: { 'X-Client-Id': getClientId() },
+        body: { target_var_key: targetVarKey, value_type: valueType, value, expression }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
+
+export const useUpdateLogicalAssignment = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      assignmentId,
+      targetVarKey,
+      valueType,
+      value,
+      expression,
+    }: {
+      assignmentId: string;
+      targetVarKey?: string;
+      valueType?: 'boolean' | 'string' | 'number' | 'float';
+      value?: any;
+      expression?: any;
+    }) => {
+      const res = await apiClient.PATCH('/graphs/{graph_id}/logical/assignments/{assignment_id}', {
+        params: { path: { graph_id: graphId, assignment_id: assignmentId } },
+        headers: { 'X-Client-Id': getClientId() },
+        body: { target_var_key: targetVarKey, value_type: valueType, value, expression }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
+
+
+export const useDeleteLogicalAssignment = (graphId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const res = await apiClient.DELETE('/graphs/{graph_id}/logical/assignments/{assignment_id}', {
+        params: { path: { graph_id: graphId, assignment_id: assignmentId } },
+        headers: { 'X-Client-Id': getClientId() }
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      handleMutationSuccess(queryClient, graphId, data);
+    }
+  });
+};
+

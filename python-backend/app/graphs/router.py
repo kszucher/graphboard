@@ -14,6 +14,8 @@ from app.graphs.schemas import (
     GraphFlowRead,
     GraphRead,
     GraphSyncPayload,
+    LogicalAssignmentCreateRequest,
+    LogicalAssignmentUpdateRequest,
     NodeCreateRequest,
     NodeUpdateRequest,
     SlotCreateRequest,
@@ -218,5 +220,36 @@ async def delete_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, uow: Any = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.delete_definer_variable(uow, graph_id, var_id)
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+# Logical Assigner Operations REST API
+@router.post("/{graph_id}/nodes/{node_id}/logical/assignments", response_model=GraphFlowRead)
+async def create_logical_assignment_endpoint(
+    graph_id: uuid.UUID, node_id: str, payload: LogicalAssignmentCreateRequest, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updated_flow = await graph_service.create_logical_assignment(
+        uow, graph_id, node_id, payload.target_var_key, payload.value_type, payload.value, payload.expression
+    )
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+@router.patch("/{graph_id}/logical/assignments/{assignment_id}", response_model=GraphFlowRead)
+async def update_logical_assignment_endpoint(
+    graph_id: uuid.UUID, assignment_id: str, payload: LogicalAssignmentUpdateRequest, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updates = payload.model_dump(exclude_unset=True)
+    updated_flow = await graph_service.update_logical_assignment(uow, graph_id, assignment_id, updates)
+    await uow.commit()
+    return GraphFlowRead.model_validate(updated_flow)
+
+
+@router.delete("/{graph_id}/logical/assignments/{assignment_id}", response_model=GraphFlowRead)
+async def delete_logical_assignment_endpoint(
+    graph_id: uuid.UUID, assignment_id: str, uow: Any = Depends(get_uow)
+) -> GraphFlowRead:
+    updated_flow = await graph_service.delete_logical_assignment(uow, graph_id, assignment_id)
     await uow.commit()
     return GraphFlowRead.model_validate(updated_flow)

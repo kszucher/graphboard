@@ -34,10 +34,23 @@ class DefinerOperationSchema(BaseModel):
     variables: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
+class LogicalAssignmentSchema(BaseModel):
+    id: str
+    target_var_key: str
+    value_type: Literal["boolean", "string", "number", "float"] = "string"
+    value: Any = None
+    expression: dict[str, Any] | None = None
+
+
+class LogicalOperationSchema(BaseModel):
+    id: str
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+
 class OperationsContainerSchema(BaseModel):
     definer: list[DefinerOperationSchema] = Field(default_factory=list)
     agentic: list[dict[str, Any]] = Field(default_factory=list)
-    logical: list[dict[str, Any]] = Field(default_factory=list)
+    logical: list[LogicalOperationSchema] = Field(default_factory=list)
     switch: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -119,6 +132,20 @@ class DefinerVariableUpdateRequest(BaseModel):
     type: Literal["boolean", "string", "number", "float"] | None = None
     default_value: Any = None
     description: str | None = None
+
+
+class LogicalAssignmentCreateRequest(BaseModel):
+    target_var_key: str
+    value_type: Literal["boolean", "string", "number", "float"] = "string"
+    value: Any = None
+    expression: dict[str, Any] | None = None
+
+
+class LogicalAssignmentUpdateRequest(BaseModel):
+    target_var_key: str | None = None
+    value_type: Literal["boolean", "string", "number", "float"] | None = None
+    value: Any = None
+    expression: dict[str, Any] | None = None
 
 
 class SlotCreateRequest(BaseModel):

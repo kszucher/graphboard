@@ -29,6 +29,12 @@ def add_node(flow_json: dict, node_type: str, connector_id: str | None = None, d
     elif node_type == "DEFINER":
         ref_id = f"op_{node_id}"
         ops.setdefault("definer", []).append({"id": ref_id, "variables": []})
+    elif node_type == "LOGICAL_ASSIGNER":
+        ref_id = f"op_{node_id}"
+        ops.setdefault("logical", []).append({"id": ref_id, "assignments": []})
+    elif node_type == "AGENTIC_ASSIGNER":
+        ref_id = f"op_{node_id}"
+        ops.setdefault("agentic", []).append({"id": ref_id, "prompt": ""})
 
     new_node = {
         "id": node_id,
