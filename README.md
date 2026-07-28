@@ -32,14 +32,17 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 | :--- | :--- | :--- |
 | **START** | Entry point of execution flow | Mapped to `START` sentinel: `workflow.add_edge(START, "first_step")` |
 | **END** | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
+| **DEFINER** | Declares state schema variables (`key`, `type`, `default_value`) | Mapped to `class State(TypedDict):` definition. Emits **0 Python functions** and is bypassed in compiled static graph edges (`workflow.add_edge(START, "first_step")`). Sentinel protected (`START -> DEFINER -> ... -> END`). |
 | **STEP** | Performs state updates or task execution | Generated Python function registered via `workflow.add_node("step_name", func)` |
+| **LOGICAL_ASSIGNER** | Performs deterministic inline variable assignments | Generated Python function mutating `state` dict values |
+| **AGENTIC_ASSIGNER** | Invokes LLM agents for state mutations | Generated Python function calling agentic runner |
 | **SWITCH** | Evaluates conditional branching logic | Router function evaluating AST expressions in `if/elif` order, registered via `workflow.add_conditional_edges(...)` |
 
 ---
 
 ## 📈 Project Progress Tracker (Incremental Phase Backstory)
 
-For AI agents and developers reviewing the codebase history, Graphboard was built across five deliberate architectural phases:
+For AI agents and developers reviewing the codebase history, Graphboard was built across six deliberate architectural phases:
 
 ### Phase 1: Core Graph & Layout Foundation
 * **Programmatic Auto-Layout**: Configured React Flow to disable manual node dragging (`nodesDraggable: false`) and delegated all positioning calculations to ELK (Eclipse Layout Kernel).
@@ -65,6 +68,12 @@ For AI agents and developers reviewing the codebase history, Graphboard was buil
 ### Phase 5: Native Backend Ruff Diagnostics Engine
 * **Backend Ruff Integration**: Replaced heavy browser WASM linters with native `ruff check --output-format=json -` subprocess calls on the Python backend.
 * **Canvas Problem Markers**: Surfaced structured line/column diagnostics back to CodeMirror and visual canvas node headers.
+
+### Phase 6: Decoupled Operation Containers & `DEFINER` Node Architecture
+* **Decoupled Operations**: Replaced legacy root `state_schema` with extensible `operations: { definer: [...], agentic: [...], logical: [...], switch: [...] }` container payloads linked by node `ref_id`.
+* **DEFINER Sentinel Node & Sidebar Editor**: Implemented non-deletable `DEFINER` sentinel node (`START -> DEFINER -> END`) with a reactive Radix UI sidebar variable editor (`DefinerVariableEditor.tsx`), featuring `snake_case` regex validation, type coercion, and Python keyword protection.
+* **Bypass AST Compiler**: Compiled `class State(TypedDict):` directly from `operations["definer"]` with 0 Python function nodes emitted for `DEFINER` nodes, bypassing `DEFINER` nodes in static edges with cycle detection.
+* **Peak Production Backend Architecture**: Refactored backend into clean bounded contexts (`topology.py`, `operations.py`, `service.py`, `router.py`, `compiler.py`, `repository.py`) following Uncle Bob's Screaming Architecture.
 
 ---
 
@@ -98,3 +107,5 @@ graph TD
 * **Handle Lifecycle (`updateNodeInternals`)**: When slots are added or removed dynamically on SWITCH nodes, React Flow's cached handle locations become stale. We listen to `node.slots` changes in `FlowNode.tsx` to trigger `updateNodeInternals(id)` whenever slot structure updates.
 * **CodeMirror Read-Only Guard**: Setting `EditorState.readOnly.of(true)` across CodeMirror locks typing while allowing `@codemirror/language` AST syntax tree iteration to continue driving bidirectional node highlighting and code folding.
 * **Native Ruff CLI Subprocess**: Running `ruff check` natively on the backend executes in sub-milliseconds, completely eliminating WASM bundle overhead on the frontend.
+* **Sentinel Topology Enforcement (`START -> DEFINER -> END`)**: `DEFINER` nodes are protected sentinels that cannot be deleted or shortcircuited. During AST code generation, `resolve_target` traces through `DEFINER` nodes with cycle protection to emit direct LangGraph edges from `START` to downstream execution nodes.
+
