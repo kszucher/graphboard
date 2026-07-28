@@ -7,7 +7,7 @@ import { EditorState, Range, StateEffect, StateField } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import type { DecorationSet } from '@codemirror/view';
 import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Diagnostic as BackendDiagnostic, StateVariable } from '../../canvas/types';
 import {
   buildAutocompletionExtension,
@@ -110,10 +110,8 @@ export function useCodeMirror({
 }: UseCodeMirrorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const [currentValue, setCurrentValue] = useState(code);
 
   useEffect(() => {
-    setCurrentValue(code);
     if (viewRef.current) {
       const state = viewRef.current.state;
       if (state.doc.toString() !== code) {
@@ -219,12 +217,11 @@ export function useCodeMirror({
       view.destroy();
       viewRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagnostics]);
 
   return {
     containerRef,
     viewRef,
-    currentValue,
-    setCurrentValue,
   };
 }

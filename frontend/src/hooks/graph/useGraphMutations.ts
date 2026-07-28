@@ -1,7 +1,7 @@
 import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, getClientId } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
-import type { NodeType } from '../../canvas/types';
+import type { NodeType, ASTExpression } from '../../canvas/types';
 
 const handleMutationSuccess = (
   queryClient: QueryClient,
@@ -202,12 +202,12 @@ export const useUpdateSlot = (graphId: string) => {
     }: {
       slotId: string;
       rawString?: string;
-      expression?: any;
+      expression?: ASTExpression | null;
     }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/slots/{slot_id}', {
         params: { path: { graph_id: graphId, slot_id: slotId } },
         headers: { 'X-Client-Id': getClientId() },
-        body: { raw_string: rawString, expression } as any
+        body: { raw_string: rawString, expression } as unknown as never
       });
       if ('error' in res) throw res.error;
       return res.data;
@@ -361,7 +361,7 @@ export const useCreateDefinerVariable = (graphId: string) => {
       nodeId: string;
       key: string;
       type: 'boolean' | 'string' | 'number' | 'float';
-      defaultValue?: any;
+      defaultValue?: unknown;
     }) => {
       const res = await apiClient.POST('/graphs/{graph_id}/nodes/{node_id}/definer/variables', {
         params: { path: { graph_id: graphId, node_id: nodeId } },
@@ -387,7 +387,7 @@ export const useUpdateDefinerVariable = (graphId: string) => {
     }: {
       varId: string;
       type?: 'boolean' | 'string' | 'number' | 'float';
-      defaultValue?: any;
+      defaultValue?: unknown;
     }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/definer/variables/{var_id}', {
         params: { path: { graph_id: graphId, var_id: varId } },
@@ -433,8 +433,8 @@ export const useCreateLogicalAssignment = (graphId: string) => {
       nodeId: string;
       targetVarKey: string;
       valueType?: 'boolean' | 'string' | 'number' | 'float';
-      value?: any;
-      expression?: any;
+      value?: unknown;
+      expression?: ASTExpression | null;
     }) => {
       const res = await apiClient.POST('/graphs/{graph_id}/nodes/{node_id}/logical/assignments', {
         params: { path: { graph_id: graphId, node_id: nodeId } },
@@ -463,8 +463,8 @@ export const useUpdateLogicalAssignment = (graphId: string) => {
       assignmentId: string;
       targetVarKey?: string;
       valueType?: 'boolean' | 'string' | 'number' | 'float';
-      value?: any;
-      expression?: any;
+      value?: unknown;
+      expression?: ASTExpression | null;
     }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/logical/assignments/{assignment_id}', {
         params: { path: { graph_id: graphId, assignment_id: assignmentId } },

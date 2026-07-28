@@ -31,10 +31,10 @@ export const DefinerNodeEditor = ({
 }: DefinerNodeEditorProps) => {
   const { node, definerOps } = useNodeEditorData(graphId, nodeId);
   
-  const nodeRefId = node?.ref_id || 'op_def_main';
+  const nodeRefId = (node as any)?.ref_id || 'op_def_main';
   
   const currentOp = useMemo(() => {
-    return definerOps.find((op: any) => op.id === nodeRefId) || definerOps[0] || { variables: [] };
+    return definerOps.find((op) => op.id === nodeRefId) || definerOps[0] || { variables: [] };
   }, [definerOps, nodeRefId]);
 
   const variables: DefinerVariable[] = currentOp.variables || [];
@@ -99,8 +99,8 @@ export const DefinerNodeEditor = ({
         defaultValue: parsedDefault,
       });
       handleResetDraft();
-    } catch (e: any) {
-      setErrorMsg(e?.message || 'Failed to add state variable.');
+    } catch (e: unknown) {
+      setErrorMsg((e as Error)?.message || 'Failed to add state variable.');
     }
   }, [disabled, definerStep, lockedKey, lockedType, draftDefault, createVar, nodeId, handleResetDraft]);
 
@@ -109,8 +109,8 @@ export const DefinerNodeEditor = ({
       if (disabled) return;
       try {
         await deleteVar(varId);
-      } catch (e: any) {
-        setErrorMsg(e?.message || 'Failed to delete variable.');
+      } catch (e: unknown) {
+        setErrorMsg((e as Error)?.message || 'Failed to delete variable.');
       }
     },
     [disabled, deleteVar]
@@ -184,7 +184,7 @@ export const DefinerNodeEditor = ({
           <Select.Root
             size="1"
             value=""
-            onValueChange={(val: any) => {
+            onValueChange={(val: 'boolean' | 'string' | 'number' | 'float') => {
               if (val) handleSelectType(val);
             }}
             disabled={disabled}

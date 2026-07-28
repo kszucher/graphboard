@@ -1,5 +1,6 @@
 import { Badge, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
+import type { ASTExpression } from '../../canvas/types';
 import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
 import {
   COMPARISON_OPERATORS,
@@ -27,7 +28,7 @@ export const SwitchNodeEditor = ({
 }: SwitchNodeEditorProps) => {
   const { node, stateVariables } = useNodeEditorData(graphId, nodeId);
 
-  const slots: Array<{ id: string; raw_string: string; expression?: any }> = useMemo(() => {
+  const slots: Array<{ id: string; raw_string: string; expression?: ASTExpression }> = useMemo(() => {
     return node?.slots || [];
   }, [node]);
 
@@ -57,7 +58,7 @@ export const SwitchNodeEditor = ({
     setDraftStep('expression');
   }, [targetSlotId]);
 
-  const handleSaveCondition = useCallback(async (ast: any) => {
+  const handleSaveCondition = useCallback(async (ast: ASTExpression | null) => {
     if (disabled || !targetSlotId) return;
     setErrorMsg(null);
 
@@ -68,8 +69,8 @@ export const SwitchNodeEditor = ({
         expression: ast,
       });
       handleResetDraft();
-    } catch (e: any) {
-      setErrorMsg(e?.message || 'Failed to save slot condition.');
+    } catch (e: unknown) {
+      setErrorMsg((e as Error)?.message || 'Failed to save slot condition.');
     }
   }, [
     disabled,
@@ -87,10 +88,10 @@ export const SwitchNodeEditor = ({
         await updateSlotMutation({
           slotId,
           rawString: slot?.raw_string,
-          expression: {},
+          expression: null,
         });
-      } catch (e: any) {
-        setErrorMsg(e?.message || 'Failed to clear slot condition.');
+      } catch (e: unknown) {
+        setErrorMsg((e as Error)?.message || 'Failed to clear slot condition.');
       }
     },
     [disabled, slots, updateSlotMutation]

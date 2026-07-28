@@ -20,7 +20,7 @@ export interface DefinerVariable {
   id: string;
   key: string;
   type: 'boolean' | 'string' | 'number' | 'float';
-  default_value?: any;
+  default_value?: unknown;
   description?: string | null;
 }
 
@@ -33,7 +33,7 @@ export interface LogicalAssignment {
   id: string;
   target_var_key: string;
   value_type: 'boolean' | 'string' | 'number' | 'float';
-  value?: any;
+  value?: unknown;
   expression?: ASTExpression | null;
 }
 
@@ -44,9 +44,9 @@ export interface LogicalOperation {
 
 export interface OperationsContainer {
   definer: DefinerOperation[];
-  agentic?: any[];
+  agentic?: unknown[];
   logical?: LogicalOperation[];
-  switch?: any[];
+  switch?: unknown[];
 }
 
 export type StateVariable = DefinerVariable;

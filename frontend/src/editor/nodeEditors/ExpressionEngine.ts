@@ -4,7 +4,7 @@ export type DraftStep = 'target' | 'operand_type_choice' | 'operand_input' | 'op
 
 export type DraftToken =
   | { kind: 'var'; varKey: string }
-  | { kind: 'val'; value: any; valType?: 'string' | 'number' | 'boolean' | 'float' }
+  | { kind: 'val'; value: unknown; valType?: 'string' | 'number' | 'boolean' | 'float' }
   | { kind: 'op'; op: string };
 
 export const ARITHMETIC_OPERATORS: Array<'+' | '-' | '*' | '/'> = ['+', '-', '*', '/'];
@@ -47,7 +47,7 @@ export function validateVariableName(key: string, existingKeys: Set<string>): st
 export function coerceTypedValue(
   type: 'boolean' | 'string' | 'number' | 'float',
   rawValue: string
-): any {
+): unknown {
   if (type === 'number') return parseInt(rawValue || '0', 10) || 0;
   if (type === 'float') return parseFloat(rawValue || '0.0') || 0.0;
   if (type === 'boolean') return rawValue === 'true';
@@ -60,7 +60,7 @@ export function coerceTypedValue(
 export function getTokenStyle(chip: {
   kind: 'var' | 'op' | 'val';
   valType?: 'string' | 'number' | 'boolean' | 'float';
-  value?: any;
+  value?: unknown;
 }) {
   const common = {
     backgroundColor: 'transparent',
@@ -104,7 +104,7 @@ export const TARGET_TOKEN_STYLE = {
  */
 export function formatAstToChips(
   expr: ASTExpression | null | undefined
-): Array<{ kind: 'var' | 'op' | 'val'; label: string; value?: any }> {
+): Array<{ kind: 'var' | 'op' | 'val'; label: string; value?: unknown }> {
   if (!expr) return [];
   if (expr.kind === 'literal') {
     return [{ kind: 'val', label: String(expr.value ?? 0), value: expr.value }];
@@ -150,7 +150,7 @@ export function tokensToAst(tokens: DraftToken[], defaultTargetKey: string): AST
 
       leftAst = {
         kind: 'binaryOp',
-        op: op as any,
+        op: op as Extract<ASTExpression, { kind: 'binaryOp' }>['op'],
         left: leftAst,
         right: rightAst,
       } as ASTExpression;

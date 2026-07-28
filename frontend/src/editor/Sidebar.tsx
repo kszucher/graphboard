@@ -56,7 +56,7 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
 
         {/* Bottom Panel: Dynamic Node Editor (~300px height) */}
         <Box style={{ height: '300px', minHeight: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          <NodeEditorRouter graphId={graphId} selectedNode={selectedNode} disabled={!isGraphSelected} />
+          <NodeEditorRouter graphId={graphId} selectedNode={(selectedNode as any) || null} disabled={!isGraphSelected} />
         </Box>
       </Flex>
     </Box>

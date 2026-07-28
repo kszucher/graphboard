@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
-import type { LogicalAssignment } from '../../canvas/types';
+import type { ASTExpression, LogicalAssignment } from '../../canvas/types';
 import {
   useCreateLogicalAssignment,
   useDeleteLogicalAssignment,
@@ -31,10 +31,10 @@ export const LogicalAssignerNodeEditor = ({
 }: LogicalAssignerNodeEditorProps) => {
   const { node, logicalOps, stateVariables } = useNodeEditorData(graphId, nodeId);
   
-  const nodeRefId = node?.ref_id || `op_${nodeId}`;
+  const nodeRefId = (node as any)?.ref_id || `op_${nodeId}`;
 
   const currentOp = useMemo(() => {
-    return logicalOps.find((op: any) => op.id === nodeRefId) || { assignments: [] };
+    return logicalOps.find((op) => op.id === nodeRefId) || { assignments: [] };
   }, [logicalOps, nodeRefId]);
 
   const assignments: LogicalAssignment[] = currentOp.assignments || [];
@@ -65,7 +65,7 @@ export const LogicalAssignerNodeEditor = ({
     setErrorMsg(null);
   }, []);
 
-  const handleSaveDraft = useCallback(async (ast: any) => {
+  const handleSaveDraft = useCallback(async (ast: ASTExpression | null) => {
     if (disabled || draftStep !== 'expression') return;
     setErrorMsg(null);
 
@@ -77,8 +77,8 @@ export const LogicalAssignerNodeEditor = ({
         expression: ast || undefined,
       });
       handleResetDraft();
-    } catch (e: any) {
-      setErrorMsg(e?.message || 'Failed to save expression');
+    } catch (e: unknown) {
+      setErrorMsg((e as Error)?.message || 'Failed to save expression');
     }
   }, [disabled, draftStep, draftTarget, targetVarType, createAsgn, nodeId, handleResetDraft]);
 

@@ -1,12 +1,12 @@
 import { Box, Text } from '@radix-ui/themes';
-import type { NodeType } from '../../canvas/types';
+import type { NodeType, AppFlowNode } from '../../canvas/types';
 import { DefinerNodeEditor } from './DefinerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
 
 interface NodeEditorRouterProps {
   graphId: string;
-  selectedNode: any;
+  selectedNode: AppFlowNode | null;
   disabled?: boolean;
 }
 

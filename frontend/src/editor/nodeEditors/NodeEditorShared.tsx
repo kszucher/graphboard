@@ -1,7 +1,7 @@
 import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { useCallback, useState, useMemo, type ReactNode } from 'react';
-import type { ASTExpression, DefinerVariable } from '../../canvas/types';
+import type { ASTExpression, DefinerVariable, ApiNode, OperationsContainer, DefinerOperation, LogicalOperation } from '../../canvas/types';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import { coerceTypedValue, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst, type DraftToken } from './ExpressionEngine';
 
@@ -11,7 +11,7 @@ export function ExpressionChip({
   chip: {
     kind: 'var' | 'op' | 'val';
     valType?: 'string' | 'number' | 'boolean' | 'float';
-    value?: any;
+    value?: unknown;
     varKey?: string;
     op?: string;
     label?: string;
@@ -128,22 +128,24 @@ export function StaticRow({
   );
 }
 
-/** 
- * Custom hook to abstract common data fetching and graph parsing for all node editors 
- */
+const EMPTY_NODES: ApiNode[] = [];
+const EMPTY_DEFINER_OPS: DefinerOperation[] = [];
+const EMPTY_LOGICAL_OPS: LogicalOperation[] = [];
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNodeEditorData(graphId: string, nodeId: string) {
   const { data: graphFlow } = useGraphQuery(graphId);
-  const rawFlow = (graphFlow || {}) as Record<string, any>;
-  const nodes = rawFlow.nodes || [];
-  const definerOps = rawFlow.operations?.definer || [];
-  const logicalOps = rawFlow.operations?.logical || [];
+  const rawFlow = (graphFlow || {}) as { nodes?: ApiNode[]; operations?: OperationsContainer };
+  const nodes = rawFlow.nodes || EMPTY_NODES;
+  const definerOps = rawFlow.operations?.definer || EMPTY_DEFINER_OPS;
+  const logicalOps = rawFlow.operations?.logical || EMPTY_LOGICAL_OPS;
   
   const node = useMemo(() => {
-    return nodes.find((n: any) => n.id === nodeId);
+    return nodes.find((n: ApiNode) => n.id === nodeId);
   }, [nodes, nodeId]);
 
   const stateVariables: DefinerVariable[] = useMemo(() => {
-    return definerOps.flatMap((op: any) => op.variables || []);
+    return definerOps.flatMap((op: DefinerOperation) => op.variables || []);
   }, [definerOps]);
 
   return {
@@ -386,7 +388,7 @@ export function ExpressionBuilder({
             <Select.Root
               size="1"
               value=""
-              onValueChange={(op: any) => {
+              onValueChange={(op: string) => {
                 if (op) handleAddOperator(op);
               }}
               disabled={disabled}
