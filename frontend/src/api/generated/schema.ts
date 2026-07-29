@@ -583,33 +583,13 @@ export interface components {
       /** Direction */
       direction?: ("before" | "after") | null;
     };
-    /** NodeRead */
     NodeRead: {
       /** Id */
       id: string;
       node_type: components["schemas"]["NodeType"];
-      /**
-       * Is Input
-       * @default false
-       */
-      is_input: boolean;
-      /**
-       * Is Output
-       * @default false
-       */
-      is_output: boolean;
+      ref_id?: string | null;
       /** Slots */
       slots: components["schemas"]["SlotRead"][];
-      /**
-       * Code
-       * @default
-       */
-      code: string;
-      /**
-       * Selected
-       * @default false
-       */
-      selected: boolean;
     };
     /**
      * NodeType
@@ -617,14 +597,10 @@ export interface components {
      */
     NodeType: "START" | "END" | "STEP" | "SWITCH" | "DEFINER" | "LOGICAL_ASSIGNER" | "AGENTIC_ASSIGNER";
 
-    /** NodeUpdateRequest */
     NodeUpdateRequest: {
       /** New Id */
       new_id?: string | null;
-      /** Is Input */
-      is_input?: boolean | null;
-      /** Is Output */
-      is_output?: boolean | null;
+      ref_id?: string | null;
     };
     /** SetActiveGraph */
     SetActiveGraph: {
@@ -652,17 +628,12 @@ export interface components {
        */
       direction: "up" | "down" | "top" | "bottom";
     };
-    /** SlotRead */
     SlotRead: {
       /** Id */
       id: string;
       /** Raw String */
       raw_string: string;
-      /**
-       * Selected
-       * @default false
-       */
-      selected: boolean;
+      ref_id?: string | null;
     };
     /** SlotUpdateRequest */
     SlotUpdateRequest: {

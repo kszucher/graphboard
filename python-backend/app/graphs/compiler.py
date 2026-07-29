@@ -104,7 +104,7 @@ def ast_expr_to_node(node: dict[str, Any] | None, fallback: str = "True") -> ast
 
 def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
     valid_items = [i for i in items if getattr(i, "target_var_key", None) in valid_keys]
-    keys: list[ast.expr | None] = [ast.Constant(value=getattr(i, "target_var_key")) for i in valid_items]
+    keys: list[ast.expr | None] = [ast.Constant(value=i.target_var_key) for i in valid_items]
     values = [
         ast_expr_to_node(getattr(i, "expression", None))
         if getattr(i, "expression", None) is not None

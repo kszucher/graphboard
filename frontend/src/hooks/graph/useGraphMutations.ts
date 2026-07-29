@@ -124,7 +124,7 @@ export const useUpdateNode = (graphId: string) => {
       updates
     }: {
       nodeId: string;
-      updates: { is_input?: boolean; is_output?: boolean; new_id?: string };
+      updates: { new_id?: string };
     }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/nodes/{node_id}', {
         params: { path: { graph_id: graphId, node_id: nodeId } },

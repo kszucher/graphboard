@@ -26,15 +26,11 @@ async def create_graph(
     import uuid as py_uuid
 
     default_nodes = [
-        NodeRead(id="start", node_type=NodeType.START, is_input=False, is_output=True, slots=[]),
-        NodeRead(
-            id="definer", node_type=NodeType.DEFINER, ref_id="op_def_main", is_input=True, is_output=True, slots=[]
-        ),
+        NodeRead(id="start", node_type=NodeType.START, slots=[]),
+        NodeRead(id="definer", node_type=NodeType.DEFINER, ref_id="op_def_main", slots=[]),
         NodeRead(
             id="switch_step",
             node_type=NodeType.SWITCH,
-            is_input=True,
-            is_output=False,
             slots=[
                 SlotRead(
                     id="switch_step_option_a",
@@ -57,19 +53,15 @@ async def create_graph(
             id="logical_assigner",
             node_type=NodeType.LOGICAL_ASSIGNER,
             ref_id="op_log_main",
-            is_input=True,
-            is_output=True,
             slots=[],
         ),
         NodeRead(
             id="agentic_assigner",
             node_type=NodeType.AGENTIC_ASSIGNER,
             ref_id="op_agent_main",
-            is_input=True,
-            is_output=True,
             slots=[],
         ),
-        NodeRead(id="end", node_type=NodeType.END, is_input=True, is_output=False, slots=[]),
+        NodeRead(id="end", node_type=NodeType.END, slots=[]),
     ]
     default_edges = [
         EdgeRead(
@@ -368,8 +360,6 @@ async def update_node(
     graph_id: uuid.UUID,
     node_id: str,
     new_id: str | None = None,
-    is_input: bool | None = None,
-    is_output: bool | None = None,
     ref_id: str | None = None,
 ) -> dict:
     return await _mutate_flow(
@@ -378,8 +368,6 @@ async def update_node(
         graph_topology.update_node,
         node_id,
         new_id=new_id,
-        is_input=is_input,
-        is_output=is_output,
         ref_id=ref_id,
     )
 

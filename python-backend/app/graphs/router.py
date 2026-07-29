@@ -114,8 +114,6 @@ async def update_node_endpoint(
         graph_id,
         node_id,
         new_id=payload.new_id,
-        is_input=payload.is_input,
-        is_output=payload.is_output,
         ref_id=payload.ref_id,
     )
 

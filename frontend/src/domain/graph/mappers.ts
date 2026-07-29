@@ -1,10 +1,10 @@
 import type { components } from '../../api/generated/schema';
-import type { ApiNode, ApiSlot, AppFlowEdge, AppFlowNode } from '../../canvas/types';
+import type { ApiSlot, AppFlowEdge, AppFlowNode } from '../../canvas/types';
 
 type ApiEdge = components['schemas']['EdgeRead'];
 
 export const fromApiPayload = (
-  nodes: ApiNode[],
+  nodes: components['schemas']['NodeRead'][],
   edges: ApiEdge[],
   prevNodes: AppFlowNode[] = [],
   prevEdges: AppFlowEdge[] = [],
@@ -30,17 +30,23 @@ export const fromApiPayload = (
 
   const rfNodes = nodes.map(n => {
     const prevNode = getPrevNode(n.id);
+    const is_input = n.node_type !== 'START';
+    const is_output = n.node_type !== 'END' && n.node_type !== 'SWITCH';
     return {
       id: n.id,
       type: 'custom' as const,
       position: prevNode?.position || { x: 0, y: 0 },
       measured: prevNode?.measured,
-      selected: prevNode?.selected ?? n.selected ?? false,
+      selected: prevNode?.selected ?? false,
       style: {
         transition: defaultTransition,
       },
       data: {
-        node: n,
+        node: {
+          ...n,
+          is_input,
+          is_output,
+        },
       },
     };
   });

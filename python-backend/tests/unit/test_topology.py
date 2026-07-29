@@ -30,7 +30,6 @@ def test_add_node_basic() -> None:
     node = updated.nodes[0]
     assert node.id == "step_1"
     assert node.node_type == NodeType.STEP
-    assert node.is_output is True
 
 
 def test_add_node_switch() -> None:
@@ -38,7 +37,6 @@ def test_add_node_switch() -> None:
     updated = topology.add_node(flow, NodeType.SWITCH)
     node = updated.nodes[0]
     assert node.node_type == NodeType.SWITCH
-    assert node.is_output is False
     assert len(node.slots) == 2
     assert node.slots[0].id == "switch_1_option_a"
 

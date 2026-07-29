@@ -2,9 +2,9 @@ import type { Edge, Node } from '@xyflow/react';
 import type { ElkEdgeSection } from 'elkjs';
 import type { components } from '../api/generated/schema';
 
-export type ApiNode = Omit<components['schemas']['NodeRead'], 'code'> & {
-  code?: string | null;
-  selected?: boolean;
+export type ApiNode = components['schemas']['NodeRead'] & {
+  is_input: boolean;
+  is_output: boolean;
   traversalIndex?: number;
 };
 

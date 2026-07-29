@@ -41,8 +41,8 @@ def add_node(
     ref_id = None
     if node_type == NodeType.SWITCH:
         slots = [
-            SlotRead(id=f"{node_id}_option_a", raw_string="option_a", selected=False),
-            SlotRead(id=f"{node_id}_option_b", raw_string="option_b", selected=False),
+            SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
+            SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
         ]
     elif node_type == NodeType.DEFINER:
         ref_id = f"op_{node_id}"
@@ -59,11 +59,7 @@ def add_node(
         id=node_id,
         node_type=node_type,
         ref_id=ref_id,
-        is_input=True,
-        is_output=node_type in (NodeType.STEP, NodeType.DEFINER, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER),
         slots=slots,
-        code="",
-        selected=False,
     )
     nodes.append(new_node)
 
@@ -193,8 +189,6 @@ def update_node(
     flow_data: GraphFlowData,
     node_id: str,
     new_id: str | None = None,
-    is_input: bool | None = None,
-    is_output: bool | None = None,
     ref_id: str | None = None,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
@@ -221,10 +215,6 @@ def update_node(
             elif edge.target_id.startswith(f"{node_id}_"):
                 edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
 
-    if is_input is not None:
-        target_node.is_input = is_input
-    if is_output is not None:
-        target_node.is_output = is_output
     if ref_id is not None:
         target_node.ref_id = ref_id
 
@@ -243,7 +233,6 @@ def create_slot(flow_data: GraphFlowData, node_id: str, index: int) -> GraphFlow
     new_slot = SlotRead(
         id=new_slot_id,
         raw_string=f"option_{slot_count}",
-        selected=False,
     )
 
     insert_idx = max(0, min(index, len(slots)))

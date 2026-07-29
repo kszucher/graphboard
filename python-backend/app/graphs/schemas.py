@@ -60,18 +60,13 @@ class SlotRead(BaseModel):
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
     ref_id: str | None = None
-    selected: bool = False
 
 
 class NodeRead(BaseModel):
     id: str
     node_type: NodeType
     ref_id: str | None = None
-    is_input: bool = False
-    is_output: bool = False
     slots: list[SlotRead] = Field(default_factory=list)
-    code: str = ""
-    selected: bool = False
 
 
 class EdgeRead(BaseModel):
@@ -123,8 +118,6 @@ class NodeCreateRequest(BaseModel):
 
 class NodeUpdateRequest(BaseModel):
     new_id: str | None = None
-    is_input: bool | None = None
-    is_output: bool | None = None
     ref_id: str | None = None
 
 
