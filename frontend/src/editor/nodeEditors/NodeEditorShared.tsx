@@ -182,7 +182,6 @@ export function NodeEditorCard({
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'var(--gray-2)',
-        border: '1px solid var(--gray-5)',
         borderRadius: 'var(--radius-3)',
         padding: '12px',
         boxSizing: 'border-box',
