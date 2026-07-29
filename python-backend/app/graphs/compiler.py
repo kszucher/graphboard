@@ -5,16 +5,14 @@ import multiprocessing
 import shutil
 import sys
 import textwrap
+import uuid
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from app.graphs.schemas import (
     DiagnosticRead,
-    EdgeRead,
     GraphFlowData,
-    LogicalAssignmentSchema,
-    NodeRead,
     SlotRead,
 )
 from app.graphs.validation import validate_flow_data
@@ -157,9 +155,7 @@ class AssignmentItem(Protocol):
     value: Any | None
 
 
-def compile_ast_dict_returning_node(
-        node_id: str, items: list[Any], valid_keys: set[str]
-) -> ast.FunctionDef:
+def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
     """Generates state mutation Python functions return-value dictionaries."""
     keys: list[ast.expr | None] = []
     values: list[ast.expr] = []
@@ -174,7 +170,7 @@ def compile_ast_dict_returning_node(
             else:
                 values.append(ast.Constant(value=getattr(item, "value", None)))
 
-    return ast.FunctionDef(
+    func_node = ast.FunctionDef(
         name=node_id,
         args=ast.arguments(
             posonlyargs=[],
@@ -187,10 +183,12 @@ def compile_ast_dict_returning_node(
         decorator_list=[],
         returns=ast.Name(id="dict", ctx=ast.Load()),
     )
+    return ast.fix_missing_locations(func_node)
 
 
 def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.FunctionDef:
     """Compiles a SWITCH node into a string-returning conditional router function."""
+
     def build_if_chain(index: int) -> list[ast.stmt]:
         if index >= len(slots):
             return [ast.Return(value=ast.Constant(value=""))]
@@ -207,7 +205,7 @@ def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.Function
             )
         ]
 
-    return ast.FunctionDef(
+    func_node = ast.FunctionDef(
         name=node_id,
         args=ast.arguments(
             posonlyargs=[],
@@ -220,6 +218,7 @@ def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.Function
         decorator_list=[],
         returns=ast.Name(id="str", ctx=ast.Load()),
     )
+    return ast.fix_missing_locations(func_node)
 
 
 class LangGraphCompiler:
@@ -232,8 +231,7 @@ class LangGraphCompiler:
         self.definer_node_ids = {n.id for n in flow_data.nodes if n.node_type == "DEFINER"}
 
         self.executable_nodes = [
-            n for n in flow_data.nodes
-            if n.node_type in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
+            n for n in flow_data.nodes if n.node_type in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
         ]
         self.switch_nodes = {n.id: n for n in self.executable_nodes if n.node_type == "SWITCH"}
 
@@ -254,21 +252,19 @@ class LangGraphCompiler:
         if not self.valid_keys:
             return "class State(TypedDict):\n    pass\n\ninitial_state: State = {}"
 
-        var_annotations = [
-            f"    {v.key}: {TYPE_MAP_GB_TO_PY.get(v.type, 'str')}"
-            for v in self.all_variables if v.key
-        ]
+        var_annotations = [f"    {v.key}: {TYPE_MAP_GB_TO_PY.get(v.type, 'str')}" for v in self.all_variables if v.key]
         defaults = [
             f'    "{v.key}": {repr(v.default_value if v.default_value is not None else DEFAULT_TYPE_VALUES.get(v.type, ""))},'
-            for v in self.all_variables if v.key
+            for v in self.all_variables
+            if v.key
         ]
 
         return (
-                "class State(TypedDict):\n"
-                + "\n".join(var_annotations)
-                + "\n\ninitial_state: State = {\n"
-                + "\n".join(defaults)
-                + "\n}"
+            "class State(TypedDict):\n"
+            + "\n".join(var_annotations)
+            + "\n\ninitial_state: State = {\n"
+            + "\n".join(defaults)
+            + "\n}"
         )
 
     def build_node_code(self) -> str:
@@ -289,7 +285,7 @@ class LangGraphCompiler:
     def build_workflow_code(self) -> str:
         lines = ["workflow = StateGraph(State)", ""]
         switch_sources: dict[str, list[str]] = {sid: [] for sid in self.switch_nodes}
-        edges_to_switches: set[str] = set()
+        edges_to_switches: set[uuid.UUID] = set()
 
         # Map edges to switches
         for e in self.flow_data.edges:
@@ -311,17 +307,15 @@ class LangGraphCompiler:
         lines.append("")
 
         # 2. Add Standard Edges
-        start_edges = [
-            e for e in self.flow_data.edges
-            if e.source_id == "start" and e.id not in edges_to_switches
-        ]
+        start_edges = [e for e in self.flow_data.edges if e.source_id == "start" and e.id not in edges_to_switches]
         static_edges = [
-            e for e in self.flow_data.edges
+            e
+            for e in self.flow_data.edges
             if e.source_id != "start"
-               and e.source_id not in self.definer_node_ids
-               and e.source_type == "node"
-               and e.target_id != "start"
-               and e.id not in edges_to_switches
+            and e.source_id not in self.definer_node_ids
+            and e.source_type == "node"
+            and e.target_id != "start"
+            and e.id not in edges_to_switches
         ]
 
         lines.extend(f"workflow.add_edge(START, {self.resolve_target(e.target_id)})" for e in start_edges)
@@ -474,4 +468,3 @@ async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any
         return {"variables": [], "error": "LangGraph execution timed out (possible infinite loop in visual graph)"}
     except Exception as e:
         return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
-    
