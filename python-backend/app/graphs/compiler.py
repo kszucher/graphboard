@@ -10,7 +10,7 @@ import asyncio
 import multiprocessing
 import uuid
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any
+from typing import Any, cast
 
 from app.graphs.schemas import DiagnosticRead, GraphFlowData, SlotRead
 
@@ -197,7 +197,12 @@ class PureAstLangGraphCompiler:
         )
 
         dict_values: list[ast.expr] = [
-            ast.Constant(value=v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""))
+            ast.Constant(
+                value=cast(
+                    Any,
+                    v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""),
+                )
+            )
             for v in self.all_variables
         ]
 
@@ -314,7 +319,7 @@ async def generate_graph_code(flow_data: GraphFlowData) -> str:
     raw_code = PureAstLangGraphCompiler(flow_data).compile()
     if black is not None:
         try:
-            return black.format_str(raw_code, mode=black.Mode(line_length=80))
+            return black.format_str(raw_code, mode=black.Mode(line_length=60))
         except Exception:
             pass
     return raw_code

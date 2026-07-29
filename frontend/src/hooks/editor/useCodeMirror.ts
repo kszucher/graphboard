@@ -198,6 +198,7 @@ export function useCodeMirror({
         EditorState.tabSize.of(4),
         indentUnit.of('    '),
         editorTheme,
+        EditorView.lineWrapping,
       ],
     });
 
