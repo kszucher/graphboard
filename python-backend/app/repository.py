@@ -44,7 +44,3 @@ class BaseRepository(Generic[T, CreateSchema, UpdateSchema]):
 
         await self.session.flush()
         return obj
-
-    async def list_all(self) -> list[T]:
-        result = await self.session.execute(select(self.model))
-        return list(result.scalars().all())

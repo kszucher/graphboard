@@ -1,43 +1,7 @@
 from typing import Any
 
-from app.graphs.compiler import ast_expr_to_py, generate_graph_code, run_ruff_diagnostics
+from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics
 from app.graphs.schemas import GraphFlowData
-
-
-def test_ast_expr_to_py_empty() -> None:
-    assert ast_expr_to_py(None) == "True"
-    assert ast_expr_to_py(None, default_fallback="False") == "False"
-
-
-def test_ast_expr_to_py_literal() -> None:
-    ast: dict[str, Any] = {"kind": "literal", "value": "hello"}
-    assert ast_expr_to_py(ast) == "'hello'"
-
-    ast_num: dict[str, Any] = {"kind": "literal", "value": 42}
-    assert ast_expr_to_py(ast_num) == "42"
-
-    ast_bool: dict[str, Any] = {"kind": "literal", "value": True}
-    assert ast_expr_to_py(ast_bool) == "True"
-
-
-def test_ast_expr_to_py_stateRef() -> None:
-    ast: dict[str, Any] = {"kind": "stateRef", "varKey": "user_age"}
-    assert ast_expr_to_py(ast) == "state.get('user_age')"
-
-
-def test_ast_expr_to_py_binaryOp() -> None:
-    ast: dict[str, Any] = {
-        "kind": "binaryOp",
-        "op": "==",
-        "left": {"kind": "stateRef", "varKey": "status"},
-        "right": {"kind": "literal", "value": "active"},
-    }
-    assert ast_expr_to_py(ast) == "state.get('status') == 'active'"
-
-
-def test_ast_expr_to_py_unaryOp() -> None:
-    ast: dict[str, Any] = {"kind": "unaryOp", "op": "not", "expr": {"kind": "stateRef", "varKey": "is_valid"}}
-    assert ast_expr_to_py(ast) == "not state.get('is_valid')"
 
 
 async def test_generate_graph_code_empty() -> None:

@@ -4,18 +4,9 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-from app.schemas import ColorMode, OrmModel
-
 
 class UserCreate(BaseModel):
     user_name: str = Field(min_length=1, max_length=255)
-
-
-class UserRead(OrmModel):
-    id: uuid.UUID
-    name: str
-    color_mode: ColorMode
-    selected_graph_id: uuid.UUID | None
 
 
 class SetActiveGraph(BaseModel):

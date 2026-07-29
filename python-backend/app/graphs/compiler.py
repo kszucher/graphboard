@@ -145,11 +145,6 @@ def ast_expr_to_node(node: dict[str, Any] | None, default_fallback: str = "True"
     return ast.parse(default_fallback, mode="eval").body
 
 
-def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True") -> str:
-    """Recursively converts a slot AST expression dict to Python code string using AST unparsing."""
-    return ast.unparse(ast_expr_to_node(node, default_fallback))
-
-
 # AST Node Compilers
 def _compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
     """Unifies step/mutation node and logical assigner node generation by building dict-return ASTs."""

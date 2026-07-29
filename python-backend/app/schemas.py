@@ -1,19 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from app.constants import EventName
-
-# Shared type definitions
-ColorMode = Literal["DARK", "LIGHT"]
-
-
-# Base classes
-class OrmModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
 
 
 # Shared event model
