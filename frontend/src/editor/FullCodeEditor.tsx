@@ -1,7 +1,7 @@
 import { Box, Card, Flex, Text } from '@radix-ui/themes';
 import { useNodes, useReactFlow } from '@xyflow/react';
 import { useCallback } from 'react';
-import type { Diagnostic, OperationsContainer, StateVariable } from '../canvas/types';
+import type { Diagnostic, OperationsContainer } from '../canvas/types';
 import { useCodeMirror } from '../hooks/editor/useCodeMirror';
 import { useGraphQuery } from '../hooks/graph/useGraphQuery';
 
@@ -16,8 +16,7 @@ export const FullCodeEditor = ({ graphId }: FullCodeEditorProps) => {
     diagnostics?: Diagnostic[];
     code?: string;
   };
-  const definerOps = rawFlow.operations?.definer || [];
-  const stateVariables: StateVariable[] = definerOps.flatMap((op) => op.variables || []);
+
   const diagnostics: Diagnostic[] = rawFlow.diagnostics || [];
 
   const code = rawFlow.code || '';
@@ -40,7 +39,6 @@ export const FullCodeEditor = ({ graphId }: FullCodeEditorProps) => {
 
   const { containerRef } = useCodeMirror({
     code,
-    variables: stateVariables,
     selectedNodeId,
     diagnostics,
     setSelectedNodeId,

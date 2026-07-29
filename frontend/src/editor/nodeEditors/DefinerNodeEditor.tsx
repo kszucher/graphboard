@@ -2,10 +2,7 @@ import { PlusIcon, ResetIcon } from '@radix-ui/react-icons';
 import { Badge, Button, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
 import type { DefinerVariable } from '../../canvas/types';
-import {
-  useCreateDefinerVariable,
-  useDeleteDefinerVariable,
-} from '../../hooks/graph/useGraphMutations';
+import { useCreateDefinerVariable, useDeleteDefinerVariable, } from '../../hooks/graph/useGraphMutations';
 import { coerceTypedValue, validateVariableName } from './ExpressionEngine';
 import {
   ExpressionChip,
@@ -30,9 +27,9 @@ export const DefinerNodeEditor = ({
   disabled = false,
 }: DefinerNodeEditorProps) => {
   const { node, definerOps } = useNodeEditorData(graphId, nodeId);
-  
+
   const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || 'op_def_main';
-  
+
   const currentOp = useMemo(() => {
     return definerOps.find((op) => op.id === nodeRefId) || definerOps[0] || { variables: [] };
   }, [definerOps, nodeRefId]);
@@ -126,7 +123,7 @@ export const DefinerNodeEditor = ({
 
       {variables.map((v) => (
         <StaticRow key={v.id} onDelete={() => handleDelete(v.id)} disabled={disabled}>
-          <TargetVariableChip varKey={v.key} />
+          <TargetVariableChip varKey={v.key}/>
           <Badge color="blue" variant="soft" style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
             {v.type}
           </Badge>
@@ -177,7 +174,7 @@ export const DefinerNodeEditor = ({
       {/* Step 1: Locked Key -> Select Variable Type */}
       {definerStep === 'type' && (
         <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-          <TargetVariableChip varKey={lockedKey} />
+          <TargetVariableChip varKey={lockedKey}/>
           <Text size="2" weight="bold" style={{ color: '#61afef' }}>
             :
           </Text>
@@ -208,7 +205,7 @@ export const DefinerNodeEditor = ({
       {/* Step 2: Locked Key & Type -> Input Default Value & Save */}
       {definerStep === 'value_and_save' && (
         <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-          <TargetVariableChip varKey={lockedKey} />
+          <TargetVariableChip varKey={lockedKey}/>
           <Badge color="blue" variant="soft" style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
             {lockedType}
           </Badge>
@@ -230,7 +227,7 @@ export const DefinerNodeEditor = ({
             disabled={disabled}
             style={{ cursor: 'pointer' }}
           >
-            <PlusIcon width="14" height="14" /> Save
+            <PlusIcon width="14" height="14"/> Save
           </Button>
         </Flex>
       )}
@@ -246,7 +243,7 @@ export const DefinerNodeEditor = ({
           disabled={disabled}
           style={{ cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
         >
-          <ResetIcon width="12" height="12" />
+          <ResetIcon width="12" height="12"/>
         </IconButton>
       )}
     </Flex>

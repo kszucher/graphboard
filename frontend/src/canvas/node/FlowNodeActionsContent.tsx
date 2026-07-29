@@ -3,9 +3,9 @@ import { DropdownMenu } from '@radix-ui/themes';
 import { useCallback, useMemo } from 'react';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/graph/traversal';
+import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import { useDeleteEdge, useDeleteNode, useInsertNode, useShortcircuitNode } from '../../hooks/graph/useGraphMutations';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
-import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { InsertableNodeType, NodeType } from '../types';
 
 

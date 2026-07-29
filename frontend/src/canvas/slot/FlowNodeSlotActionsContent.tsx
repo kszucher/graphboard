@@ -3,6 +3,7 @@ import { DropdownMenu } from '@radix-ui/themes';
 import { useCallback, useMemo } from 'react';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/graph/traversal';
+import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import {
   useCreateSlot,
   useDeleteEdge,
@@ -11,7 +12,6 @@ import {
   useMoveSlot,
 } from '../../hooks/graph/useGraphMutations';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
-import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { ApiSlot, InsertableNodeType } from '../types';
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [

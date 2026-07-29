@@ -1,5 +1,5 @@
 import { Box, Text } from '@radix-ui/themes';
-import type { NodeType, AppFlowNode } from '../../canvas/types';
+import type { AppFlowNode, NodeType } from '../../canvas/types';
 import { DefinerNodeEditor } from './DefinerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
@@ -19,15 +19,15 @@ export const NodeEditorRouter = ({
   const selectedNodeId: string | undefined = selectedNode?.id;
 
   if (selectedNodeType === 'DEFINER' && selectedNodeId) {
-    return <DefinerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+    return <DefinerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
   }
 
   if (selectedNodeType === 'LOGICAL_ASSIGNER' && selectedNodeId) {
-    return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+    return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
   }
 
   if (selectedNodeType === 'SWITCH' && selectedNodeId) {
-    return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+    return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
   }
 
   return (
@@ -44,7 +44,8 @@ export const NodeEditorRouter = ({
       }}
     >
       <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-        Select a <Text weight="bold">DEFINER</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text weight="bold">SWITCH</Text> node on the canvas to edit operation settings.
+        Select a <Text weight="bold">DEFINER</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text
+        weight="bold">SWITCH</Text> node on the canvas to edit operation settings.
       </Text>
     </Box>
   );

@@ -2,8 +2,8 @@ import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { DropdownMenu, IconButton } from '@radix-ui/themes';
 import { EdgeLabelRenderer } from '@xyflow/react';
 import { useCallback } from 'react';
-import { useDeleteEdge, useInsertNodeOnEdge } from '../../hooks/graph/useGraphMutations';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
+import { useDeleteEdge, useInsertNodeOnEdge } from '../../hooks/graph/useGraphMutations';
 
 interface FlowEdgeActionsProps {
   edgeId: string;

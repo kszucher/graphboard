@@ -1,4 +1,3 @@
-import { acceptCompletion } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { foldGutter, indentUnit } from '@codemirror/language';
@@ -8,13 +7,8 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import type { DecorationSet } from '@codemirror/view';
 import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
-import type { Diagnostic as BackendDiagnostic, StateVariable } from '../../canvas/types';
-import {
-  buildAutocompletionExtension,
-  findFunctionAt,
-  getFoldEffectsForFunctions,
-  resolveHighlightLineRange,
-} from '../../domain/code/ast';
+import type { Diagnostic as BackendDiagnostic } from '../../canvas/types';
+import { findFunctionAt, getFoldEffectsForFunctions, resolveHighlightLineRange, } from '../../domain/code/ast';
 
 const setSelectedItemEffect = StateEffect.define<string | null>();
 
@@ -95,7 +89,6 @@ const editorTheme = EditorView.theme({
 
 interface UseCodeMirrorProps {
   code: string;
-  variables: StateVariable[];
   selectedNodeId: string | null;
   diagnostics: BackendDiagnostic[];
   setSelectedNodeId: (nodeId: string | null) => void;
@@ -103,7 +96,6 @@ interface UseCodeMirrorProps {
 
 export function useCodeMirror({
   code,
-  variables,
   selectedNodeId,
   diagnostics,
   setSelectedNodeId,
@@ -180,7 +172,6 @@ export function useCodeMirror({
         lineNumbers(),
         history(),
         keymap.of([
-          { key: 'Tab', run: acceptCompletion },
           indentWithTab,
           ...defaultKeymap,
           ...historyKeymap,
@@ -189,7 +180,6 @@ export function useCodeMirror({
         drawSelection(),
         oneDark,
         foldGutter(),
-        buildAutocompletionExtension(variables),
         cmLinter,
         lintGutter(),
         selectionField,

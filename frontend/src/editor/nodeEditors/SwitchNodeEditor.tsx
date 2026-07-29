@@ -2,10 +2,7 @@ import { Badge, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
 import type { ASTExpression } from '../../canvas/types';
 import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
-import {
-  COMPARISON_OPERATORS,
-  formatAstToChips,
-} from './ExpressionEngine';
+import { COMPARISON_OPERATORS, formatAstToChips, } from './ExpressionEngine';
 import {
   ExpressionBuilder,
   ExpressionChip,
@@ -120,14 +117,14 @@ export const SwitchNodeEditor = ({
               {badgeLabel}
             </Badge>
 
-            <TargetVariableChip varKey={slot.raw_string} />
+            <TargetVariableChip varKey={slot.raw_string}/>
 
             <Text size="2" weight="bold" style={{ color: '#61afef' }}>
               :
             </Text>
 
             {hasCondition ? (
-              formattedChips.map((chip, cIdx) => <ExpressionChip key={cIdx} chip={chip} />)
+              formattedChips.map((chip, cIdx) => <ExpressionChip key={cIdx} chip={chip}/>)
             ) : (
               <Text size="1" color="gray" style={{ fontStyle: 'italic' }}>
                 (unconfigured)
@@ -179,7 +176,7 @@ export const SwitchNodeEditor = ({
 
       {draftStep !== 'slot' && activeSlot && (
         <>
-          <TargetVariableChip varKey={activeSlot.raw_string} />
+          <TargetVariableChip varKey={activeSlot.raw_string}/>
           <Text size="2" weight="bold" style={{ color: '#61afef', flexShrink: 0 }}>
             :
           </Text>

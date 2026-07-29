@@ -1,9 +1,16 @@
 import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
-import { useCallback, useState, useMemo, type ReactNode } from 'react';
-import type { ASTExpression, DefinerVariable, ApiNode, OperationsContainer, DefinerOperation, LogicalOperation } from '../../canvas/types';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
+import type {
+  ApiNode,
+  ASTExpression,
+  DefinerOperation,
+  DefinerVariable,
+  LogicalOperation,
+  OperationsContainer
+} from '../../canvas/types';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
-import { coerceTypedValue, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst, type DraftToken } from './ExpressionEngine';
+import { coerceTypedValue, type DraftToken, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst } from './ExpressionEngine';
 
 export function ExpressionChip({
   chip,
@@ -34,7 +41,7 @@ export function TargetVariableChip({ varKey, isMissing }: { varKey: string; isMi
   const style = isMissing
     ? { ...TARGET_TOKEN_STYLE, borderColor: 'red', textDecoration: 'line-through', color: 'red' }
     : TARGET_TOKEN_STYLE;
-    
+
   return (
     <Box style={style}>
       <Text size="1">{varKey}</Text>
@@ -64,7 +71,7 @@ export function TypedValueInput({
           onValueChange={(val) => onChange(val)}
           disabled={disabled}
         >
-          <Select.Trigger variant="surface" color="green" style={{ width: '100%', fontFamily: 'monospace' }} />
+          <Select.Trigger variant="surface" color="green" style={{ width: '100%', fontFamily: 'monospace' }}/>
           <Select.Content color="green">
             <Select.Item value="true">true</Select.Item>
             <Select.Item value="false">false</Select.Item>
@@ -126,7 +133,7 @@ export function StaticRow({
           disabled={disabled}
           style={{ flexShrink: 0, marginLeft: '6px', cursor: disabled ? 'default' : 'pointer' }}
         >
-          <TrashIcon width="12" height="12" />
+          <TrashIcon width="12" height="12"/>
         </IconButton>
       )}
     </Flex>
@@ -144,7 +151,7 @@ export function useNodeEditorData(graphId: string, nodeId: string) {
   const nodes = rawFlow.nodes || EMPTY_NODES;
   const definerOps = rawFlow.operations?.definer || EMPTY_DEFINER_OPS;
   const logicalOps = rawFlow.operations?.logical || EMPTY_LOGICAL_OPS;
-  
+
   const node = useMemo(() => {
     return nodes.find((n: ApiNode) => n.id === nodeId);
   }, [nodes, nodeId]);
@@ -311,7 +318,7 @@ export function ExpressionBuilder({
   return (
     <>
       {draftTokens.map((t, idx) => (
-        <ExpressionChip key={idx} chip={t} />
+        <ExpressionChip key={idx} chip={t}/>
       ))}
 
       {draftStep === 'operand_type_choice' && (
@@ -325,7 +332,7 @@ export function ExpressionBuilder({
             disabled={disabled || compatibleStateVars.length === 0}
             style={{ cursor: 'pointer' }}
           >
-            <CubeIcon width="14" height="14" />
+            <CubeIcon width="14" height="14"/>
           </IconButton>
           <IconButton
             size="1"
@@ -336,7 +343,7 @@ export function ExpressionBuilder({
             disabled={disabled}
             style={{ cursor: 'pointer' }}
           >
-            <Pencil1Icon width="14" height="14" />
+            <Pencil1Icon width="14" height="14"/>
           </IconButton>
         </Flex>
       )}
@@ -402,7 +409,8 @@ export function ExpressionBuilder({
               }}
               disabled={disabled}
             >
-              <Select.Trigger placeholder="Op..." color="blue" variant="surface" style={{ width: '100%', fontWeight: 'bold' }} />
+              <Select.Trigger placeholder="Op..." color="blue" variant="surface"
+                              style={{ width: '100%', fontWeight: 'bold' }}/>
               <Select.Content color="blue">
                 {allowedOperators.map((op) => (
                   <Select.Item key={op} value={op}>
@@ -421,7 +429,7 @@ export function ExpressionBuilder({
             disabled={disabled}
             style={{ cursor: 'pointer' }}
           >
-            <PlusIcon width="14" height="14" /> Save
+            <PlusIcon width="14" height="14"/> Save
           </Button>
         </Flex>
       )}
@@ -435,7 +443,7 @@ export function ExpressionBuilder({
         disabled={disabled}
         style={{ cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
       >
-        <ResetIcon width="12" height="12" />
+        <ResetIcon width="12" height="12"/>
       </IconButton>
     </>
   );

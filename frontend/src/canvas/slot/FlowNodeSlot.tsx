@@ -4,9 +4,9 @@ import { memo, useCallback, useMemo } from 'react';
 import { NODE_PADDING } from '../../domain/graph/layout';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { Editor } from '../../editor/Editor.tsx';
+import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
-import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { ApiSlot } from '../types';
 import { FlowNodeSlotActions } from './FlowNodeSlotActions.tsx';
 

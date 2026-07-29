@@ -1,7 +1,5 @@
-import { autocompletion } from '@codemirror/autocomplete';
 import { foldEffect, syntaxTree, unfoldEffect } from '@codemirror/language';
 import { EditorState, type StateEffect } from '@codemirror/state';
-import type { StateVariable } from '../../canvas/types';
 
 // Helper to collect fold/unfold effects for all functions based on selectedNodeId
 export function getFoldEffectsForFunctions(
@@ -89,50 +87,4 @@ export function resolveHighlightLineRange(
   const startLine = state.doc.lineAt(fn.from).number;
   const endLine = state.doc.lineAt(fn.to).number;
   return { highlightStart: startLine, highlightEnd: endLine };
-}
-
-// Context-aware autocomplete helper for state access
-export function buildAutocompletionExtension(variables: StateVariable[]) {
-  return autocompletion({
-    override: [
-      (context) => {
-        const stateMatch = context.matchBefore(/state\[\s*["']\w*/);
-        if (stateMatch) {
-          const quoteChar = stateMatch.text.includes('"') ? '"' : "'";
-          const query = stateMatch.text.split(/["']/)[1] || '';
-          const options = variables
-            .filter((v) => v.key.toLowerCase().includes(query.toLowerCase()))
-            .map((v) => ({
-              label: v.key,
-              type: 'property',
-              detail: `(${v.type})`,
-              apply: `state[${quoteChar}${v.key}${quoteChar}]`,
-            }));
-          return {
-            from: stateMatch.from,
-            options,
-          };
-        }
-
-        const stateDotMatch = context.matchBefore(/state\.\w*/);
-        if (stateDotMatch) {
-          const query = stateDotMatch.text.slice('state.'.length);
-          const options = variables
-            .filter((v) => v.key.toLowerCase().includes(query.toLowerCase()))
-            .map((v) => ({
-              label: `state.${v.key}`,
-              type: 'property',
-              detail: `(${v.type})`,
-              apply: `state.${v.key}`,
-            }));
-          return {
-            from: stateDotMatch.from,
-            options,
-          };
-        }
-
-        return null;
-      },
-    ],
-  });
 }

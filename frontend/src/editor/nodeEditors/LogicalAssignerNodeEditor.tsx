@@ -1,14 +1,8 @@
 import { Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
 import type { ASTExpression, LogicalAssignment } from '../../canvas/types';
-import {
-  useCreateLogicalAssignment,
-  useDeleteLogicalAssignment,
-} from '../../hooks/graph/useGraphMutations';
-import {
-  ARITHMETIC_OPERATORS,
-  formatAstToChips,
-} from './ExpressionEngine';
+import { useCreateLogicalAssignment, useDeleteLogicalAssignment, } from '../../hooks/graph/useGraphMutations';
+import { ARITHMETIC_OPERATORS, formatAstToChips, } from './ExpressionEngine';
 import {
   ExpressionBuilder,
   ExpressionChip,
@@ -30,7 +24,7 @@ export const LogicalAssignerNodeEditor = ({
   disabled = false,
 }: LogicalAssignerNodeEditorProps) => {
   const { node, logicalOps, stateVariables } = useNodeEditorData(graphId, nodeId);
-  
+
   const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || `op_${nodeId}`;
 
   const currentOp = useMemo(() => {
@@ -103,12 +97,12 @@ export const LogicalAssignerNodeEditor = ({
         const isTargetMissing = !stateVariables.some(v => v.key === asgn.target_var_key);
         return (
           <StaticRow key={asgn.id} onDelete={() => handleDeleteAssignment(asgn.id)} disabled={disabled}>
-            <TargetVariableChip varKey={asgn.target_var_key} isMissing={isTargetMissing} />
+            <TargetVariableChip varKey={asgn.target_var_key} isMissing={isTargetMissing}/>
             <Text size="2" weight="bold" style={{ color: '#61afef' }}>
               =
             </Text>
             {formattedChips.map((chip, idx) => (
-              <ExpressionChip key={idx} chip={chip} />
+              <ExpressionChip key={idx} chip={chip}/>
             ))}
           </StaticRow>
         );
@@ -120,7 +114,7 @@ export const LogicalAssignerNodeEditor = ({
     <Flex align="center" gap="2" style={{ overflowX: 'auto' }}>
       {draftStep !== 'target' && (
         <>
-          <TargetVariableChip varKey={draftTarget || stateVariables[0]?.key || 'x'} />
+          <TargetVariableChip varKey={draftTarget || stateVariables[0]?.key || 'x'}/>
           <Text size="2" weight="bold" style={{ color: '#61afef', flexShrink: 0 }}>
             =
           </Text>

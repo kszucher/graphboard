@@ -52,7 +52,6 @@ export interface OperationsContainer {
 export type StateVariable = DefinerVariable;
 
 
-
 export interface Diagnostic {
   line: number;
   column: number;
