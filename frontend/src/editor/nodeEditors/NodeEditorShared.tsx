@@ -1,14 +1,7 @@
 import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import type {
-  ApiNode,
-  ASTExpression,
-  DefinerOperation,
-  DefinerVariable,
-  LogicalOperation,
-  OperationsContainer
-} from '../../canvas/types';
+import type { ApiNode, ASTExpression, DefinerVariable } from '../../canvas/types';
 import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import { coerceTypedValue, type DraftToken, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst } from './ExpressionEngine';
 
@@ -141,31 +134,27 @@ export function StaticRow({
 }
 
 const EMPTY_NODES: ApiNode[] = [];
-const EMPTY_DEFINER_OPS: DefinerOperation[] = [];
-const EMPTY_LOGICAL_OPS: LogicalOperation[] = [];
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useNodeEditorData(graphId: string, nodeId: string) {
   const { data: graphFlow } = useGraphQuery(graphId);
-  const rawFlow = (graphFlow || {}) as { nodes?: ApiNode[]; operations?: OperationsContainer };
+  const rawFlow = (graphFlow || {}) as { nodes?: ApiNode[] };
   const nodes = rawFlow.nodes || EMPTY_NODES;
-  const definerOps = rawFlow.operations?.definer || EMPTY_DEFINER_OPS;
-  const logicalOps = rawFlow.operations?.logical || EMPTY_LOGICAL_OPS;
 
   const node = useMemo(() => {
     return nodes.find((n: ApiNode) => n.id === nodeId);
   }, [nodes, nodeId]);
 
   const stateVariables: DefinerVariable[] = useMemo(() => {
-    return definerOps.flatMap((op: DefinerOperation) => op.variables || []);
-  }, [definerOps]);
+    return nodes
+      .filter((n: ApiNode) => n.node_type === 'DEFINER')
+      .flatMap((n: ApiNode) => n.variables || []);
+  }, [nodes]);
 
   return {
     rawFlow,
     nodes,
     node,
-    definerOps,
-    logicalOps,
     stateVariables,
   };
 }

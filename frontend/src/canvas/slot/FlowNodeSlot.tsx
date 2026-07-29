@@ -35,11 +35,11 @@ export const FlowNodeSlot = memo(({
   const { mutateAsync: updateSlot } = useUpdateSlot(graphId);
 
   const node = useMemo(() => {
-    return nodes.find((n) => n.data.node.slots.some((s: ApiSlot) => s.id === slotId));
+    return nodes.find((n) => n.data.node.slots?.some((s: ApiSlot) => s.id === slotId));
   }, [nodes, slotId]);
 
   const slot = useMemo(() => {
-    return node?.data.node.slots.find((s: ApiSlot) => s.id === slotId);
+    return node?.data.node.slots?.find((s: ApiSlot) => s.id === slotId);
   }, [node, slotId]);
 
   const handleUpdateItem = useCallback(

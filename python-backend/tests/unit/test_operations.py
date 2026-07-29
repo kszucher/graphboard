@@ -3,13 +3,10 @@ import pytest
 from app.constants import NodeType
 from app.graphs import operations
 from app.graphs.schemas import (
-    DefinerOperationSchema,
     DefinerVariableSchema,
     GraphFlowData,
     LogicalAssignmentSchema,
-    LogicalOperationSchema,
     NodeRead,
-    OperationsContainerSchema,
 )
 
 
@@ -46,9 +43,8 @@ def test_validate_and_coerce_default() -> None:
 
 def test_create_definer_variable_success() -> None:
     flow = GraphFlowData(
-        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, ref_id="op_definer_1")],
+        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[])],
         edges=[],
-        operations=OperationsContainerSchema(definer=[DefinerOperationSchema(id="op_definer_1", variables=[])]),
     )
 
     updated = operations.create_definer_variable(
@@ -66,9 +62,8 @@ def test_create_definer_variable_success() -> None:
 
 def test_create_definer_variable_naming_rules() -> None:
     flow = GraphFlowData(
-        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, ref_id="op_definer_1")],
+        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[])],
         edges=[],
-        operations=OperationsContainerSchema(definer=[DefinerOperationSchema(id="op_definer_1", variables=[])]),
     )
 
     # Snake case violations
@@ -95,27 +90,23 @@ def test_create_definer_variable_naming_rules() -> None:
 
 def test_update_definer_variable() -> None:
     flow = GraphFlowData(
-        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, ref_id="op_definer_1")],
+        nodes=[
+            NodeRead(
+                id="definer_1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1, description="old desc")
+                ],
+            )
+        ],
         edges=[],
-        operations=OperationsContainerSchema(
-            definer=[
-                DefinerOperationSchema(
-                    id="op_definer_1",
-                    variables=[
-                        DefinerVariableSchema(
-                            id="var_x", key="x", type="number", default_value=1, description="old desc"
-                        )
-                    ],
-                )
-            ]
-        ),
     )
 
     updated = operations.update_definer_variable(
         flow, var_id="var_x", updates={"type": "float", "default_value": "3.5", "description": "new desc"}
     )
 
-    var = updated.operations.definer[0].variables[0]
+    var = updated.nodes[0].variables[0]
     assert var.type == "float"
     assert var.default_value == 3.5
     assert var.description == "new desc"
@@ -123,38 +114,31 @@ def test_update_definer_variable() -> None:
 
 def test_delete_definer_variable() -> None:
     flow = GraphFlowData(
-        nodes=[],
+        nodes=[
+            NodeRead(
+                id="definer_1",
+                node_type=NodeType.DEFINER,
+                variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1)],
+            )
+        ],
         edges=[],
-        operations=OperationsContainerSchema(
-            definer=[
-                DefinerOperationSchema(
-                    id="op_definer_1",
-                    variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1)],
-                )
-            ]
-        ),
     )
 
     updated = operations.delete_definer_variable(flow, "var_x")
-    assert len(updated.operations.definer[0].variables) == 0
+    assert len(updated.nodes[0].variables) == 0
 
 
 def test_create_logical_assignment_success() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="definer_1", node_type=NodeType.DEFINER, ref_id="op_def_1"),
-            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, ref_id="op_assign_1"),
+            NodeRead(
+                id="definer_1",
+                node_type=NodeType.DEFINER,
+                variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0)],
+            ),
+            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
         ],
         edges=[],
-        operations=OperationsContainerSchema(
-            definer=[
-                DefinerOperationSchema(
-                    id="op_def_1",
-                    variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0)],
-                )
-            ],
-            logical=[LogicalOperationSchema(id="op_assign_1", assignments=[])],
-        ),
     )
 
     # Assign value 42 to x
@@ -162,7 +146,7 @@ def test_create_logical_assignment_success() -> None:
         flow, node_id="assigner_1", target_var_key="x", value_type="number", value="42"
     )
 
-    assignments = updated.operations.logical[0].assignments
+    assignments = updated.nodes[1].assignments
     assert len(assignments) == 1
     assert assignments[0].target_var_key == "x"
     assert assignments[0].value == 42
@@ -178,14 +162,10 @@ def test_create_logical_assignment_success() -> None:
 def test_create_logical_assignment_invalid_variable() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="definer_1", node_type=NodeType.DEFINER, ref_id="op_def_1"),
-            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, ref_id="op_assign_1"),
+            NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[]),
+            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
         ],
         edges=[],
-        operations=OperationsContainerSchema(
-            definer=[DefinerOperationSchema(id="op_def_1", variables=[])],
-            logical=[LogicalOperationSchema(id="op_assign_1", assignments=[])],
-        ),
     )
 
     # Attempt assignment to undefined variable 'y'
@@ -195,34 +175,29 @@ def test_create_logical_assignment_invalid_variable() -> None:
 
 def test_update_logical_assignment() -> None:
     flow = GraphFlowData(
-        nodes=[],
+        nodes=[
+            NodeRead(
+                id="definer_1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+                    DefinerVariableSchema(id="var_y", key="y", type="string", default_value=""),
+                ],
+            ),
+            NodeRead(
+                id="assigner_1",
+                node_type=NodeType.LOGICAL_ASSIGNER,
+                assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value_type="number", value=10)],
+            ),
+        ],
         edges=[],
-        operations=OperationsContainerSchema(
-            definer=[
-                DefinerOperationSchema(
-                    id="op_def_1",
-                    variables=[
-                        DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
-                        DefinerVariableSchema(id="var_y", key="y", type="string", default_value=""),
-                    ],
-                )
-            ],
-            logical=[
-                LogicalOperationSchema(
-                    id="op_assign_1",
-                    assignments=[
-                        LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value_type="number", value=10)
-                    ],
-                )
-            ],
-        ),
     )
 
     # Update value and expression
     updated = operations.update_logical_assignment(
         flow, assignment_id="asgn_1", updates={"value": "20", "expression": {"kind": "literal", "value": 20}}
     )
-    asgn = updated.operations.logical[0].assignments[0]
+    asgn = updated.nodes[1].assignments[0]
     assert asgn.value == 20
     assert asgn.expression == {"kind": "literal", "value": 20}
 
@@ -240,16 +215,15 @@ def test_update_logical_assignment() -> None:
 
 def test_delete_logical_assignment() -> None:
     flow = GraphFlowData(
-        nodes=[],
+        nodes=[
+            NodeRead(
+                id="assigner_1",
+                node_type=NodeType.LOGICAL_ASSIGNER,
+                assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value=10)],
+            )
+        ],
         edges=[],
-        operations=OperationsContainerSchema(
-            logical=[
-                LogicalOperationSchema(
-                    id="op_assign_1", assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value=10)]
-                )
-            ]
-        ),
     )
 
     updated = operations.delete_logical_assignment(flow, "asgn_1")
-    assert len(updated.operations.logical[0].assignments) == 0
+    assert len(updated.nodes[0].assignments) == 0

@@ -40,15 +40,15 @@ export const FlowNodeSlotActionsContent = ({
   const { mutateAsync: insertNode } = useInsertNode(graphId);
 
   const node = useMemo(() => {
-    return nodes.find(n => n.data.node.slots.some((s: ApiSlot) => s.id === slotId));
+    return nodes.find(n => n.data.node.slots?.some((s: ApiSlot) => s.id === slotId));
   }, [nodes, slotId]);
 
   const slot = useMemo(() => {
-    return node?.data.node.slots.find((s: ApiSlot) => s.id === slotId);
+    return node?.data.node.slots?.find((s: ApiSlot) => s.id === slotId);
   }, [node, slotId]);
 
   const mySlots = useMemo(() => {
-    return node ? node.data.node.slots : [];
+    return node ? (node.data.node.slots ?? []) : [];
   }, [node]);
 
   const indexInNode = useMemo(() => {

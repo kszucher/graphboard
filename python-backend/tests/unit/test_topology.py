@@ -5,9 +5,7 @@ from app.graphs import topology
 from app.graphs.schemas import (
     EdgeRead,
     GraphFlowData,
-    LogicalOperationSchema,
     NodeRead,
-    OperationsContainerSchema,
     SlotRead,
 )
 
@@ -42,14 +40,12 @@ def test_add_node_switch() -> None:
 
 
 def test_add_node_operations() -> None:
-    flow = GraphFlowData(nodes=[], edges=[], operations=OperationsContainerSchema())
+    flow = GraphFlowData(nodes=[], edges=[])
     updated = topology.add_node(flow, NodeType.DEFINER)
-    assert len(updated.operations.definer) == 1
-    assert updated.operations.definer[0].id == "op_definer_1"
+    assert updated.nodes[0].variables == []
 
     updated = topology.add_node(updated, NodeType.LOGICAL_ASSIGNER)
-    assert len(updated.operations.logical) == 1
-    assert updated.operations.logical[0].id == "op_logical_assigner_1"
+    assert updated.nodes[1].assignments == []
 
 
 def test_add_node_with_connector_after() -> None:
@@ -61,7 +57,6 @@ def test_add_node_with_connector_after() -> None:
         edges=[
             EdgeRead(id=uuid.uuid4(), source_id="step_1", target_id="step_2", source_type="node", target_type="node")
         ],
-        operations=OperationsContainerSchema(),
     )
     # Add step_3 after step_1
     updated = topology.add_node(flow, NodeType.STEP, connector_id="step_1", direction="after")
@@ -105,14 +100,13 @@ def test_delete_node_protection() -> None:
 def test_delete_node_cascade_edges_and_ops() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="step_1", node_type=NodeType.STEP, slots=[], ref_id="op_step_1"),
+            NodeRead(id="step_1", node_type=NodeType.STEP, slots=[]),
             NodeRead(id="switch_1", node_type=NodeType.SWITCH, slots=[SlotRead(id="switch_1_option_a")]),
         ],
         edges=[
             EdgeRead(id=uuid.uuid4(), source_id="step_1", target_id="switch_1"),
             EdgeRead(id=uuid.uuid4(), source_id="switch_1_option_a", target_id="end"),
         ],
-        operations=OperationsContainerSchema(logical=[LogicalOperationSchema(id="op_step_1", assignments=[])]),
     )
 
     updated = topology.delete_node(flow, "switch_1")
@@ -121,8 +115,7 @@ def test_delete_node_cascade_edges_and_ops() -> None:
     assert len(updated.nodes) == 1
 
     updated = topology.delete_node(updated, "step_1")
-    # Operation op_step_1 should be removed
-    assert len(updated.operations.logical) == 0
+    assert len(updated.nodes) == 0
 
 
 def test_shortcircuit_node() -> None:

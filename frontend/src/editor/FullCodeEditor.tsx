@@ -1,7 +1,7 @@
 import { Box, Card, Flex, Text } from '@radix-ui/themes';
 import { useNodes, useReactFlow } from '@xyflow/react';
 import { useCallback } from 'react';
-import type { Diagnostic, OperationsContainer } from '../canvas/types';
+import type { Diagnostic } from '../canvas/types';
 import { useCodeMirror } from '../hooks/editor/useCodeMirror';
 import { useGraphQuery } from '../hooks/graph/useGraphQuery';
 
@@ -12,7 +12,6 @@ interface FullCodeEditorProps {
 export const FullCodeEditor = ({ graphId }: FullCodeEditorProps) => {
   const { data: graphFlow } = useGraphQuery(graphId);
   const rawFlow = (graphFlow || {}) as {
-    operations?: OperationsContainer;
     diagnostics?: Diagnostic[];
     code?: string;
   };

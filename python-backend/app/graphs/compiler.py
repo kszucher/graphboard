@@ -161,7 +161,9 @@ def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.Function
 class PureAstLangGraphCompiler:
     def __init__(self, flow_data: GraphFlowData):
         self.flow_data = flow_data
-        self.all_variables = [v for op in flow_data.operations.definer for v in op.variables if v.key]
+        self.all_variables = [
+            v for n in flow_data.nodes if n.node_type == "DEFINER" and n.variables for v in n.variables if v.key
+        ]
         self.valid_keys = {v.key for v in self.all_variables}
         self.definer_ids = {n.id for n in flow_data.nodes if n.node_type == "DEFINER"}
         self.executable_nodes = [
@@ -302,11 +304,10 @@ class PureAstLangGraphCompiler:
         imports = ast.parse(
             "from typing import TypedDict, Literal, Any\nfrom langgraph.graph import StateGraph, START, END"
         ).body
-        logical_ops = {op.id: op.assignments for op in self.flow_data.operations.logical}
         nodes = [
             compile_ast_switch_node(n.id, n.slots)
             if n.node_type == "SWITCH"
-            else compile_ast_dict_returning_node(n.id, logical_ops.get(n.ref_id or "") or [], self.valid_keys)
+            else compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys)
             if n.node_type == "LOGICAL_ASSIGNER"
             else compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys)
             for n in self.executable_nodes

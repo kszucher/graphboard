@@ -68,7 +68,6 @@ async def dummy_graph(db_session: AsyncSession, dummy_user: User) -> Graph:
         flow_json={
             "nodes": [],
             "edges": [],
-            "operations": {"definer": [], "agentic": [], "logical": [], "switch": []},
             "code": "",
         },
         current_history_sequence=0,
@@ -83,7 +82,7 @@ async def dummy_graph_snapshot(db_session: AsyncSession, dummy_graph: Graph) -> 
     snapshot = GraphHistory(
         id=uuid.uuid4(),
         graph_id=dummy_graph.id,
-        flow_json={"nodes": [], "edges": [], "operations": {}},
+        flow_json={"nodes": [], "edges": []},
         sequence_number=dummy_graph.current_history_sequence,
     )
     db_session.add(snapshot)

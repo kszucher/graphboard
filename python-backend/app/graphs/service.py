@@ -8,7 +8,14 @@ from app.constants import EventName, NodeType
 from app.graphs import operations as graph_operations
 from app.graphs import topology as graph_topology
 from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics
-from app.graphs.schemas import EdgeRead, GraphFlowData, GraphSyncPayload, NodeRead, SlotRead
+from app.graphs.schemas import (
+    DefinerVariableSchema,
+    EdgeRead,
+    GraphFlowData,
+    GraphSyncPayload,
+    NodeRead,
+    SlotRead,
+)
 from app.graphs.validation import validate_flow_data
 
 if TYPE_CHECKING:
@@ -27,7 +34,12 @@ async def create_graph(
 
     default_nodes = [
         NodeRead(id="start", node_type=NodeType.START, slots=[]),
-        NodeRead(id="definer", node_type=NodeType.DEFINER, ref_id="op_def_main", slots=[]),
+        NodeRead(
+            id="definer",
+            node_type=NodeType.DEFINER,
+            slots=[],
+            variables=[DefinerVariableSchema(id="v1", key="x", type="number", default_value=0)],
+        ),
         NodeRead(
             id="switch_step",
             node_type=NodeType.SWITCH,
@@ -52,14 +64,14 @@ async def create_graph(
         NodeRead(
             id="logical_assigner",
             node_type=NodeType.LOGICAL_ASSIGNER,
-            ref_id="op_log_main",
             slots=[],
+            assignments=[],
         ),
         NodeRead(
             id="agentic_assigner",
             node_type=NodeType.AGENTIC_ASSIGNER,
-            ref_id="op_agent_main",
             slots=[],
+            prompt="",
         ),
         NodeRead(id="end", node_type=NodeType.END, slots=[]),
     ]
@@ -107,34 +119,9 @@ async def create_graph(
             target_type="node",
         ),
     ]
-    operations_container = {
-        "definer": [
-            {
-                "id": "op_def_main",
-                "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-            }
-        ],
-        "logical": [
-            {
-                "id": "op_log_main",
-                "assignments": [],
-            }
-        ],
-        "agentic": [
-            {
-                "id": "op_agent_main",
-                "prompt": "",
-            }
-        ],
-        "switch": [],
-    }
-
-    flow_data = GraphFlowData.model_validate(
-        {
-            "nodes": default_nodes,
-            "edges": default_edges,
-            "operations": operations_container,
-        }
+    flow_data = GraphFlowData(
+        nodes=default_nodes,
+        edges=default_edges,
     )
     compiled_code = await generate_graph_code(flow_data)
     flow_data.code = compiled_code
@@ -171,7 +158,6 @@ async def sync_graph_flow(
     flow_data = GraphFlowData(
         nodes=payload.nodes,
         edges=payload.edges,
-        operations=payload.operations,
     )
     return await _commit_state_snapshot(uow, graph, flow_data)
 
@@ -360,7 +346,6 @@ async def update_node(
     graph_id: uuid.UUID,
     node_id: str,
     new_id: str | None = None,
-    ref_id: str | None = None,
 ) -> dict:
     return await _mutate_flow(
         uow,
@@ -368,7 +353,6 @@ async def update_node(
         graph_topology.update_node,
         node_id,
         new_id=new_id,
-        ref_id=ref_id,
     )
 
 

@@ -2,12 +2,11 @@ import re
 import uuid
 from typing import Any, Literal
 
+from app.constants import NodeType
 from app.graphs.schemas import (
-    DefinerOperationSchema,
     DefinerVariableSchema,
     GraphFlowData,
     LogicalAssignmentSchema,
-    LogicalOperationSchema,
 )
 
 PYTHON_KEYWORDS = {
@@ -69,11 +68,10 @@ def validate_and_coerce_default(var_type: str, val: Any) -> Any:
 
 
 def get_all_definer_variables(flow_data: GraphFlowData) -> list[DefinerVariableSchema]:
-    ops = flow_data.operations
-    definer_ops = ops.definer
     variables = []
-    for op in definer_ops:
-        variables.extend(op.variables)
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.DEFINER and node.variables is not None:
+            variables.extend(node.variables)
     return variables
 
 
@@ -107,17 +105,8 @@ def create_definer_variable(
     if not target_node:
         raise ValueError(f"Node '{node_id}' not found.")
 
-    ops = flow_data.operations
-    definer_ops = ops.definer
-
-    ref_id = target_node.ref_id
-    target_op = next((o for o in definer_ops if o.id == ref_id), None) if ref_id else None
-
-    if not target_op:
-        ref_id = f"op_{node_id}"
-        target_node.ref_id = ref_id
-        target_op = DefinerOperationSchema(id=ref_id, variables=[])
-        definer_ops.append(target_op)
+    if target_node.variables is None:
+        target_node.variables = []
 
     new_var = DefinerVariableSchema(
         id=str(uuid.uuid4()),
@@ -126,35 +115,32 @@ def create_definer_variable(
         default_value=coerced_default,
         description=description,
     )
-    target_op.variables.append(new_var)
+    target_node.variables.append(new_var)
     return flow_data
 
 
 def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: dict) -> GraphFlowData:
-    ops = flow_data.operations
-    definer_ops = ops.definer
-    for op in definer_ops:
-        for var in op.variables:
-            if var.id == var_id:
-                new_type = updates.get("type") or var.type
-                if "type" in updates and updates["type"]:
-                    var.type = updates["type"]
-                if "default_value" in updates:
-                    var.default_value = validate_and_coerce_default(new_type, updates["default_value"])
-                if "description" in updates:
-                    var.description = updates["description"]
-                return flow_data
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.DEFINER and node.variables is not None:
+            for var in node.variables:
+                if var.id == var_id:
+                    new_type = updates.get("type") or var.type
+                    if "type" in updates and updates["type"]:
+                        var.type = updates["type"]
+                    if "default_value" in updates:
+                        var.default_value = validate_and_coerce_default(new_type, updates["default_value"])
+                    if "description" in updates:
+                        var.description = updates["description"]
+                    return flow_data
     return flow_data
 
 
 def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowData:
-    ops = flow_data.operations
-    definer_ops = ops.definer
-    for op in definer_ops:
-        vars_list = op.variables
-        if any(v.id == var_id for v in vars_list):
-            op.variables = [v for v in vars_list if v.id != var_id]
-            return flow_data
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.DEFINER and node.variables is not None:
+            if any(v.id == var_id for v in node.variables):
+                node.variables = [v for v in node.variables if v.id != var_id]
+                return flow_data
     return flow_data
 
 
@@ -180,22 +166,11 @@ def create_logical_assignment(
     if not target_node:
         raise ValueError(f"Node '{node_id}' not found.")
 
-    ops = flow_data.operations
-    logical_ops = ops.logical
-
-    ref_id = target_node.ref_id
-    target_op = next((o for o in logical_ops if o.id == ref_id), None) if ref_id else None
-
-    if not target_op:
-        ref_id = f"op_{node_id}"
-        target_node.ref_id = ref_id
-        target_op = LogicalOperationSchema(id=ref_id, assignments=[])
-        logical_ops.append(target_op)
-
-    assignments = target_op.assignments
+    if target_node.assignments is None:
+        target_node.assignments = []
 
     # 3. Check for existing assignment to same target_var_key (prevent duplicates)
-    existing_asgn = next((a for a in assignments if a.target_var_key == target_var_key), None)
+    existing_asgn = next((a for a in target_node.assignments if a.target_var_key == target_var_key), None)
     if existing_asgn:
         existing_asgn.value_type = value_type
         existing_asgn.value = coerced_val
@@ -209,41 +184,38 @@ def create_logical_assignment(
             value=coerced_val,
             expression=expression,
         )
-        assignments.append(new_asgn)
+        target_node.assignments.append(new_asgn)
 
     return flow_data
 
 
 def update_logical_assignment(flow_data: GraphFlowData, assignment_id: str, updates: dict) -> GraphFlowData:
-    ops = flow_data.operations
-    logical_ops = ops.logical
-    for op in logical_ops:
-        for asgn in op.assignments:
-            if asgn.id == assignment_id:
-                if "target_var_key" in updates and updates["target_var_key"]:
-                    target_key = updates["target_var_key"].strip()
-                    existing_vars = get_all_definer_variables(flow_data)
-                    if not any(v.key == target_key for v in existing_vars):
-                        raise ValueError(f"Variable '{target_key}' is not defined in state schema.")
-                    asgn.target_var_key = target_key
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+            for asgn in node.assignments:
+                if asgn.id == assignment_id:
+                    if "target_var_key" in updates and updates["target_var_key"]:
+                        target_key = updates["target_var_key"].strip()
+                        existing_vars = get_all_definer_variables(flow_data)
+                        if not any(v.key == target_key for v in existing_vars):
+                            raise ValueError(f"Variable '{target_key}' is not defined in state schema.")
+                        asgn.target_var_key = target_key
 
-                val_type = updates.get("value_type") or asgn.value_type
-                if "value_type" in updates and updates["value_type"]:
-                    asgn.value_type = updates["value_type"]
-                if "value" in updates:
-                    asgn.value = validate_and_coerce_default(val_type, updates["value"])
-                if "expression" in updates:
-                    asgn.expression = updates["expression"]
-                return flow_data
+                    val_type = updates.get("value_type") or asgn.value_type
+                    if "value_type" in updates and updates["value_type"]:
+                        asgn.value_type = updates["value_type"]
+                    if "value" in updates:
+                        asgn.value = validate_and_coerce_default(val_type, updates["value"])
+                    if "expression" in updates:
+                        asgn.expression = updates["expression"]
+                    return flow_data
     return flow_data
 
 
 def delete_logical_assignment(flow_data: GraphFlowData, assignment_id: str) -> GraphFlowData:
-    ops = flow_data.operations
-    logical_ops = ops.logical
-    for op in logical_ops:
-        asgns_list = op.assignments
-        if any(a.id == assignment_id for a in asgns_list):
-            op.assignments = [a for a in asgns_list if a.id != assignment_id]
-            return flow_data
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+            if any(a.id == assignment_id for a in node.assignments):
+                node.assignments = [a for a in node.assignments if a.id != assignment_id]
+                return flow_data
     return flow_data

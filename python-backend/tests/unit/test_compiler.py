@@ -5,7 +5,7 @@ from app.graphs.schemas import GraphFlowData
 
 
 async def test_generate_graph_code_empty() -> None:
-    payload: dict[str, Any] = {"nodes": [], "edges": [], "operations": {}}
+    payload: dict[str, Any] = {"nodes": [], "edges": []}
     flow_data = GraphFlowData.model_validate(payload)
     code = await generate_graph_code(flow_data)
     assert "class State(TypedDict):" in code
@@ -15,19 +15,17 @@ async def test_generate_graph_code_empty() -> None:
 
 async def test_generate_graph_code_with_variables() -> None:
     payload: dict[str, Any] = {
-        "nodes": [],
+        "nodes": [
+            {
+                "id": "def1",
+                "node_type": "DEFINER",
+                "variables": [
+                    {"key": "user_id", "type": "number", "default_value": 0},
+                    {"key": "username", "type": "string", "default_value": "guest"},
+                ],
+            }
+        ],
         "edges": [],
-        "operations": {
-            "definer": [
-                {
-                    "id": "def1",
-                    "variables": [
-                        {"key": "user_id", "type": "number", "default_value": 0},
-                        {"key": "username", "type": "string", "default_value": "guest"},
-                    ],
-                }
-            ]
-        },
     }
     flow_data = GraphFlowData.model_validate(payload)
     code = await generate_graph_code(flow_data)
@@ -41,25 +39,22 @@ async def test_generate_graph_code_with_step_node() -> None:
     payload: dict[str, Any] = {
         "nodes": [
             {
+                "id": "def1",
+                "node_type": "DEFINER",
+                "variables": [
+                    {"id": "v1", "key": "status", "type": "string", "default_value": ""},
+                ],
+            },
+            {
                 "id": "step_1",
                 "node_type": "STEP",
                 "slots": [{"target_var_key": "status", "expression": {"kind": "literal", "value": "processed"}}],
-            }
+            },
         ],
         "edges": [
             {"source_id": "start", "target_id": "step_1"},
             {"source_id": "step_1", "source_type": "node", "target_id": "end"},
         ],
-        "operations": {
-            "definer": [
-                {
-                    "id": "def1",
-                    "variables": [
-                        {"id": "v1", "key": "status", "type": "string", "default_value": ""},
-                    ],
-                }
-            ]
-        },
     }
     flow_data = GraphFlowData.model_validate(payload)
     code = await generate_graph_code(flow_data)
@@ -73,6 +68,13 @@ async def test_generate_graph_code_with_step_node() -> None:
 async def test_generate_graph_code_with_switch_node() -> None:
     payload: dict[str, Any] = {
         "nodes": [
+            {
+                "id": "def1",
+                "node_type": "DEFINER",
+                "variables": [
+                    {"id": "v1", "key": "status", "type": "string", "default_value": "active"},
+                ],
+            },
             {
                 "id": "switch_1",
                 "node_type": "SWITCH",
@@ -88,19 +90,9 @@ async def test_generate_graph_code_with_switch_node() -> None:
                         },
                     }
                 ],
-            }
+            },
         ],
         "edges": [{"source_id": "slot_a", "source_type": "slot", "target_id": "end"}],
-        "operations": {
-            "definer": [
-                {
-                    "id": "def1",
-                    "variables": [
-                        {"id": "v1", "key": "status", "type": "string", "default_value": "active"},
-                    ],
-                }
-            ]
-        },
     }
     flow_data = GraphFlowData.model_validate(payload)
     code = await generate_graph_code(flow_data)

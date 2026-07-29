@@ -47,13 +47,6 @@ class LogicalOperationSchema(BaseModel):
     assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
 
 
-class OperationsContainerSchema(BaseModel):
-    definer: list[DefinerOperationSchema] = Field(default_factory=list)
-    agentic: list[dict[str, Any]] = Field(default_factory=list)
-    logical: list[LogicalOperationSchema] = Field(default_factory=list)
-    switch: list[dict[str, Any]] = Field(default_factory=list)
-
-
 class SlotRead(BaseModel):
     id: str = ""
     raw_string: str = ""
@@ -65,8 +58,10 @@ class SlotRead(BaseModel):
 class NodeRead(BaseModel):
     id: str
     node_type: NodeType
-    ref_id: str | None = None
     slots: list[SlotRead] = Field(default_factory=list)
+    variables: list[DefinerVariableSchema] | None = None
+    assignments: list[LogicalAssignmentSchema] | None = None
+    prompt: str | None = None
 
 
 class EdgeRead(BaseModel):
@@ -91,7 +86,6 @@ class GraphFlowRead(BaseModel):
     code: str = ""
     nodes: list[NodeRead]
     edges: list[EdgeRead]
-    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
     diagnostics: list[DiagnosticRead] = Field(default_factory=list)
     can_undo: bool = False
     can_redo: bool = False
@@ -100,14 +94,12 @@ class GraphFlowRead(BaseModel):
 class GraphSyncPayload(BaseModel):
     nodes: list[NodeRead]
     edges: list[EdgeRead]
-    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
 
 
 class GraphFlowData(BaseModel):
     code: str = ""
     nodes: list[NodeRead] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
-    operations: OperationsContainerSchema = Field(default_factory=OperationsContainerSchema)
 
 
 class NodeCreateRequest(BaseModel):
@@ -118,7 +110,6 @@ class NodeCreateRequest(BaseModel):
 
 class NodeUpdateRequest(BaseModel):
     new_id: str | None = None
-    ref_id: str | None = None
 
 
 class DefinerVariableCreateRequest(BaseModel):

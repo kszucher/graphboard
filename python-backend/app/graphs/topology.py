@@ -3,10 +3,10 @@ from typing import Any, Literal
 
 from app.constants import NodeType
 from app.graphs.schemas import (
-    DefinerOperationSchema,
+    DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    LogicalOperationSchema,
+    LogicalAssignmentSchema,
     NodeRead,
     SlotRead,
 )
@@ -34,32 +34,31 @@ def add_node(
     node_type = NodeType(node_type)
     nodes = flow_data.nodes
     edges = flow_data.edges
-    ops = flow_data.operations
     node_id = generate_node_id(node_type, nodes)
 
     slots: list[SlotRead] = []
-    ref_id = None
+    variables: list[DefinerVariableSchema] | None = None
+    assignments: list[LogicalAssignmentSchema] | None = None
+    prompt = None
     if node_type == NodeType.SWITCH:
         slots = [
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
             SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
         ]
     elif node_type == NodeType.DEFINER:
-        ref_id = f"op_{node_id}"
-        ops.definer.append(DefinerOperationSchema(id=ref_id, variables=[]))
+        variables = []
     elif node_type == NodeType.LOGICAL_ASSIGNER:
-        ref_id = f"op_{node_id}"
-        ops.logical.append(LogicalOperationSchema(id=ref_id, assignments=[]))
+        assignments = []
     elif node_type == NodeType.AGENTIC_ASSIGNER:
-        ref_id = f"op_{node_id}"
-        # agentic ops container stores raw dicts for extensibility
-        ops.agentic.append({"id": ref_id, "prompt": ""})
+        prompt = ""
 
     new_node = NodeRead(
         id=node_id,
         node_type=node_type,
-        ref_id=ref_id,
         slots=slots,
+        variables=variables,
+        assignments=assignments,
+        prompt=prompt,
     )
     nodes.append(new_node)
 
@@ -123,7 +122,6 @@ def add_node(
 def delete_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
-    ops = flow_data.operations
 
     target_node = next((n for n in nodes if n.id == node_id), None)
     if not target_node:
@@ -132,13 +130,6 @@ def delete_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
     # Sentinel protection: START, END, DEFINER nodes cannot be deleted
     if target_node.node_type in SENTINEL_NODE_TYPES:
         return flow_data
-
-    ref_id = target_node.ref_id
-    if ref_id and ops:
-        ops.definer = [o for o in ops.definer if o.id != ref_id]
-        ops.logical = [o for o in ops.logical if o.id != ref_id]
-        ops.agentic = [o for o in ops.agentic if o.get("id") != ref_id]
-        ops.switch = [o for o in ops.switch if o.get("id") != ref_id]
 
     slot_ids = {s.id for s in target_node.slots}
 
@@ -189,7 +180,6 @@ def update_node(
     flow_data: GraphFlowData,
     node_id: str,
     new_id: str | None = None,
-    ref_id: str | None = None,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -214,9 +204,6 @@ def update_node(
                 edge.target_id = new_id
             elif edge.target_id.startswith(f"{node_id}_"):
                 edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
-
-    if ref_id is not None:
-        target_node.ref_id = ref_id
 
     return flow_data
 

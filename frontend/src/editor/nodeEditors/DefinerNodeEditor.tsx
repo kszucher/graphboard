@@ -26,25 +26,19 @@ export const DefinerNodeEditor = ({
   nodeId,
   disabled = false,
 }: DefinerNodeEditorProps) => {
-  const { node, definerOps } = useNodeEditorData(graphId, nodeId);
+  const { node, nodes } = useNodeEditorData(graphId, nodeId);
 
-  const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || 'op_def_main';
-
-  const currentOp = useMemo(() => {
-    return definerOps.find((op) => op.id === nodeRefId) || definerOps[0] || { variables: [] };
-  }, [definerOps, nodeRefId]);
-
-  const variables: DefinerVariable[] = currentOp.variables || [];
+  const variables: DefinerVariable[] = node?.variables || [];
 
   const allVariableKeys = useMemo(() => {
     const set = new Set<string>();
-    for (const op of definerOps) {
-      for (const v of op.variables || []) {
-        set.add(v.key);
+    nodes.forEach(n => {
+      if (n.node_type === 'DEFINER') {
+        n.variables?.forEach(v => set.add(v.key));
       }
-    }
+    });
     return set;
-  }, [definerOps]);
+  }, [nodes]);
 
   const { mutateAsync: createVar } = useCreateDefinerVariable(graphId);
   const { mutateAsync: deleteVar } = useDeleteDefinerVariable(graphId);

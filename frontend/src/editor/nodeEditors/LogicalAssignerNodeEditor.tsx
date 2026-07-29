@@ -23,15 +23,9 @@ export const LogicalAssignerNodeEditor = ({
   nodeId,
   disabled = false,
 }: LogicalAssignerNodeEditorProps) => {
-  const { node, logicalOps, stateVariables } = useNodeEditorData(graphId, nodeId);
+  const { node, stateVariables } = useNodeEditorData(graphId, nodeId);
 
-  const nodeRefId = (node as unknown as { ref_id?: string })?.ref_id || `op_${nodeId}`;
-
-  const currentOp = useMemo(() => {
-    return logicalOps.find((op) => op.id === nodeRefId) || { assignments: [] };
-  }, [logicalOps, nodeRefId]);
-
-  const assignments: LogicalAssignment[] = currentOp.assignments || [];
+  const assignments: LogicalAssignment[] = node?.assignments || [];
 
   const { mutateAsync: createAsgn } = useCreateLogicalAssignment(graphId);
   const { mutateAsync: deleteAsgn } = useDeleteLogicalAssignment(graphId);

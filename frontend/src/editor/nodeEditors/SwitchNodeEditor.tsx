@@ -25,7 +25,7 @@ export const SwitchNodeEditor = ({
 }: SwitchNodeEditorProps) => {
   const { node, stateVariables } = useNodeEditorData(graphId, nodeId);
 
-  const slots: Array<{ id: string; raw_string: string; expression?: ASTExpression }> = useMemo(() => {
+  const slots: Array<{ id: string; raw_string: string; expression?: ASTExpression | null }> = useMemo(() => {
     return node?.slots || [];
   }, [node]);
 

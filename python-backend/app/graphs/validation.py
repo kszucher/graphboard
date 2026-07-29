@@ -26,8 +26,13 @@ def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[s
 
 def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
     diagnostics = []
-    valid_keys = {var.key for op in flow_data.operations.definer for var in op.variables if var.key}
-    logical_ops_map = {op.id: op.assignments for op in flow_data.operations.logical}
+    valid_keys = {
+        var.key
+        for node in flow_data.nodes
+        if node.node_type == "DEFINER" and node.variables
+        for var in node.variables
+        if var.key
+    }
 
     for node in flow_data.nodes:
         if node.node_type == "STEP":
@@ -46,7 +51,7 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
                     )
 
         elif node.node_type == "LOGICAL_ASSIGNER":
-            assignments = logical_ops_map.get(node.ref_id or "") or []
+            assignments = node.assignments or []
             for asgn in assignments:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
                     diagnostics.append(

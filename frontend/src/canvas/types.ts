@@ -2,13 +2,16 @@ import type { Edge, Node } from '@xyflow/react';
 import type { ElkEdgeSection } from 'elkjs';
 import type { components } from '../api/generated/schema';
 
-export type ApiNode = components['schemas']['NodeRead'] & {
+export type ApiNode = Omit<components['schemas']['NodeRead'], 'variables' | 'assignments' | 'slots'> & {
   is_input: boolean;
   is_output: boolean;
+  slots?: ApiSlot[] | null;
+  variables?: DefinerVariable[] | null;
+  assignments?: LogicalAssignment[] | null;
   traversalIndex?: number;
 };
 
-export type ApiSlot = components['schemas']['SlotRead'] & {
+export type ApiSlot = Omit<components['schemas']['SlotRead'], 'expression'> & {
   expression?: ASTExpression | null;
   target_var_key?: string | null;
 };
@@ -24,11 +27,6 @@ export interface DefinerVariable {
   description?: string | null;
 }
 
-export interface DefinerOperation {
-  id: string;
-  variables: DefinerVariable[];
-}
-
 export interface LogicalAssignment {
   id: string;
   target_var_key: string;
@@ -36,21 +34,6 @@ export interface LogicalAssignment {
   value?: unknown;
   expression?: ASTExpression | null;
 }
-
-export interface LogicalOperation {
-  id: string;
-  assignments: LogicalAssignment[];
-}
-
-export interface OperationsContainer {
-  definer: DefinerOperation[];
-  agentic?: unknown[];
-  logical?: LogicalOperation[];
-  switch?: unknown[];
-}
-
-export type StateVariable = DefinerVariable;
-
 
 export interface Diagnostic {
   line: number;

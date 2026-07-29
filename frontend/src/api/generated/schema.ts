@@ -166,8 +166,8 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Undo Endpoint */
-    post: operations["undo_endpoint_graphs__graph_id__history_undo_post"];
+    /** Undo Graph Flow Endpoint */
+    post: operations["undo_graph_flow_endpoint_graphs__graph_id__history_undo_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -183,8 +183,8 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Redo Endpoint */
-    post: operations["redo_endpoint_graphs__graph_id__history_redo_post"];
+    /** Redo Graph Flow Endpoint */
+    post: operations["redo_graph_flow_endpoint_graphs__graph_id__history_redo_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -237,31 +237,13 @@ export interface paths {
     put?: never;
     /** Shortcircuit Node Endpoint */
     post: operations["shortcircuit_node_endpoint_graphs__graph_id__nodes__node_id__shortcircuit_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
     patch?: never;
     trace?: never;
   };
-  "/graphs/{graph_id}/nodes/{node_id}/definer/variables": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    post: operations["create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post"];
-  };
-  "/graphs/{graph_id}/definer/variables/{var_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    patch: operations["update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch"];
-    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete"];
-  };
   "/graphs/{graph_id}/nodes/{node_id}/slots": {
-
-
     parameters: {
       query?: never;
       header?: never;
@@ -277,25 +259,6 @@ export interface paths {
     head?: never;
     patch?: never;
     trace?: never;
-  };
-  "/graphs/{graph_id}/nodes/{node_id}/logical/assignments": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    post: operations["create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post"];
-  };
-  "/graphs/{graph_id}/logical/assignments/{assignment_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    patch: operations["update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch"];
-    delete: operations["delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete"];
   };
   "/graphs/{graph_id}/slots/{slot_id}": {
     parameters: {
@@ -383,6 +346,76 @@ export interface paths {
     patch: operations["reconnect_edge_endpoint_graphs__graph_id__edges__edge_id__reconnect_patch"];
     trace?: never;
   };
+  "/graphs/{graph_id}/nodes/{node_id}/definer/variables": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create Definer Variable Endpoint */
+    post: operations["create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/{graph_id}/definer/variables/{var_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Definer Variable Endpoint */
+    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete"];
+    options?: never;
+    head?: never;
+    /** Update Definer Variable Endpoint */
+    patch: operations["update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch"];
+    trace?: never;
+  };
+  "/graphs/{graph_id}/nodes/{node_id}/logical/assignments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create Logical Assignment Endpoint */
+    post: operations["create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/{graph_id}/logical/assignments/{assignment_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Logical Assignment Endpoint */
+    delete: operations["delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete"];
+    options?: never;
+    head?: never;
+    /** Update Logical Assignment Endpoint */
+    patch: operations["update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch"];
+    trace?: never;
+  };
   "/health": {
     parameters: {
       query?: never;
@@ -402,37 +435,77 @@ export interface paths {
   };
 }
 
+export type webhooks = Record<string, never>;
+
 export interface components {
   schemas: {
-    LogicalAssignmentCreateRequest: {
-      target_var_key: string;
-      value_type?: "boolean" | "string" | "number" | "float";
-      value?: unknown;
-      expression?: unknown;
-    };
-    LogicalAssignmentUpdateRequest: {
-      target_var_key?: string | null;
-      value_type?: ("boolean" | "string" | "number" | "float") | null;
-      value?: unknown;
-      expression?: unknown;
-    };
-    DefinerVariableCreateRequest: {
-      key: string;
-      type: "boolean" | "string" | "number" | "float";
-      default_value?: unknown;
-      description?: string | null;
-    };
-
-    DefinerVariableUpdateRequest: {
-      type?: ("boolean" | "string" | "number" | "float") | null;
-      default_value?: unknown;
-      description?: string | null;
-    };
     /** ActiveGraphResponse */
     ActiveGraphResponse: {
-
       /** Graph Id */
       graph_id: string | null;
+    };
+    /** DefinerVariableCreateRequest */
+    DefinerVariableCreateRequest: {
+      /** Key */
+      key: string;
+      /**
+       * Type
+       * @default string
+       * @enum {string}
+       */
+      type: "boolean" | "string" | "number" | "float";
+      /** Default Value */
+      default_value?: unknown;
+      /** Description */
+      description?: string | null;
+    };
+    /** DefinerVariableSchema */
+    DefinerVariableSchema: {
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+      /** Key */
+      key: string;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: "boolean" | "string" | "number" | "float";
+      /** Default Value */
+      default_value?: unknown;
+      /** Description */
+      description?: string | null;
+    };
+    /** DefinerVariableUpdateRequest */
+    DefinerVariableUpdateRequest: {
+      /** Type */
+      type?: ("boolean" | "string" | "number" | "float") | null;
+      /** Default Value */
+      default_value?: unknown;
+      /** Description */
+      description?: string | null;
+    };
+    /** DiagnosticRead */
+    DiagnosticRead: {
+      /** Line */
+      line: number;
+      /** Column */
+      column: number;
+      /** Code */
+      code: string;
+      /** Message */
+      message: string;
+      /**
+       * Severity
+       * @enum {string}
+       */
+      severity: "error" | "warning";
+      /** Node Id */
+      node_id?: string | null;
+      /** Slot Id */
+      slot_id?: string | null;
     };
     /** EdgeCreateRequest */
     EdgeCreateRequest: {
@@ -451,11 +524,12 @@ export interface components {
        * Id
        * Format: uuid
        */
-      id: string;
+      id?: string;
       /** Source Id */
       source_id: string;
       /**
        * Source Type
+       * @default node
        * @enum {string}
        */
       source_type: "node" | "slot";
@@ -463,6 +537,7 @@ export interface components {
       target_id: string;
       /**
        * Target Type
+       * @default node
        * @enum {string}
        */
       target_type: "node" | "slot";
@@ -477,19 +552,6 @@ export interface components {
       source_handle: string;
       /** Target Handle */
       target_handle: string;
-    };
-    /** FunctionRead */
-    FunctionRead: {
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      /** Input Variable */
-      input_variable?: string | null;
-      /** Output Variable */
-      output_variable?: string | null;
-      /** Raw String */
-      raw_string: string;
     };
     /** GraphCreate */
     GraphCreate: {
@@ -512,16 +574,8 @@ export interface components {
       nodes: components["schemas"]["NodeRead"][];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
-      /**
-       * Variables
-       * @default []
-       */
-      variables: components["schemas"]["VariableRead"][];
-      /**
-       * Functions
-       * @default []
-       */
-      functions: components["schemas"]["FunctionRead"][];
+      /** Diagnostics */
+      diagnostics?: components["schemas"]["DiagnosticRead"][];
       /**
        * Can Undo
        * @default false
@@ -550,30 +604,64 @@ export interface components {
     };
     /** GraphSyncPayload */
     GraphSyncPayload: {
-      /**
-       * Code
-       * @default
-       */
-      code: string;
       /** Nodes */
       nodes: components["schemas"]["NodeRead"][];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
-      /**
-       * Variables
-       * @default []
-       */
-      variables: components["schemas"]["VariableRead"][];
-      /**
-       * Functions
-       * @default []
-       */
-      functions: components["schemas"]["FunctionRead"][];
     };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /** LogicalAssignmentCreateRequest */
+    LogicalAssignmentCreateRequest: {
+      /** Target Var Key */
+      target_var_key: string;
+      /**
+       * Value Type
+       * @default string
+       * @enum {string}
+       */
+      value_type: "boolean" | "string" | "number" | "float";
+      /** Value */
+      value?: unknown;
+      /** Expression */
+      expression?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /** LogicalAssignmentSchema */
+    LogicalAssignmentSchema: {
+      /** Id */
+      id: string;
+      /** Target Var Key */
+      target_var_key: string;
+      /**
+       * Value Type
+       * @default string
+       * @enum {string}
+       */
+      value_type: "boolean" | "string" | "number" | "float";
+      /** Value */
+      value?: unknown;
+      /** Expression */
+      expression?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /** LogicalAssignmentUpdateRequest */
+    LogicalAssignmentUpdateRequest: {
+      /** Target Var Key */
+      target_var_key?: string | null;
+      /** Value Type */
+      value_type?: ("boolean" | "string" | "number" | "float") | null;
+      /** Value */
+      value?: unknown;
+      /** Expression */
+      expression?: {
+        [key: string]: unknown;
+      } | null;
     };
     /** NodeCreateRequest */
     NodeCreateRequest: {
@@ -583,24 +671,29 @@ export interface components {
       /** Direction */
       direction?: ("before" | "after") | null;
     };
+    /** NodeRead */
     NodeRead: {
       /** Id */
       id: string;
       node_type: components["schemas"]["NodeType"];
-      ref_id?: string | null;
       /** Slots */
-      slots: components["schemas"]["SlotRead"][];
+      slots?: components["schemas"]["SlotRead"][];
+      /** Variables */
+      variables?: components["schemas"]["DefinerVariableSchema"][] | null;
+      /** Assignments */
+      assignments?: components["schemas"]["LogicalAssignmentSchema"][] | null;
+      /** Prompt */
+      prompt?: string | null;
     };
     /**
      * NodeType
      * @enum {string}
      */
     NodeType: "START" | "END" | "STEP" | "SWITCH" | "DEFINER" | "LOGICAL_ASSIGNER" | "AGENTIC_ASSIGNER";
-
+    /** NodeUpdateRequest */
     NodeUpdateRequest: {
       /** New Id */
       new_id?: string | null;
-      ref_id?: string | null;
     };
     /** SetActiveGraph */
     SetActiveGraph: {
@@ -628,17 +721,39 @@ export interface components {
        */
       direction: "up" | "down" | "top" | "bottom";
     };
+    /** SlotRead */
     SlotRead: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
-      /** Raw String */
+      /**
+       * Raw String
+       * @default
+       */
       raw_string: string;
+      /** Expression */
+      expression?: {
+        [key: string]: unknown;
+      } | null;
+      /** Target Var Key */
+      target_var_key?: string | null;
+      /** Ref Id */
       ref_id?: string | null;
     };
     /** SlotUpdateRequest */
     SlotUpdateRequest: {
       /** Raw String */
-      raw_string: string;
+      raw_string?: string | null;
+      /** Expression */
+      expression?: {
+        [key: string]: unknown;
+      } | null;
+      /** Target Var Key */
+      target_var_key?: string | null;
+      /** Ref Id */
+      ref_id?: string | null;
     };
     /** UserCreate */
     UserCreate: {
@@ -654,20 +769,6 @@ export interface components {
       /** Error Type */
       type: string;
     };
-    /** VariableRead */
-    VariableRead: {
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      /**
-       * Type
-       * @enum {string}
-       */
-      type: "boolean" | "string" | "number";
-      /** Value */
-      value?: unknown;
-    };
   };
   responses: never;
   parameters: never;
@@ -682,7 +783,9 @@ export interface operations {
   get_or_create_user_users_get_or_create_post: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
       path?: never;
       cookie?: never;
     };
@@ -697,12 +800,23 @@ export interface operations {
           "application/json": string;
         };
       };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
   };
   create_user_users__post: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
       path?: never;
       cookie?: never;
     };
@@ -735,7 +849,9 @@ export interface operations {
   get_active_graph_id_users__user_id__active_graph_get: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
       path: {
         user_id: string;
       };
@@ -766,7 +882,9 @@ export interface operations {
   set_active_graph_users_set_active_graph_post: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
       path?: never;
       cookie?: never;
     };
@@ -967,146 +1085,7 @@ export interface operations {
       };
     };
   };
-  create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post: {
-
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        node_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DefinerVariableCreateRequest"];
-      };
-    };
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-  update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        var_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["DefinerVariableUpdateRequest"];
-      };
-    };
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-  delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        var_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-  create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        node_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["LogicalAssignmentCreateRequest"];
-      };
-    };
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-  update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        assignment_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["LogicalAssignmentUpdateRequest"];
-      };
-    };
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-  delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        assignment_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["GraphFlowRead"] };
-      };
-    };
-  };
-
-  undo_endpoint_graphs__graph_id__history_undo_post: {
-
+  undo_graph_flow_endpoint_graphs__graph_id__history_undo_post: {
     parameters: {
       query?: never;
       header?: {
@@ -1139,7 +1118,7 @@ export interface operations {
       };
     };
   };
-  redo_endpoint_graphs__graph_id__history_redo_post: {
+  redo_graph_flow_endpoint_graphs__graph_id__history_redo_post: {
     parameters: {
       query?: never;
       header?: {
@@ -1549,6 +1528,226 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["EdgeReconnectRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        node_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DefinerVariableCreateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        var_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        var_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DefinerVariableUpdateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        node_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LogicalAssignmentCreateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        assignment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+        assignment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LogicalAssignmentUpdateRequest"];
       };
     };
     responses: {
