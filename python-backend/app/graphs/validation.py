@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.constants import NodeType
 from app.graphs.schemas import DiagnosticRead, GraphFlowData
 
 
@@ -29,13 +30,13 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
     valid_keys = {
         var.key
         for node in flow_data.nodes
-        if node.node_type == "DEFINER" and node.variables
+        if node.node_type == NodeType.DEFINER and node.variables
         for var in node.variables
         if var.key
     }
 
     for node in flow_data.nodes:
-        if node.node_type == "STEP":
+        if node.node_type == NodeType.STEP:
             for slot in node.slots:
                 if slot.target_var_key and slot.target_var_key not in valid_keys:
                     diagnostics.append(
@@ -50,7 +51,7 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
                         )
                     )
 
-        elif node.node_type == "LOGICAL_ASSIGNER":
+        elif node.node_type == NodeType.LOGICAL_ASSIGNER:
             assignments = node.assignments or []
             for asgn in assignments:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
@@ -66,7 +67,7 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
                         )
                     )
 
-        elif node.node_type == "SWITCH":
+        elif node.node_type == NodeType.SWITCH:
             for slot in node.slots:
                 if slot.expression:
                     for invalid_var in _find_invalid_state_refs(slot.expression, valid_keys):

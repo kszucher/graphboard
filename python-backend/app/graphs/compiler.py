@@ -12,6 +12,7 @@ import uuid
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, cast
 
+from app.constants import NodeType
 from app.graphs.schemas import DiagnosticRead, GraphFlowData, SlotRead
 
 try:
@@ -162,14 +163,16 @@ class PureAstLangGraphCompiler:
     def __init__(self, flow_data: GraphFlowData):
         self.flow_data = flow_data
         self.all_variables = [
-            v for n in flow_data.nodes if n.node_type == "DEFINER" and n.variables for v in n.variables if v.key
+            v for n in flow_data.nodes if n.node_type == NodeType.DEFINER and n.variables for v in n.variables if v.key
         ]
         self.valid_keys = {v.key for v in self.all_variables}
-        self.definer_ids = {n.id for n in flow_data.nodes if n.node_type == "DEFINER"}
+        self.definer_ids = {n.id for n in flow_data.nodes if n.node_type == NodeType.DEFINER}
         self.executable_nodes = [
-            n for n in flow_data.nodes if n.node_type in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
+            n
+            for n in flow_data.nodes
+            if n.node_type in (NodeType.STEP, NodeType.SWITCH, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER)
         ]
-        self.switch_nodes = {n.id: n for n in self.executable_nodes if n.node_type == "SWITCH"}
+        self.switch_nodes = {n.id: n for n in self.executable_nodes if n.node_type == NodeType.SWITCH}
 
     def resolve_target_id(self, target_id: str, visited: set[str] | None = None) -> str:
         visited = visited or set()
@@ -239,7 +242,7 @@ class PureAstLangGraphCompiler:
 
         # Add Nodes
         for n in self.executable_nodes:
-            if n.node_type == "SWITCH" and not switch_sources[n.id]:
+            if n.node_type == NodeType.SWITCH and not switch_sources[n.id]:
                 dummy_lambda = ast.Lambda(
                     args=ast.arguments(
                         posonlyargs=[], args=[ast.arg(arg="state")], kwonlyargs=[], kw_defaults=[], defaults=[]
@@ -247,7 +250,7 @@ class PureAstLangGraphCompiler:
                     body=ast.Constant(value=None),
                 )
                 stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), dummy_lambda))
-            elif n.node_type != "SWITCH":
+            elif n.node_type != NodeType.SWITCH:
                 stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), ast.Name(id=n.id, ctx=ast.Load())))
 
         # Add Edges
@@ -306,9 +309,9 @@ class PureAstLangGraphCompiler:
         ).body
         nodes = [
             compile_ast_switch_node(n.id, n.slots)
-            if n.node_type == "SWITCH"
+            if n.node_type == NodeType.SWITCH
             else compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys)
-            if n.node_type == "LOGICAL_ASSIGNER"
+            if n.node_type == NodeType.LOGICAL_ASSIGNER
             else compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys)
             for n in self.executable_nodes
         ]

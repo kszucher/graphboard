@@ -13,8 +13,8 @@ from app.graphs.schemas import (
     SlotRead,
 )
 
-SENTINEL_NODE_TYPES = {"START", "END", "DEFINER"}
-SEQUENTIAL_STEP_TYPES = {"STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"}
+SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END, NodeType.DEFINER}
+SEQUENTIAL_STEP_TYPES = {NodeType.STEP, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER}
 
 _UNSET: Any = object()
 
@@ -80,14 +80,14 @@ def add_node(
                     old_edges.append(e)
 
         to_slot_id = node_id
-        from_slot_id = slots[0].id if (node_type == "SWITCH" and slots) else node_id
+        from_slot_id = slots[0].id if (node_type == NodeType.SWITCH and slots) else node_id
 
         target_or_source_node = next((n for n in nodes if n.id == connector_id), None)
         if not target_or_source_node:
             target_or_source_node = next((n for n in nodes if any(s.id == connector_id for s in n.slots)), None)
 
         source_type: Literal["node", "slot"] = "node"
-        if is_after and target_or_source_node and target_or_source_node.node_type == "SWITCH":
+        if is_after and target_or_source_node and target_or_source_node.node_type == NodeType.SWITCH:
             source_type = "slot"
 
         target_type: Literal["node", "slot"] = "node"
@@ -108,7 +108,7 @@ def add_node(
             upd = old_edge.model_copy()
             if is_after:
                 upd.source_id = from_slot_id
-                upd.source_type = "slot" if node_type == "SWITCH" else "node"
+                upd.source_type = "slot" if node_type == NodeType.SWITCH else "node"
             else:
                 upd.target_id = to_slot_id
                 upd.target_type = "node"
@@ -305,7 +305,9 @@ def create_edge(
     source_node = next((n for n in nodes if n.id == source), None)
     target_node = next((n for n in nodes if n.id == target), None)
 
-    source_type: Literal["node", "slot"] = "slot" if (source_node and source_node.node_type == "SWITCH") else "node"
+    source_type: Literal["node", "slot"] = (
+        "slot" if (source_node and source_node.node_type == NodeType.SWITCH) else "node"
+    )
     target_type: Literal["node", "slot"] = "node"
 
     if target_node:
@@ -342,7 +344,9 @@ def reconnect_edge(
     source_node = next((n for n in nodes if n.id == source), None)
     target_node = next((n for n in nodes if n.id == target), None)
 
-    source_type: Literal["node", "slot"] = "slot" if (source_node and source_node.node_type == "SWITCH") else "node"
+    source_type: Literal["node", "slot"] = (
+        "slot" if (source_node and source_node.node_type == NodeType.SWITCH) else "node"
+    )
     target_type: Literal["node", "slot"] = "node"
 
     if target_node:
