@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from typing import Any, Literal
 
@@ -13,6 +15,8 @@ from app.graphs.schemas import (
 
 SENTINEL_NODE_TYPES = {"START", "END", "DEFINER"}
 SEQUENTIAL_STEP_TYPES = {"STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"}
+
+_UNSET: Any = object()
 
 
 def generate_node_id(node_type: NodeType | str, existing_nodes: list[NodeRead]) -> str:
@@ -231,7 +235,7 @@ def update_slot(
     flow_data: GraphFlowData,
     slot_id: str,
     raw_string: str | None = None,
-    expression: dict[str, Any] | None = None,
+    expression: dict[str, Any] | None = _UNSET,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     for node in nodes:
@@ -239,7 +243,7 @@ def update_slot(
             if slot.id == slot_id:
                 if raw_string is not None:
                     slot.raw_string = raw_string
-                if expression is not None:
+                if expression is not _UNSET:
                     slot.expression = expression
                 return flow_data
     return flow_data
