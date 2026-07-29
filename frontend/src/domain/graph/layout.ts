@@ -112,7 +112,7 @@ const buildElkEdges = (edges: AppFlowEdge[]): ElkExtendedEdge[] =>
     targets: [`${edge.target}-target-${edge.targetHandle}`],
   }));
 
-export const getLayoutedElements = async (
+const getLayoutedElements = async (
   nodes: AppFlowNode[],
   edges: AppFlowEdge[]
 ): Promise<{

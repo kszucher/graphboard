@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import { useDeleteEdge, useInsertNodeOnEdge } from '../../hooks/graph/useGraphMutations';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 
-export interface FlowEdgeActionsProps {
+interface FlowEdgeActionsProps {
   edgeId: string;
   labelX: number;
   labelY: number;

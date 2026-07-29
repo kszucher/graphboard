@@ -2,7 +2,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
 import { queryKeys } from '../queryKeys';
 
-export const userQueries = {
+const userQueries = {
   current: () => queryOptions({
     queryKey: queryKeys.users.current(),
     queryFn: async () => {

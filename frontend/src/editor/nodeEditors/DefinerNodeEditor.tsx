@@ -22,7 +22,7 @@ interface DefinerNodeEditorProps {
   disabled?: boolean;
 }
 
-export type DefinerDraftStep = 'key' | 'type' | 'value_and_save';
+type DefinerDraftStep = 'key' | 'type' | 'value_and_save';
 
 export const DefinerNodeEditor = ({
   graphId,

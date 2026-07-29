@@ -377,32 +377,6 @@ export const useCreateDefinerVariable = (graphId: string) => {
   });
 };
 
-export const useUpdateDefinerVariable = (graphId: string) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      varId,
-      type,
-      defaultValue,
-    }: {
-      varId: string;
-      type?: 'boolean' | 'string' | 'number' | 'float';
-      defaultValue?: unknown;
-    }) => {
-      const res = await apiClient.PATCH('/graphs/{graph_id}/definer/variables/{var_id}', {
-        params: { path: { graph_id: graphId, var_id: varId } },
-        headers: { 'X-Client-Id': getClientId() },
-        body: { type, default_value: defaultValue }
-      });
-      if ('error' in res) throw res.error;
-      return res.data;
-    },
-    onSuccess: (data) => {
-      handleMutationSuccess(queryClient, graphId, data);
-    }
-  });
-};
-
 export const useDeleteDefinerVariable = (graphId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -450,37 +424,6 @@ export const useCreateLogicalAssignment = (graphId: string) => {
   });
 };
 
-export const useUpdateLogicalAssignment = (graphId: string) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      assignmentId,
-      targetVarKey,
-      valueType,
-      value,
-      expression,
-    }: {
-      assignmentId: string;
-      targetVarKey?: string;
-      valueType?: 'boolean' | 'string' | 'number' | 'float';
-      value?: unknown;
-      expression?: ASTExpression | null;
-    }) => {
-      const res = await apiClient.PATCH('/graphs/{graph_id}/logical/assignments/{assignment_id}', {
-        params: { path: { graph_id: graphId, assignment_id: assignmentId } },
-        headers: { 'X-Client-Id': getClientId() },
-        body: { target_var_key: targetVarKey, value_type: valueType, value, expression }
-      });
-      if ('error' in res) throw res.error;
-      return res.data;
-    },
-    onSuccess: (data) => {
-      handleMutationSuccess(queryClient, graphId, data);
-    }
-  });
-};
-
-
 export const useDeleteLogicalAssignment = (graphId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -497,4 +440,3 @@ export const useDeleteLogicalAssignment = (graphId: string) => {
     }
   });
 };
-

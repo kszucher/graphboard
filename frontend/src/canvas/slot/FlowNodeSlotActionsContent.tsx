@@ -19,7 +19,7 @@ const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
   { type: 'SWITCH', label: 'Switch' },
 ];
 
-export interface SlotActionsContentProps {
+interface SlotActionsContentProps {
   slotId: string;
 }
 

@@ -1,6 +1,6 @@
 import type { AppFlowEdge, AppFlowNode } from '../../canvas/types';
 
-export interface EdgeOption {
+interface EdgeOption {
   edgeId: string;
   label: string;
 }

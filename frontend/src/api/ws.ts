@@ -1,6 +1,6 @@
 import { getClientId, wsBaseUrl } from './client';
 
-export type GraphEvent =
+type GraphEvent =
   | { event: 'graph_created'; graph_id: string; payload: Record<string, unknown> }
   | { event: 'graph_updated'; graph_id: string; payload: Record<string, unknown> }
   | { event: 'ws_hello'; graph_id: string };

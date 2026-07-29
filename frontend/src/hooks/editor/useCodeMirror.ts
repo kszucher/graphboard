@@ -93,7 +93,7 @@ const editorTheme = EditorView.theme({
   },
 });
 
-export interface UseCodeMirrorProps {
+interface UseCodeMirrorProps {
   code: string;
   variables: StateVariable[];
   selectedNodeId: string | null;

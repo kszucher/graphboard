@@ -55,7 +55,7 @@ export function findFunctionAt(state: EditorState, pos: number): { name: string;
   return result;
 }
 
-export function findFunctionByName(state: EditorState, name: string): { from: number; to: number } | null {
+function findFunctionByName(state: EditorState, name: string): { from: number; to: number } | null {
   let result: { from: number; to: number } | null = null;
   const docStr = state.doc.toString();
   const lowerName = name.toLowerCase();

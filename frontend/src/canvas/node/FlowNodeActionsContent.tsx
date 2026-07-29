@@ -17,7 +17,7 @@ const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
   { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
 ];
 
-export interface FlowNodeActionsContentProps {
+interface FlowNodeActionsContentProps {
   nodeId: string;
   onRenameClick: () => void;
 }

@@ -1,7 +1,5 @@
 import type { ASTExpression } from '../../canvas/types';
 
-export type DraftStep = 'target' | 'operand_type_choice' | 'operand_input' | 'operator_or_save';
-
 export type DraftToken =
   | { kind: 'var'; varKey: string }
   | { kind: 'val'; value: unknown; valType?: 'string' | 'number' | 'boolean' | 'float' }
@@ -17,7 +15,7 @@ export const COMPARISON_OPERATORS: Array<'==' | '!=' | '>' | '<' | '>=' | '<='> 
   '<=',
 ];
 
-export const PYTHON_KEYWORDS = new Set([
+const PYTHON_KEYWORDS = new Set([
   'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class', 'continue',
   'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global', 'if', 'import',
   'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try', 'while', 'with', 'yield',
