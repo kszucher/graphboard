@@ -1,22 +1,15 @@
 """=============================================================================
-PURE AST COMPILER WARNING
+PURE AST COMPILER
 =============================================================================
-This module generates code using Pure Python AST (`ast.Module`, `ast.parse`,
-`ast.Call`, `ast.Dict`).
-
-DO NOT revert to raw string formatting for code logic or graph generation.
-ANY FURTHER CHANGES MUST STRICTLY ADHERE TO GENERATING FULL PURE AST NODES.
+Translates GraphFlowData directly to executable Python AST.
+Frontend (CodeMirror / Prettier) handles all visual code formatting.
 ============================================================================="""
 
 import ast
 import asyncio
-import json
 import multiprocessing
-import shutil
-import sys
 import uuid
 from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
 from typing import Any
 
 from app.graphs.schemas import DiagnosticRead, GraphFlowData, SlotRead
@@ -24,9 +17,9 @@ from app.graphs.validation import validate_flow_data
 
 _execution_executor: ProcessPoolExecutor | None = None
 
-TYPE_MAP_GB_TO_PY = {"number": "int", "float": "float", "boolean": "bool", "string": "str"}
-DEFAULT_TYPE_VALUES = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
-MAP_COMPARE_OPS = {
+TYPE_MAP = {"number": "int", "float": "float", "boolean": "bool", "string": "str"}
+DEFAULT_VALUES = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
+COMPARE_OPS = {
     "==": ast.Eq(),
     "!=": ast.NotEq(),
     "<": ast.Lt(),
@@ -38,7 +31,7 @@ MAP_COMPARE_OPS = {
     "is": ast.Is(),
     "is not": ast.IsNot(),
 }
-MAP_BIN_OPS = {
+BIN_OPS = {
     "+": ast.Add(),
     "-": ast.Sub(),
     "*": ast.Mult(),
@@ -56,59 +49,21 @@ def get_executor() -> ProcessPoolExecutor:
     return _execution_executor
 
 
-def _resolve_ruff_path() -> str:
-    exe_dir = Path(sys.executable).parent
-    ruff_name = "ruff.exe" if sys.platform == "win32" else "ruff"
-    local_ruff = exe_dir / ruff_name
-    if not local_ruff.exists():
-        try:
-            local_ruff = (
-                Path(__file__).resolve().parents[2]
-                / ".venv"
-                / ("Scripts" if sys.platform == "win32" else "bin")
-                / ruff_name
-            )
-        except Exception:
-            pass
-    return str(local_ruff) if local_ruff.exists() else (shutil.which("ruff") or "ruff")
-
-
-async def _run_ruff(args: list[str], stdin_data: str) -> str:
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            _resolve_ruff_path(),
-            *args,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate(input=stdin_data.encode("utf-8"))
-        if proc.returncode == 0 or (args and args[0] == "check"):
-            return stdout.decode("utf-8")
-        print(f"Ruff failed code {proc.returncode}: {stderr.decode('utf-8')}", file=sys.stderr)
-    except Exception as e:
-        print(f"Ruff execution error: {e}", file=sys.stderr)
-    return ""
-
-
-# ----------------------------------------------------
-# AST Helpers & Building Shortcuts
-# ----------------------------------------------------
 def _ref(node_id: str) -> ast.expr:
     return ast.Name(id=node_id, ctx=ast.Load()) if node_id in ("START", "END") else ast.Constant(value=node_id)
 
 
 def _call(func_expr: str, *args: ast.expr) -> ast.Expr:
-    """Helper to convert 'obj.method' string into an ast.Expr(ast.Call(...)) node."""
     parts = func_expr.split(".")
     obj = ast.Name(id=parts[0], ctx=ast.Load())
     func = ast.Attribute(value=obj, attr=parts[1], ctx=ast.Load()) if len(parts) > 1 else obj
     return ast.Expr(value=ast.Call(func=func, args=list(args), keywords=[]))
 
 
-def ast_expr_to_node(node: dict[str, Any] | None, default_fallback: str = "True") -> ast.expr:
+def ast_expr_to_node(node: dict[str, Any] | None, fallback: str = "True") -> ast.expr:
     if not node:
-        return ast.parse(default_fallback, mode="eval").body
+        return ast.parse(fallback, mode="eval").body
+
     kind = node.get("kind")
     if kind == "literal":
         return ast.Constant(value=node.get("value"))
@@ -119,22 +74,20 @@ def ast_expr_to_node(node: dict[str, Any] | None, default_fallback: str = "True"
             keywords=[],
         )
     if kind == "binaryOp":
-        op_str = node.get("op", "==")
-        left, right = (
-            ast_expr_to_node(node.get("left"), default_fallback),
-            ast_expr_to_node(node.get("right"), default_fallback),
-        )
+        op = node.get("op", "==")
+        left, right = ast_expr_to_node(node.get("left"), fallback), ast_expr_to_node(node.get("right"), fallback)
         return (
-            ast.Compare(left=left, ops=[MAP_COMPARE_OPS.get(op_str, ast.Eq())], comparators=[right])
-            if op_str in MAP_COMPARE_OPS
-            else ast.BinOp(left=left, op=MAP_BIN_OPS[op_str], right=right)
+            ast.Compare(left=left, ops=[COMPARE_OPS[op]], comparators=[right])
+            if op in COMPARE_OPS
+            else ast.BinOp(left=left, op=BIN_OPS.get(op, ast.Add()), right=right)
         )
     if kind == "unaryOp":
         return ast.UnaryOp(
             op={"not": ast.Not(), "-": ast.USub(), "+": ast.UAdd()}.get(node.get("op", "not"), ast.Not()),
-            operand=ast_expr_to_node(node.get("expr"), default_fallback),
+            operand=ast_expr_to_node(node.get("expr"), fallback),
         )
-    return ast.parse(default_fallback, mode="eval").body
+
+    return ast.parse(fallback, mode="eval").body
 
 
 def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
@@ -195,7 +148,7 @@ def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.Function
 
 
 # ----------------------------------------------------
-# Pure AST LangGraph Compiler
+# Pure AST Compiler
 # ----------------------------------------------------
 class PureAstLangGraphCompiler:
     def __init__(self, flow_data: GraphFlowData):
@@ -225,7 +178,7 @@ class PureAstLangGraphCompiler:
         anns = [
             ast.AnnAssign(
                 target=ast.Name(id=v.key, ctx=ast.Store()),
-                annotation=ast.Name(id=TYPE_MAP_GB_TO_PY.get(v.type, "str"), ctx=ast.Load()),
+                annotation=ast.Name(id=TYPE_MAP.get(v.type, "str"), ctx=ast.Load()),
                 value=None,
                 simple=1,
             )
@@ -240,7 +193,7 @@ class PureAstLangGraphCompiler:
                 keys=[ast.Constant(value=v.key) for v in self.all_variables],
                 values=[
                     ast.Constant(
-                        value=v.default_value if v.default_value is not None else DEFAULT_TYPE_VALUES.get(v.type, "")
+                        value=v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, "")
                     )
                     for v in self.all_variables
                 ],
@@ -271,18 +224,13 @@ class PureAstLangGraphCompiler:
         # Add Nodes
         for n in self.executable_nodes:
             if n.node_type == "SWITCH" and not switch_sources[n.id]:
-                stmts.append(
-                    _call(
-                        "workflow.add_node",
-                        ast.Constant(value=n.id),
-                        ast.Lambda(
-                            args=ast.arguments(
-                                posonlyargs=[], args=[ast.arg(arg="state")], kwonlyargs=[], kw_defaults=[], defaults=[]
-                            ),
-                            body=ast.Constant(value=None),
-                        ),
-                    )
+                dummy_lambda = ast.Lambda(
+                    args=ast.arguments(
+                        posonlyargs=[], args=[ast.arg(arg="state")], kwonlyargs=[], kw_defaults=[], defaults=[]
+                    ),
+                    body=ast.Constant(value=None),
                 )
+                stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), dummy_lambda))
             elif n.node_type != "SWITCH":
                 stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), ast.Name(id=n.id, ctx=ast.Load())))
 
@@ -305,7 +253,7 @@ class PureAstLangGraphCompiler:
                     )
                 )
 
-        # Conditional Edges
+        # Conditional Router Edges
         for switch in self.switch_nodes.values():
             routing_edges = [e for e in self.flow_data.edges if e.source_id in {s.id for s in switch.slots}]
             if not routing_edges:
@@ -328,16 +276,8 @@ class PureAstLangGraphCompiler:
                     )
                 )
 
-        stmts.append(
-            ast.Assign(
-                targets=[ast.Name(id="app", ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Attribute(value=ast.Name(id="workflow", ctx=ast.Load()), attr="compile", ctx=ast.Load()),
-                    args=[],
-                    keywords=[],
-                ),
-            )
-        )
+        compile_call = _call("workflow.compile")
+        stmts.append(ast.Assign(targets=[ast.Name(id="app", ctx=ast.Store())], value=compile_call.value))
         return stmts
 
     def compile(self) -> str:
@@ -353,14 +293,12 @@ class PureAstLangGraphCompiler:
             else compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys)
             for n in self.executable_nodes
         ]
-
         mod = ast.Module(body=imports + self.build_state_ast() + nodes + self.build_workflow_ast(), type_ignores=[])
         return ast.unparse(ast.fix_missing_locations(mod))
 
 
 async def generate_graph_code(flow_data: GraphFlowData) -> str:
-    formatted = await _run_ruff(["format", "-"], PureAstLangGraphCompiler(flow_data).compile())
-    return formatted or PureAstLangGraphCompiler(flow_data).compile()
+    return PureAstLangGraphCompiler(flow_data).compile()
 
 
 # ----------------------------------------------------
@@ -385,24 +323,8 @@ def _worker_execute_langgraph(code: str) -> dict[str, Any]:
 
 
 async def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
-    if not code.strip():
-        return []
-    stdout = await _run_ruff(["check", "--output-format=json", "-"], code)
-    if not stdout:
-        return []
-    try:
-        return [
-            DiagnosticRead(
-                line=item.get("location", {}).get("row", 1),
-                column=item.get("location", {}).get("column", 1),
-                code=item.get("code", "UNK"),
-                message=item.get("message", ""),
-                severity="error" if item.get("code", "").startswith(("E", "F")) else "warning",
-            )
-            for item in json.loads(stdout)
-        ]
-    except Exception:
-        return []
+    """Diagnostics are handled dynamically in CodeMirror on the frontend."""
+    return []
 
 
 async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any]:
@@ -417,7 +339,8 @@ async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any
     try:
         code = await generate_graph_code(flow_data)
         return await asyncio.wait_for(
-            asyncio.get_running_loop().run_in_executor(get_executor(), _worker_execute_langgraph, code), timeout=5.0
+            asyncio.get_running_loop().run_in_executor(get_executor(), _worker_execute_langgraph, code),
+            timeout=5.0,
         )
     except TimeoutError:
         return {"variables": [], "error": "LangGraph execution timed out (possible infinite loop in visual graph)"}
