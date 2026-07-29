@@ -9,7 +9,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from app.graphs.schemas import DefinerVariableSchema, DiagnosticRead, GraphFlowData
+from app.graphs.schemas import DiagnosticRead, GraphFlowData
 
 _execution_executor: ProcessPoolExecutor | None = None
 
@@ -282,28 +282,8 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
     return diagnostics
 
 
-async def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
-    if isinstance(payload, dict):
-        legacy_schema = payload.get("state_schema") or []
-        flow_data = GraphFlowData.model_validate(payload)
-    else:
-        legacy_schema = []
-        flow_data = payload
-
+async def generate_graph_code(flow_data: GraphFlowData) -> str:
     all_variables = [var for op in flow_data.operations.definer for var in op.variables]
-
-    if not all_variables and legacy_schema:
-        for item in legacy_schema:
-            all_variables.append(
-                DefinerVariableSchema(
-                    id=item.get("id") or item.get("key") or "",
-                    key=item.get("key") or "",
-                    type=item.get("type") or "string",
-                    default_value=item.get("default_value"),
-                    description=item.get("description"),
-                )
-            )
-
     valid_keys = {var.key for var in all_variables if var.key}
 
     # State Definition Block
@@ -446,13 +426,11 @@ async def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
         return []
 
 
-async def compile_flow_with_langgraph(payload: dict[str, Any] | GraphFlowData) -> dict[str, Any]:
+async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any]:
     """
     Compiles the flow payload into executable python code, executes it,
     runs the compiled LangGraph workflow with its initial state, and returns the final state.
     """
-    flow_data = payload if isinstance(payload, GraphFlowData) else GraphFlowData.model_validate(payload)
-
     errors = validate_flow_data(flow_data)
     severe_errors = [e for e in errors if e.severity == "error"]
     if severe_errors:

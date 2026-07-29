@@ -378,14 +378,6 @@ async def update_node(
     mutated = graph_topology.update_node(
         flow_data, node_id, new_id=new_id, is_input=is_input, is_output=is_output, ref_id=ref_id
     )
-
-    if new_id and new_id != node_id:
-        from app.graphs.ast_editor import CodeASTEditor
-
-        editor = CodeASTEditor(mutated.code)
-        if editor.rename_function(node_id, new_id):
-            mutated.code = editor.get_code()
-
     return await _commit_state_snapshot(uow, graph, mutated)
 
 
