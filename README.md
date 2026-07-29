@@ -42,38 +42,28 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ## 📈 Project Progress Tracker (Incremental Phase Backstory)
 
-For AI agents and developers reviewing the codebase history, Graphboard was built across six deliberate architectural phases:
+### Phase 1: Auto-Layout Graph Canvas
+* **Programmatic Positioning**: Configured React Flow with disabled manual node dragging, delegating all coordinate calculations to the ELK (Eclipse Layout Kernel) engine.
+* **Detour Routing**: Programmatically detected back-edges (feedback loops) and routed connections around node borders to avoid layout distortion.
+* **Dynamic Slot Rendering**: Implemented reactive output handles on Switch nodes that sync dynamically via `updateNodeInternals` when slot structures change.
 
-### Phase 1: Core Graph & Layout Foundation
-* **Programmatic Auto-Layout**: Configured React Flow to disable manual node dragging (`nodesDraggable: false`) and delegated all positioning calculations to ELK (Eclipse Layout Kernel).
-* **Slot-Based Handling**: Implemented output slots on Switch nodes representing execution branches, while Step nodes use node-level input/output handles directly.
-* **Detour Back-Edge Routing**: Detected backward execution paths (feedback loops) and routed them manually around the bottom of the graph to avoid distorting ELK layouts.
-* **Handles Lifecycle Sync**: Added automatic React Flow handle cache updates via `updateNodeInternals` when slot configurations toggle.
-* **Smooth Animation Transitions**: Mapped screen coordinates before history changes to trigger clean sliding animations on undo/redo.
+### Phase 2: Specialized Node Operations & State Schemas
+* **State DEFINER Sentinels**: Protected workflow entry states via a non-deletable `DEFINER` sentinel node featuring a dedicated Radix UI state schema editor.
+* **Extensible Operations Containers**: Structured specialized execution nodes (`LOGICAL_ASSIGNER`, `AGENTIC_ASSIGNER`) using decoupled domain models (`definer`, `logical`, `agentic`, `switch`) linked by reference IDs.
 
-### Phase 2: State & Synchronization Layer
-* **FastAPI Backend Port**: Rewrote the server from Node.js/Nest.js to Python/FastAPI.
-* **TanStack Query State Sync**: Synchronized server state and layout updates asynchronously with the database via TanStack Query.
-* **UoW Event Buffering**: Configured a FastAPI Unit of Work (UoW) transaction manager that buffers WebSocket broadcasts until database transactions commit successfully.
+### Phase 3: Server Persistence & WebSocket Sync
+* **TanStack Query Sync**: Synchronized visual node mutations and layout states with the FastAPI database asynchronously.
+* **Unit of Work Event Buffering**: Implemented a FastAPI Unit of Work transaction manager that buffers WebSocket updates to prevent broadcasting data before database commits complete.
+* **Canvas Snapshot History**: Added sequential snapshot models to database history rows enabling persistent, server-backed undo/redo actions.
 
-### Phase 3: Single-File Code Editor & Bidirectional AST Lock
-* **Sidebar Code Inspector**: Integrated CodeMirror 6 with custom syntax highlighting and theme styling.
-* **AST-Based Selection & Folding**: Implemented CodeMirror AST syntax tree traversal so selecting visual nodes unfolds and highlights code functions, while clicking code function definitions selects corresponding visual nodes.
+### Phase 4: LangGraph Code Compiler & Runtime
+* **Deterministic Code Synthesis**: Created a python AST compilation engine that parses visual nodes and slots into native LangGraph code (`StateGraph`, `START`, `END`, conditional routing).
+* **Safe Sandbox Runtime**: Configured a subprocess pool executor to safely execute compiled python workflows on the FastAPI backend, returning terminal execution results.
 
-### Phase 4: Pure Visual Graph & AST Engine Pivot
-* **Pure Graph Source of Truth**: Pivoted graph state (`state_schema`, nodes, slot AST expressions) to be the sole data model. Code becomes a 100% derived read-only view.
-* **Deterministic Code Generation**: Backend synthesizes clean Python script from ASTs and graph topology without manual code parsing.
-* **Read-Only CodeMirror Guard**: Set `EditorState.readOnly.of(true)` in CodeMirror while preserving AST syntax tree iteration for selection and code folding.
-
-### Phase 5: Native Backend Ruff Diagnostics Engine
-* **Backend Ruff Integration**: Replaced heavy browser WASM linters with native `ruff check --output-format=json -` subprocess calls on the Python backend.
-* **Canvas Problem Markers**: Surfaced structured line/column diagnostics back to CodeMirror and visual canvas node headers.
-
-### Phase 6: Decoupled Operation Containers & `DEFINER` Node Architecture
-* **Decoupled Operations**: Replaced legacy root `state_schema` with extensible `operations: { definer: [...], agentic: [...], logical: [...], switch: [...] }` container payloads linked by node `ref_id`.
-* **DEFINER Sentinel Node & Sidebar Editor**: Implemented non-deletable `DEFINER` sentinel node (`START -> DEFINER -> END`) with a reactive Radix UI sidebar variable editor (`DefinerVariableEditor.tsx`), featuring `snake_case` regex validation, type coercion, and Python keyword protection.
-* **Bypass AST Compiler**: Compiled `class State(TypedDict):` directly from `operations["definer"]` with 0 Python function nodes emitted for `DEFINER` nodes, bypassing `DEFINER` nodes in static edges with cycle detection.
-* **Peak Production Backend Architecture**: Refactored backend into clean bounded contexts (`topology.py`, `operations.py`, `service.py`, `router.py`, `compiler.py`, `repository.py`) following Uncle Bob's Screaming Architecture.
+### Phase 5: Interactive Code Inspector & Diagnostics
+* **Bidirectional AST Selection**: Traversed CodeMirror 6 and visual canvas nodes to highlight code functions when clicking nodes, and select visual elements when clicking code regions.
+* **Real-time Ruff Diagnostics**: Ran native Ruff static analysis on generated python code via sub-millisecond backend subprocesses, returning line/column diagnostics to highlight canvas errors.
+* **Read-Only Editor lock**: Secured generated code viewer in CodeMirror to be read-only while keeping AST-based folding and navigation fully interactive.
 
 ---
 
