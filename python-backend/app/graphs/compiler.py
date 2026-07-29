@@ -156,7 +156,7 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
 
 
 def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
-    legacy_schema = []
+    legacy_schema: list[Any] = []
     if isinstance(payload, dict):
         legacy_schema = payload.get("state_schema") or []
         flow_data = GraphFlowData.model_validate(payload)
@@ -289,11 +289,11 @@ def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
             if mutations:
                 code_lines.append("    return {")
                 for m in mutations:
-                    target_key = m.target_var_key
-                    if target_key not in valid_keys:
+                    slot_target_key = m.target_var_key
+                    if not slot_target_key or slot_target_key not in valid_keys:
                         continue
                     expr_str = ast_expr_to_py(m.expression, valid_keys=valid_keys)
-                    code_lines.append(f'        "{target_key}": {expr_str},')
+                    code_lines.append(f'        "{slot_target_key}": {expr_str},')
                 code_lines.append("    }")
             else:
                 code_lines.append("    return {}")

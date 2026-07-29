@@ -4,11 +4,11 @@ import ast
 class CodeASTEditor:
     """Helper class to perform robust AST-guided modifications on the Python script."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str) -> None:
         self.code = code
         self.lines = code.splitlines()
         try:
-            self.tree = ast.parse(code)
+            self.tree: ast.Module | None = ast.parse(code)
         except Exception:
             self.tree = None
 

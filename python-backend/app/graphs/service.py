@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from app.constants import EventName
+from app.constants import EventName, NodeType
 from app.graphs import operations as graph_operations
 from app.graphs import topology as graph_topology
 from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics, validate_flow_data
@@ -24,11 +24,13 @@ async def create_graph(
     import uuid as py_uuid
 
     default_nodes = [
-        NodeRead(id="start", node_type="START", is_input=False, is_output=True, slots=[]),
-        NodeRead(id="definer", node_type="DEFINER", ref_id="op_def_main", is_input=True, is_output=True, slots=[]),
+        NodeRead(id="start", node_type=NodeType.START, is_input=False, is_output=True, slots=[]),
+        NodeRead(
+            id="definer", node_type=NodeType.DEFINER, ref_id="op_def_main", is_input=True, is_output=True, slots=[]
+        ),
         NodeRead(
             id="switch_step",
-            node_type="SWITCH",
+            node_type=NodeType.SWITCH,
             is_input=True,
             is_output=False,
             slots=[
@@ -51,7 +53,7 @@ async def create_graph(
         ),
         NodeRead(
             id="logical_assigner",
-            node_type="LOGICAL_ASSIGNER",
+            node_type=NodeType.LOGICAL_ASSIGNER,
             ref_id="op_log_main",
             is_input=True,
             is_output=True,
@@ -59,13 +61,13 @@ async def create_graph(
         ),
         NodeRead(
             id="agentic_assigner",
-            node_type="AGENTIC_ASSIGNER",
+            node_type=NodeType.AGENTIC_ASSIGNER,
             ref_id="op_agent_main",
             is_input=True,
             is_output=True,
             slots=[],
         ),
-        NodeRead(id="end", node_type="END", is_input=True, is_output=False, slots=[]),
+        NodeRead(id="end", node_type=NodeType.END, is_input=True, is_output=False, slots=[]),
     ]
     default_edges = [
         EdgeRead(
@@ -318,7 +320,7 @@ async def redo_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
 async def add_node(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
-    node_type: str,
+    node_type: NodeType | str,
     connector_id: str | None = None,
     direction: str | None = None,
 ) -> dict:
@@ -495,7 +497,7 @@ async def create_definer_variable(
     graph_id: uuid.UUID,
     node_id: str,
     key: str,
-    var_type: str = "string",
+    var_type: Literal["boolean", "string", "number", "float"] = "string",
     default_value: Any = None,
     description: str | None = None,
 ) -> dict:
@@ -540,7 +542,7 @@ async def create_logical_assignment(
     graph_id: uuid.UUID,
     node_id: str,
     target_var_key: str,
-    value_type: str = "string",
+    value_type: Literal["boolean", "string", "number", "float"] = "string",
     value: Any = None,
     expression: dict[str, Any] | None = None,
 ) -> dict:

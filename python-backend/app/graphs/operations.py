@@ -1,6 +1,6 @@
 import re
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from app.graphs.schemas import (
     DefinerOperationSchema,
@@ -81,7 +81,7 @@ def create_definer_variable(
     flow_data: GraphFlowData,
     node_id: str,
     key: str,
-    var_type: str = "string",
+    var_type: Literal["boolean", "string", "number", "float"] = "string",
     default_value: Any = None,
     description: str | None = None,
 ) -> GraphFlowData:
@@ -162,7 +162,7 @@ def create_logical_assignment(
     flow_data: GraphFlowData,
     node_id: str,
     target_var_key: str,
-    value_type: str = "string",
+    value_type: Literal["boolean", "string", "number", "float"] = "string",
     value: Any = None,
     expression: dict[str, Any] | None = None,
 ) -> GraphFlowData:

@@ -1,6 +1,7 @@
 import uuid
 from typing import Any, Literal
 
+from app.constants import NodeType
 from app.graphs.schemas import (
     DefinerOperationSchema,
     EdgeRead,
@@ -14,8 +15,9 @@ SENTINEL_NODE_TYPES = {"START", "END", "DEFINER"}
 SEQUENTIAL_STEP_TYPES = {"STEP", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"}
 
 
-def generate_node_id(node_type: str, existing_nodes: list[NodeRead]) -> str:
-    prefix = node_type.lower()
+def generate_node_id(node_type: NodeType | str, existing_nodes: list[NodeRead]) -> str:
+    val = node_type.value if isinstance(node_type, NodeType) else node_type
+    prefix = val.lower()
     count = 1
     existing_ids = {n.id for n in existing_nodes}
     while f"{prefix}_{count}" in existing_ids:
@@ -25,10 +27,11 @@ def generate_node_id(node_type: str, existing_nodes: list[NodeRead]) -> str:
 
 def add_node(
     flow_data: GraphFlowData,
-    node_type: str,
+    node_type: NodeType | str,
     connector_id: str | None = None,
     direction: str | None = None,
 ) -> GraphFlowData:
+    node_type = NodeType(node_type)
     nodes = flow_data.nodes
     edges = flow_data.edges
     ops = flow_data.operations
@@ -36,18 +39,18 @@ def add_node(
 
     slots: list[SlotRead] = []
     ref_id = None
-    if node_type == "SWITCH":
+    if node_type == NodeType.SWITCH:
         slots = [
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a", selected=False),
             SlotRead(id=f"{node_id}_option_b", raw_string="option_b", selected=False),
         ]
-    elif node_type == "DEFINER":
+    elif node_type == NodeType.DEFINER:
         ref_id = f"op_{node_id}"
         ops.definer.append(DefinerOperationSchema(id=ref_id, variables=[]))
-    elif node_type == "LOGICAL_ASSIGNER":
+    elif node_type == NodeType.LOGICAL_ASSIGNER:
         ref_id = f"op_{node_id}"
         ops.logical.append(LogicalOperationSchema(id=ref_id, assignments=[]))
-    elif node_type == "AGENTIC_ASSIGNER":
+    elif node_type == NodeType.AGENTIC_ASSIGNER:
         ref_id = f"op_{node_id}"
         # agentic ops container stores raw dicts for extensibility
         ops.agentic.append({"id": ref_id, "prompt": ""})
@@ -57,7 +60,7 @@ def add_node(
         node_type=node_type,
         ref_id=ref_id,
         is_input=True,
-        is_output=node_type in ("STEP", "DEFINER", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER"),
+        is_output=node_type in (NodeType.STEP, NodeType.DEFINER, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER),
         slots=slots,
         code="",
         selected=False,

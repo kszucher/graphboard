@@ -49,20 +49,20 @@ class UnitOfWork:
             self._users = UserRepository(self.session)
         return self._users
 
-    def emit(self, event: EventName, graph_id: uuid.UUID, payload: dict[str, Any]):
+    def emit(self, event: EventName, graph_id: uuid.UUID, payload: dict[str, Any]) -> None:
         """Buffer an event to be broadcasted after commit."""
         self._events.append(
             {"event": event, "graph_id": graph_id, "payload": payload, "sender_client_id": self.sender_client_id}
         )
 
-    async def commit(self):
+    async def commit(self) -> None:
         """Commit the transaction and broadcast accumulated events."""
         await self.session.commit()
         for event_data in self._events:
             await self.broker.emit(**event_data)
         self._events.clear()
 
-    async def rollback(self):
+    async def rollback(self) -> None:
         """Rollback the transaction and clear events."""
         await self.session.rollback()
         self._events.clear()

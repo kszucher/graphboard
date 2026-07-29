@@ -19,7 +19,7 @@ class GraphRepository(BaseRepository[models.Graph, GraphCreate, GraphCreate]):
     def __init__(self, session: AsyncSession):
         super().__init__(models.Graph, session)
 
-    async def create(self, user_id: uuid.UUID, name: str) -> models.Graph:
+    async def create(self, user_id: uuid.UUID, name: str) -> models.Graph:  # type: ignore[override]
         graph = models.Graph(user_id=user_id, name=name)
         self.session.add(graph)
         await self.session.flush()

@@ -26,11 +26,11 @@ class BaseRepository(Generic[T, CreateSchema, UpdateSchema]):
         return obj
 
     async def get(self, obj_id: uuid.UUID) -> T | None:
-        result = await self.session.execute(select(self.model).where(self.model.id == obj_id))
+        result = await self.session.execute(select(self.model).where(self.model.id == obj_id))  # type: ignore[attr-defined]
         return result.scalars().first()
 
     async def delete(self, obj_id: uuid.UUID) -> None:
-        await self.session.execute(delete(self.model).where(self.model.id == obj_id))
+        await self.session.execute(delete(self.model).where(self.model.id == obj_id))  # type: ignore[attr-defined]
         await self.session.flush()
 
     async def update(self, obj_id: uuid.UUID, data: UpdateSchema) -> T | None:

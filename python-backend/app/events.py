@@ -40,7 +40,7 @@ class GraphEventBroker:
             f"to {len(listeners)} listener(s) with payload={payload}"
         )
 
-        async def _send(ws, client_id):
+        async def _send(ws: WebSocket, client_id: str | None) -> None:
             if event.sender_client_id is not None and client_id == event.sender_client_id:
                 return
             try:
