@@ -35,7 +35,7 @@ async def test_create_graph(
     assert graph.user_id == dummy_user.id
     assert "nodes" in graph.flow_json
     assert "edges" in graph.flow_json
-    assert "code" in graph.flow_json
+    assert "code" not in graph.flow_json
 
     # Check that events were emitted on UoW commit
     mock_broker.emit.assert_called_once_with(

@@ -97,7 +97,6 @@ class GraphSyncPayload(BaseModel):
 
 
 class GraphFlowData(BaseModel):
-    code: str = ""
     nodes: list[NodeRead] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
 

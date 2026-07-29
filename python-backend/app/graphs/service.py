@@ -123,8 +123,6 @@ async def create_graph(
         nodes=default_nodes,
         edges=default_edges,
     )
-    compiled_code = await generate_graph_code(flow_data)
-    flow_data.code = compiled_code
     initial_flow = flow_data.model_dump(mode="json")
 
     graph.flow_json = initial_flow
@@ -207,13 +205,16 @@ async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict
 async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data: GraphFlowData) -> dict:
     next_snap = await uow.graph_history.get_by_sequence(graph.id, graph.current_history_sequence + 1)
 
-    # 1. Run semantic validation
+    # 1. Compile Python code from topology
+    code = await generate_graph_code(flow_data)
+
+    # 2. Run semantic validation
     semantic_diagnostics = validate_flow_data(flow_data)
 
-    # 2. Run Ruff diagnostics
-    ruff_diagnostics = await run_ruff_diagnostics(flow_data.code)
+    # 3. Run Ruff diagnostics on freshly compiled code
+    ruff_diagnostics = await run_ruff_diagnostics(code)
 
-    # 3. Merge diagnostics
+    # 4. Merge diagnostics
     all_diagnostics = []
     all_diagnostics.extend(semantic_diagnostics)
     all_diagnostics.extend(ruff_diagnostics)
@@ -223,6 +224,7 @@ async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data
     res = flow_data.model_dump(mode="json")
     res.update(
         {
+            "code": code,
             "diagnostics": diag_dicts,
             "can_undo": graph.current_history_sequence > 0,
             "can_redo": next_snap is not None,
@@ -235,11 +237,7 @@ async def _commit_state_snapshot(uow: UnitOfWork, graph: models.Graph, flow_data
     # Clear future history branches
     await uow.graph_history.delete_future_snapshots(graph.id, graph.current_history_sequence)
 
-    # Reformat/Compile Python code based on visual topology & operations
-    generated_code = await generate_graph_code(flow_data)
-    flow_data.code = generated_code
-
-    # Convert to standard dict for database persistence
+    # Convert topology to dict for database persistence (no code stored)
     updated_flow_dict = flow_data.model_dump(mode="json")
 
     # Increment sequence and save snapshot
