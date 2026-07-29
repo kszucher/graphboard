@@ -262,13 +262,17 @@ export function ExpressionBuilder({
   }, [baseVarType, draftTokens, stateVariables]);
 
   const compatibleStateVars = useMemo(() => {
+    const hasVarToken = draftTokens.some(t => t.kind === 'var');
+    if (!baseVarType && !hasVarToken) {
+      return stateVariables;
+    }
     return stateVariables.filter((v) => {
       if (targetVarType === 'number' || targetVarType === 'float') {
         return v.type === 'number' || v.type === 'float';
       }
       return v.type === targetVarType;
     });
-  }, [stateVariables, targetVarType]);
+  }, [baseVarType, draftTokens, stateVariables, targetVarType]);
 
   const handleChooseOperandType = useCallback((kind: 'var' | 'val') => {
     setOperandType(kind);
