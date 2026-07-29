@@ -7,7 +7,7 @@ import sys
 import textwrap
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from app.graphs.schemas import DiagnosticRead, GraphFlowData
 from app.graphs.validation import validate_flow_data
@@ -46,14 +46,24 @@ def _worker_execute_langgraph(code: str) -> dict[str, Any]:
     return {"variables": variables_list}
 
 
-async def _run_ruff(args: list[str], stdin_data: str) -> str:
-    """Helper to execute ruff as a subprocess and return stdout."""
-    # Resolve local virtual env ruff if available
+def _resolve_ruff_path() -> str:
     exe_dir = Path(sys.executable).parent
     ruff_name = "ruff.exe" if sys.platform == "win32" else "ruff"
     local_ruff = exe_dir / ruff_name
-    ruff_path = str(local_ruff) if local_ruff.exists() else (shutil.which("ruff") or "ruff")
 
+    if not local_ruff.exists():
+        try:
+            project_root = Path(__file__).resolve().parents[2]
+            bin_dir = "Scripts" if sys.platform == "win32" else "bin"
+            local_ruff = project_root / ".venv" / bin_dir / ruff_name
+        except Exception:
+            pass
+
+    return str(local_ruff) if local_ruff.exists() else (shutil.which("ruff") or "ruff")
+
+
+async def _run_ruff(args: list[str], stdin_data: str) -> str:
+    ruff_path = _resolve_ruff_path()
     try:
         process = await asyncio.create_subprocess_exec(
             ruff_path,
@@ -62,11 +72,19 @@ async def _run_ruff(args: list[str], stdin_data: str) -> str:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await process.communicate(input=stdin_data.encode("utf-8"))
-        if process.returncode == 0 or args[0] == "check":
+        stdout, stderr = await process.communicate(input=stdin_data.encode("utf-8"))
+        if process.returncode == 0 or (args and args[0] == "check"):
             return stdout.decode("utf-8")
-    except Exception:
-        pass
+        else:
+            import sys
+
+            print(
+                f"Ruff failed with return code {process.returncode}. Stderr: {stderr.decode('utf-8')}", file=sys.stderr
+            )
+    except Exception as e:
+        import sys
+
+        print(f"Ruff execution error: {e}", file=sys.stderr)
     return ""
 
 
@@ -177,10 +195,6 @@ def compile_ast_logical_node(node_id: str, assignments: list[Any], valid_keys: s
 
 
 def compile_ast_switch_node(node_id: str, slots: list[Any], valid_keys: set[str]) -> list[ast.stmt]:
-    node_func = ast.parse("def _stub_node(state: State) -> None: pass").body[0]
-    assert isinstance(node_func, ast.FunctionDef)
-    node_func.name = f"{node_id}_node"
-
     def build_if_chain(index: int) -> list[ast.stmt]:
         if index >= len(slots):
             res: list[ast.stmt] = [ast.Return(value=ast.Constant(value=""))]
@@ -199,10 +213,7 @@ def compile_ast_switch_node(node_id: str, slots: list[Any], valid_keys: set[str]
     router_func.name = node_id
     router_func.body = build_if_chain(0)
 
-    return [node_func, router_func]
-
-
-# Flow Verification & Compilation
+    return [router_func]
 
 
 async def generate_graph_code(flow_data: GraphFlowData) -> str:
@@ -237,19 +248,10 @@ async def generate_graph_code(flow_data: GraphFlowData) -> str:
         else:
             node_asts.append(compile_ast_step_node(node.id, node.slots, valid_keys))
 
-    module_node = ast.Module(body=node_asts, type_ignores=[])
-    ast.fix_missing_locations(module_node)
-    node_definitions_str = ast.unparse(module_node)
+    node_definitions_str = "\n\n\n".join(ast.unparse(node_ast) for node_ast in node_asts)
 
     # Graph Definition Block
     workflow_lines = ["workflow = StateGraph(State)", ""]
-    workflow_lines.extend(
-        f'workflow.add_node("{n.id}", {n.id}_node)'
-        if n.node_type == "SWITCH"
-        else f'workflow.add_node("{n.id}", {n.id})'
-        for n in executable_logic_nodes
-    )
-    workflow_lines.append("")
 
     definer_node_ids = {n.id for n in flow_data.nodes if n.node_type == "DEFINER"}
 
@@ -264,9 +266,21 @@ async def generate_graph_code(flow_data: GraphFlowData) -> str:
             return resolve_target(definer_out.target_id, visited) if definer_out else "END"
         return "END" if target_id == "end" else f'"{target_id}"'
 
-    workflow_lines.extend(
-        f"workflow.add_edge(START, {resolve_target(e.target_id)})" for e in flow_data.edges if e.source_id == "start"
-    )
+    switch_nodes = {n.id: n for n in executable_logic_nodes if n.node_type == "SWITCH"}
+    switch_sources: dict[str, list[str]] = {sid: [] for sid in switch_nodes}
+
+    # Map edges to switch targets and collect routing sources
+    edges_to_switches = {}
+    for e in flow_data.edges:
+        target = resolve_target(e.target_id)
+        if target.startswith('"') and target.endswith('"'):
+            target_node_id = target[1:-1]
+            if target_node_id in switch_nodes:
+                edges_to_switches[e.id] = target_node_id
+                source = "START" if e.source_id == "start" else f'"{e.source_id}"'
+                switch_sources[target_node_id].append(source)
+
+    remaining_start_edges = [e for e in flow_data.edges if e.source_id == "start" and e.id not in edges_to_switches]
 
     static_edges = [
         e
@@ -276,10 +290,26 @@ async def generate_graph_code(flow_data: GraphFlowData) -> str:
         and e.source_type == "node"
         and e.target_id != "start"
     ]
-    workflow_lines.extend(f'workflow.add_edge("{e.source_id}", {resolve_target(e.target_id)})' for e in static_edges)
+    remaining_static_edges = [e for e in static_edges if e.id not in edges_to_switches]
+
+    # Add nodes to graph (excluding SWITCH nodes)
+    for n in executable_logic_nodes:
+        if n.node_type == "SWITCH":
+            if not switch_sources[n.id]:
+                # Fallback: if completely disconnected/no incoming edges, add it as dummy lambda
+                workflow_lines.append(f'workflow.add_node("{n.id}", lambda state: None)')
+        else:
+            workflow_lines.append(f'workflow.add_node("{n.id}", {n.id})')
     workflow_lines.append("")
 
-    for switch in [n for n in executable_logic_nodes if n.node_type == "SWITCH"]:
+    workflow_lines.extend(f"workflow.add_edge(START, {resolve_target(e.target_id)})" for e in remaining_start_edges)
+    workflow_lines.extend(
+        f'workflow.add_edge("{e.source_id}", {resolve_target(e.target_id)})' for e in remaining_static_edges
+    )
+    workflow_lines.append("")
+
+    # Add conditional edges
+    for switch in switch_nodes.values():
         routing_edges = [e for e in flow_data.edges if e.source_id in {s.id for s in switch.slots}]
         if routing_edges:
             slot_map = {
@@ -288,8 +318,24 @@ async def generate_graph_code(flow_data: GraphFlowData) -> str:
                 for e in routing_edges
                 if e.source_id == s.id
             }
-            slot_map_str = ", ".join(f'"{k}": {v}' for k, v in slot_map.items())
-            workflow_lines.append(f'workflow.add_conditional_edges("{switch.id}", {switch.id}, {{{slot_map_str}}})')
+
+            path_map_lines = []
+            for k, v in slot_map.items():
+                path_map_lines.append(f'        "{k}": {v},')
+
+            sources = switch_sources[switch.id]
+            if not sources:
+                sources = [f'"{switch.id}"']
+
+            for source in sources:
+                workflow_lines.append("workflow.add_conditional_edges(")
+                workflow_lines.append(f"    {source},")
+                workflow_lines.append(f"    {switch.id},")
+                workflow_lines.append("    {")
+                workflow_lines.extend(path_map_lines)
+                workflow_lines.append("    },")
+                workflow_lines.append(")")
+                workflow_lines.append("")
 
     workflow_lines.extend(["", "app = workflow.compile()"])
     workflow_definition_str = "\n".join(workflow_lines)
@@ -341,12 +387,16 @@ async def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
                 column=item.get("location", {}).get("column", 1),
                 code=item.get("code", "UNK"),
                 message=item.get("message", ""),
-                severity="warning" if item.get("code", "").startswith("W") else "error",
+                severity=cast_severity(item.get("code", "")),
             )
             for item in data
         ]
     except Exception:
         return []
+
+
+def cast_severity(code_str: str) -> Literal["error", "warning"]:
+    return "error" if code_str.startswith(("E", "F")) else "warning"
 
 
 async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any]:

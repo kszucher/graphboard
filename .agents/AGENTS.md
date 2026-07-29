@@ -17,6 +17,7 @@ These baseline guidelines apply to all development tasks in this repository.
 ## Verification & Code Quality
 
 ### Backend (python-backend)
+- **Always** use `uv` for executing commands and python tasks (e.g., `uv run pytest`, `uv run mypy app`, `uv run ruff check`).
 - **Always** run linting and formatting commands after modifying Python source code.
 - Format code and fix auto-fixable imports/lints before ending the task.
 - **Always** ensure the backend code is fully formatted, clean of linter warnings/errors, and passes strict type checking (MyPy) with zero errors and zero warnings before completing the task.
