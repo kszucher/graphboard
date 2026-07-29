@@ -1,13 +1,14 @@
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
 
-from app.constants import EventName
+from app.constants import EventName, NodeType
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
-from app.graphs.schemas import GraphSyncPayload, NodeRead
+from app.graphs.schemas import GraphSyncPayload, NodeRead, OperationsContainerSchema
 from app.models import Graph, GraphHistory, User
 
 
@@ -16,7 +17,7 @@ async def test_create_graph(
     real_uow: UnitOfWork,
     dummy_user: User,
     mock_broker: AsyncMock,
-):
+) -> None:
     # Call service to create graph
     graph_id = await graphs_service.create_graph(uow=real_uow, user_id=dummy_user.id, graph_name="New Test Graph")
 
@@ -46,9 +47,9 @@ async def test_create_graph(
 async def test_add_node(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Action: add a node of type STEP
-    result = await graphs_service.add_node(uow=real_uow, graph_id=dummy_graph.id, node_type="STEP")
+    result = await graphs_service.add_node(uow=real_uow, graph_id=dummy_graph.id, node_type=NodeType.STEP)
 
     await real_uow.commit()
 
@@ -76,21 +77,21 @@ async def test_add_node(
 async def test_undo_redo_graph_flow(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Save baseline snapshot (sequence 0)
     await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
     await real_uow.session.commit()
 
     # Let's perform two syncs to build history
     payload1 = GraphSyncPayload(
-        nodes=[NodeRead(id="node1", node_type="STEP")],
+        nodes=[NodeRead(id="node1", node_type=NodeType.STEP)],
         edges=[],
-        operations={"definer": [], "agentic": [], "logical": [], "switch": []},
+        operations=OperationsContainerSchema(definer=[], agentic=[], logical=[], switch=[]),
     )
     payload2 = GraphSyncPayload(
-        nodes=[NodeRead(id="node1", node_type="STEP"), NodeRead(id="node2", node_type="STEP")],
+        nodes=[NodeRead(id="node1", node_type=NodeType.STEP), NodeRead(id="node2", node_type=NodeType.STEP)],
         edges=[],
-        operations={"definer": [], "agentic": [], "logical": [], "switch": []},
+        operations=OperationsContainerSchema(definer=[], agentic=[], logical=[], switch=[]),
     )
 
     # Sync 1 -> Sequence 1
@@ -126,10 +127,10 @@ async def test_undo_redo_graph_flow(
 async def test_run_graph_flow_success(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Setup workflow: START -> STEP (sets x to 42) -> END
     # Declares state variable x: number
-    flow_payload = {
+    flow_payload: dict[str, Any] = {
         "nodes": [
             {
                 "id": "step_1",
@@ -166,9 +167,9 @@ async def test_run_graph_flow_success(
 async def test_run_graph_flow_switch_routing(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Test Scenario 1: x = 5 (default_value) -> routes to step_a -> y = 100
-    flow_payload_a = {
+    flow_payload_a: dict[str, Any] = {
         "nodes": [
             {
                 "id": "switch_1",
@@ -245,9 +246,9 @@ async def test_run_graph_flow_switch_routing(
 async def test_run_graph_flow_invalid_state_ref(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Step node attempts to mutate target "non_existent" not registered in definer
-    flow_payload = {
+    flow_payload: dict[str, Any] = {
         "nodes": [
             {
                 "id": "step_1",
@@ -280,9 +281,9 @@ async def test_run_graph_flow_invalid_state_ref(
 async def test_run_graph_flow_cycle_limit(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
-):
+) -> None:
     # Cyclic loop: START -> step_1 -> step_2 -> step_1 -> ...
-    flow_payload = {
+    flow_payload: dict[str, Any] = {
         "nodes": [
             {"id": "step_1", "node_type": "STEP", "slots": []},
             {"id": "step_2", "node_type": "STEP", "slots": []},

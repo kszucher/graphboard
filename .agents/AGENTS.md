@@ -19,6 +19,7 @@ These baseline guidelines apply to all development tasks in this repository.
 ### Backend (python-backend)
 - **Always** run linting and formatting commands after modifying Python source code.
 - Format code and fix auto-fixable imports/lints before ending the task.
+- **Always** ensure the backend code is fully formatted, clean of linter warnings/errors, and passes strict type checking (MyPy) with zero errors and zero warnings before completing the task.
 
 ### Frontend (frontend)
 - **Always** run typecheck and build validation after modifying frontend source code.

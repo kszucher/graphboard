@@ -25,23 +25,14 @@ async def create_user(uow: UnitOfWork, user_name: str) -> uuid.UUID:
 async def get_active_graph_id(uow: UnitOfWork, user_id: uuid.UUID) -> uuid.UUID | None:
     graph_id = await uow.users.get_active_graph_id(user_id)
     if graph_id:
-        graph = await uow.graphs.get(graph_id)
-        if graph:
-            flow_data = graph.flow_json or {}
-            await uow.graph_history.clear_by_graph(graph_id)
-            graph.current_history_sequence = 0
-            await uow.graph_history.save_snapshot(graph_id, flow_data, 0)
-            await uow.session.flush()
+        from app.graphs.service import reset_graph_history
+
+        await reset_graph_history(uow, graph_id)
     return graph_id
 
 
 async def set_active_graph(uow: UnitOfWork, user_id: uuid.UUID, graph_id: uuid.UUID) -> None:
     await uow.users.set_active_graph(user_id, graph_id)
+    from app.graphs.service import reset_graph_history
 
-    graph = await uow.graphs.get(graph_id)
-    if graph:
-        flow_data = graph.flow_json or {}
-        await uow.graph_history.clear_by_graph(graph_id)
-        graph.current_history_sequence = 0
-        await uow.graph_history.save_snapshot(graph_id, flow_data, 0)
-        await uow.session.flush()
+    await reset_graph_history(uow, graph_id)

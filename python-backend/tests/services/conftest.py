@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.context import UnitOfWork
@@ -12,7 +12,7 @@ from app.models import Base, Graph, GraphHistory, User
 
 
 @pytest.fixture(scope="session")
-def db_engine():
+def db_engine() -> AsyncEngine:
     # Use StaticPool to share the in-memory SQLite DB connection across the session
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
@@ -23,7 +23,7 @@ def db_engine():
 
 
 @pytest.fixture(scope="function")
-async def db_session(db_engine) -> AsyncIterator[AsyncSession]:
+async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     # Setup schema
     async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

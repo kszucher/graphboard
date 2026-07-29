@@ -12,7 +12,7 @@ from app.users import service as users_service
 async def test_get_or_create_user_existing(
     real_uow: UnitOfWork,
     dummy_user: User,
-):
+) -> None:
     # Call service with the real UoW
     user_id = await users_service.get_or_create_user(real_uow)
 
@@ -28,7 +28,7 @@ async def test_get_or_create_user_existing(
 @pytest.mark.asyncio
 async def test_get_or_create_user_new(
     real_uow: UnitOfWork,
-):
+) -> None:
     # Call service when no users exist
     user_id = await users_service.get_or_create_user(real_uow)
 
@@ -45,7 +45,7 @@ async def test_get_or_create_user_new(
 @pytest.mark.asyncio
 async def test_create_user(
     real_uow: UnitOfWork,
-):
+) -> None:
     # Call service to create a user named Alice
     user_id = await users_service.create_user(real_uow, "Alice")
 
@@ -64,7 +64,7 @@ async def test_set_active_graph(
     real_uow: UnitOfWork,
     dummy_user: User,
     dummy_graph: Graph,
-):
+) -> None:
     # Call service to set active graph
     await users_service.set_active_graph(real_uow, dummy_user.id, dummy_graph.id)
 
@@ -89,7 +89,7 @@ async def test_get_active_graph_id(
     real_uow: UnitOfWork,
     dummy_user: User,
     dummy_graph: Graph,
-):
+) -> None:
     # Setup: Associate the graph to user first and commit
     dummy_user.selected_graph_id = dummy_graph.id
     real_uow.session.add(dummy_user)
