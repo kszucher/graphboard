@@ -13,6 +13,12 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 from app.graphs.schemas import DiagnosticRead, GraphFlowData, SlotRead
+
+try:
+    import black
+except ImportError:
+    black = None  # type: ignore[assignment]
+
 from app.graphs.validation import validate_flow_data
 
 _execution_executor: ProcessPoolExecutor | None = None
@@ -39,6 +45,11 @@ BIN_OPS = {
     "//": ast.FloorDiv(),
     "%": ast.Mod(),
     "**": ast.Pow(),
+}
+UNARY_OPS = {
+    "not": ast.Not(),
+    "-": ast.USub(),
+    "+": ast.UAdd(),
 }
 
 
@@ -82,8 +93,9 @@ def ast_expr_to_node(node: dict[str, Any] | None, fallback: str = "True") -> ast
             else ast.BinOp(left=left, op=BIN_OPS.get(op, ast.Add()), right=right)
         )
     if kind == "unaryOp":
+        op_str = node.get("op", "not")
         return ast.UnaryOp(
-            op={"not": ast.Not(), "-": ast.USub(), "+": ast.UAdd()}.get(node.get("op", "not"), ast.Not()),
+            op=UNARY_OPS.get(op_str, ast.Not()),
             operand=ast_expr_to_node(node.get("expr"), fallback),
         )
 
@@ -91,17 +103,13 @@ def ast_expr_to_node(node: dict[str, Any] | None, fallback: str = "True") -> ast
 
 
 def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
-    keys = [
-        ast.Constant(value=getattr(i, "target_var_key"))
-        for i in items
-        if getattr(i, "target_var_key", None) in valid_keys
-    ]
+    valid_items = [i for i in items if getattr(i, "target_var_key", None) in valid_keys]
+    keys: list[ast.expr | None] = [ast.Constant(value=getattr(i, "target_var_key")) for i in valid_items]
     values = [
-        ast_expr_to_node(getattr(i, "expression"))
+        ast_expr_to_node(getattr(i, "expression", None))
         if getattr(i, "expression", None) is not None
         else ast.Constant(value=getattr(i, "value", None))
-        for i in items
-        if getattr(i, "target_var_key", None) in valid_keys
+        for i in valid_items
     ]
     func = ast.FunctionDef(
         name=node_id,
@@ -175,7 +183,7 @@ class PureAstLangGraphCompiler:
         if not self.all_variables:
             return ast.parse("class State(TypedDict):\n    pass\ninitial_state: State = {}").body
 
-        anns = [
+        anns: list[ast.stmt] = [
             ast.AnnAssign(
                 target=ast.Name(id=v.key, ctx=ast.Store()),
                 annotation=ast.Name(id=TYPE_MAP.get(v.type, "str"), ctx=ast.Load()),
@@ -187,16 +195,17 @@ class PureAstLangGraphCompiler:
         cls_def = ast.ClassDef(
             name="State", bases=[ast.Name(id="TypedDict", ctx=ast.Load())], keywords=[], body=anns, decorator_list=[]
         )
+
+        dict_values: list[ast.expr] = [
+            ast.Constant(value=v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""))
+            for v in self.all_variables
+        ]
+
         init_state = ast.Assign(
             targets=[ast.Name(id="initial_state", ctx=ast.Store())],
             value=ast.Dict(
                 keys=[ast.Constant(value=v.key) for v in self.all_variables],
-                values=[
-                    ast.Constant(
-                        value=v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, "")
-                    )
-                    for v in self.all_variables
-                ],
+                values=dict_values,
             ),
         )
         return [cls_def, init_state]
@@ -264,7 +273,7 @@ class PureAstLangGraphCompiler:
                 for e in routing_edges
                 if e.source_id == s.id
             }
-            keys = [ast.Constant(value=k) for k in slot_map.keys()]
+            keys: list[ast.expr | None] = [ast.Constant(value=k) for k in slot_map.keys()]
             vals = list(slot_map.values())
             for source in switch_sources[switch.id] or [switch.id]:
                 stmts.append(
@@ -276,8 +285,12 @@ class PureAstLangGraphCompiler:
                     )
                 )
 
-        compile_call = _call("workflow.compile")
-        stmts.append(ast.Assign(targets=[ast.Name(id="app", ctx=ast.Store())], value=compile_call.value))
+        compile_call = ast.Call(
+            func=ast.Attribute(value=ast.Name(id="workflow", ctx=ast.Load()), attr="compile", ctx=ast.Load()),
+            args=[],
+            keywords=[],
+        )
+        stmts.append(ast.Assign(targets=[ast.Name(id="app", ctx=ast.Store())], value=compile_call))
         return stmts
 
     def compile(self) -> str:
@@ -298,7 +311,13 @@ class PureAstLangGraphCompiler:
 
 
 async def generate_graph_code(flow_data: GraphFlowData) -> str:
-    return PureAstLangGraphCompiler(flow_data).compile()
+    raw_code = PureAstLangGraphCompiler(flow_data).compile()
+    if black is not None:
+        try:
+            return black.format_str(raw_code, mode=black.Mode(line_length=80))
+        except Exception:
+            pass
+    return raw_code
 
 
 # ----------------------------------------------------
