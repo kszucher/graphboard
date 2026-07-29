@@ -40,6 +40,7 @@ async def get_uow(
     uow = UnitOfWork(session, broker, x_client_id)
     try:
         yield uow
+        await uow.commit()
     except Exception:
         await uow.rollback()
         raise

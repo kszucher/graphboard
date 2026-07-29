@@ -19,7 +19,7 @@ def test_ast_expr_to_py_literal():
 
 def test_ast_expr_to_py_stateRef():
     ast = {"kind": "stateRef", "varKey": "user_age"}
-    assert ast_expr_to_py(ast) == 'state.get("user_age")'
+    assert ast_expr_to_py(ast) == "state.get('user_age')"
 
 
 def test_ast_expr_to_py_binaryOp():
@@ -29,23 +29,23 @@ def test_ast_expr_to_py_binaryOp():
         "left": {"kind": "stateRef", "varKey": "status"},
         "right": {"kind": "literal", "value": "active"},
     }
-    assert ast_expr_to_py(ast) == "(state.get(\"status\") == 'active')"
+    assert ast_expr_to_py(ast) == "state.get('status') == 'active'"
 
 
 def test_ast_expr_to_py_unaryOp():
     ast = {"kind": "unaryOp", "op": "not", "expr": {"kind": "stateRef", "varKey": "is_valid"}}
-    assert ast_expr_to_py(ast) == '(not state.get("is_valid"))'
+    assert ast_expr_to_py(ast) == "not state.get('is_valid')"
 
 
-def test_generate_graph_code_empty():
+async def test_generate_graph_code_empty():
     payload = {"nodes": [], "edges": [], "operations": {}}
-    code = generate_graph_code(payload)
+    code = await generate_graph_code(payload)
     assert "class State(TypedDict):" in code
     assert "workflow = StateGraph(State)" in code
     assert "workflow.compile()" in code
 
 
-def test_generate_graph_code_with_variables():
+async def test_generate_graph_code_with_variables():
     payload = {
         "nodes": [],
         "edges": [],
@@ -61,14 +61,14 @@ def test_generate_graph_code_with_variables():
             ]
         },
     }
-    code = generate_graph_code(payload)
+    code = await generate_graph_code(payload)
     assert "user_id: int" in code
     assert "username: str" in code
     assert '"user_id": 0' in code
     assert '"username": "guest"' in code
 
 
-def test_generate_graph_code_with_step_node():
+async def test_generate_graph_code_with_step_node():
     payload = {
         "nodes": [
             {
@@ -84,7 +84,7 @@ def test_generate_graph_code_with_step_node():
         "operations": {},
         "state_schema": [{"key": "status", "type": "string"}],
     }
-    code = generate_graph_code(payload)
+    code = await generate_graph_code(payload)
     assert "def step_1(state: State) -> dict:" in code
     assert '"status": "processed"' in code
     assert 'workflow.add_node("step_1", step_1)' in code
@@ -92,7 +92,7 @@ def test_generate_graph_code_with_step_node():
     assert 'workflow.add_edge("step_1", END)' in code
 
 
-def test_generate_graph_code_with_switch_node():
+async def test_generate_graph_code_with_switch_node():
     payload = {
         "nodes": [
             {
@@ -116,21 +116,21 @@ def test_generate_graph_code_with_switch_node():
         "operations": {},
         "state_schema": [{"key": "status", "type": "string"}],
     }
-    code = generate_graph_code(payload)
+    code = await generate_graph_code(payload)
     assert "def switch_1(state: State) -> str:" in code
     assert 'if state.get("status") == "active":' in code or 'if (state.get("status") == "active"):' in code
     assert 'return "is_active"' in code
     assert "workflow.add_conditional_edges(" in code
 
 
-def test_run_ruff_diagnostics_empty():
-    diagnostics = run_ruff_diagnostics("")
+async def test_run_ruff_diagnostics_empty():
+    diagnostics = await run_ruff_diagnostics("")
     assert len(diagnostics) == 0
 
 
-def test_run_ruff_diagnostics_syntax_error():
+async def test_run_ruff_diagnostics_syntax_error():
     code = "def my_func():\n    return 'hello"
-    diagnostics = run_ruff_diagnostics(code)
+    diagnostics = await run_ruff_diagnostics(code)
     # Ruff should detect the unclosed string literal (SyntaxError)
     assert len(diagnostics) > 0
     assert diagnostics[0].severity in ["error", "warning"]

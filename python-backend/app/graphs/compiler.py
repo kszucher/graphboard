@@ -1,28 +1,75 @@
+import ast
+import asyncio
 import json
+import multiprocessing
 import shutil
-import subprocess
 import sys
+import textwrap
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from app.graphs.schemas import DefinerVariableSchema, DiagnosticRead, GraphFlowData
 
+_execution_executor: ProcessPoolExecutor | None = None
 
-def _get_ruff_path() -> str:
-    """Resolves the local virtual environment's ruff binary if available, falling back to PATH."""
+
+def get_executor() -> ProcessPoolExecutor:
+    global _execution_executor
+    if _execution_executor is None:
+        ctx = multiprocessing.get_context("spawn")
+        _execution_executor = ProcessPoolExecutor(max_workers=4, mp_context=ctx)
+    return _execution_executor
+
+
+def _worker_execute_langgraph(code: str) -> dict[str, Any]:
+    """Helper function run inside the child process."""
+    namespace: dict[str, Any] = {}
+    try:
+        exec(code, namespace)
+    except Exception as e:
+        return {"variables": [], "error": f"Compilation/Execution failed: {str(e)}"}
+
+    app = namespace.get("app")
+    initial_state = namespace.get("initial_state", {})
+
+    if not app:
+        return {"variables": [], "error": "Compiled workflow does not define 'app'"}
+
+    try:
+        final_state = app.invoke(initial_state)
+    except Exception as e:
+        return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
+
+    variables_list = [{"key": k, "value": v} for k, v in final_state.items()]
+    return {"variables": variables_list}
+
+
+async def _run_ruff(args: list[str], stdin_data: str) -> str:
+    """Helper to execute ruff as a subprocess and return stdout."""
+    # Resolve local virtual env ruff if available
     exe_dir = Path(sys.executable).parent
     ruff_name = "ruff.exe" if sys.platform == "win32" else "ruff"
     local_ruff = exe_dir / ruff_name
-    if local_ruff.exists():
-        return str(local_ruff)
+    ruff_path = str(local_ruff) if local_ruff.exists() else (shutil.which("ruff") or "ruff")
 
-    which_ruff = shutil.which("ruff")
-    if which_ruff:
-        return which_ruff
+    try:
+        process = await asyncio.create_subprocess_exec(
+            ruff_path,
+            *args,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await process.communicate(input=stdin_data.encode("utf-8"))
+        if process.returncode == 0 or args[0] == "check":
+            return stdout.decode("utf-8")
+    except Exception:
+        pass
+    return ""
 
-    return "ruff"
 
-
+# AST Translation Maps & Utilities
 TYPE_MAP_GB_TO_PY = {
     "number": "int",
     "float": "float",
@@ -30,39 +77,76 @@ TYPE_MAP_GB_TO_PY = {
     "string": "str",
 }
 
+DEFAULT_TYPE_VALUES = {
+    "number": 0,
+    "float": 0.0,
+    "boolean": False,
+    "string": "",
+}
 
-def ast_expr_to_py(
-    node: dict[str, Any] | None, default_fallback: str = "True", valid_keys: set[str] | None = None
-) -> str:
-    """Recursively converts a slot AST expression dict to Python code string."""
+MAP_COMPARE_OPS = {
+    "==": ast.Eq(),
+    "!=": ast.NotEq(),
+    "<": ast.Lt(),
+    "<=": ast.LtE(),
+    ">": ast.Gt(),
+    ">=": ast.GtE(),
+    "in": ast.In(),
+    "not in": ast.NotIn(),
+    "is": ast.Is(),
+    "is not": ast.IsNot(),
+}
+
+MAP_BIN_OPS = {
+    "+": ast.Add(),
+    "-": ast.Sub(),
+    "*": ast.Mult(),
+    "/": ast.Div(),
+    "//": ast.FloorDiv(),
+    "%": ast.Mod(),
+    "**": ast.Pow(),
+}
+
+
+def ast_expr_to_node(node: dict[str, Any] | None, default_fallback: str = "True") -> ast.expr:
+    """Recursively converts a slot AST expression dict directly to a Python AST node."""
     if not node:
-        return default_fallback
+        return ast.parse(default_fallback, mode="eval").body
 
     kind = node.get("kind")
     if kind == "literal":
-        val = node.get("value")
-        if isinstance(val, str):
-            return repr(val)
-        return str(val)
+        return ast.Constant(value=node.get("value"))
 
-    elif kind == "stateRef":
-        var_key = node.get("varKey", "")
-        return f'state.get("{var_key}")'
+    if kind == "stateRef":
+        return ast.Call(
+            func=ast.Attribute(value=ast.Name(id="state", ctx=ast.Load()), attr="get", ctx=ast.Load()),
+            args=[ast.Constant(value=node.get("varKey", ""))],
+            keywords=[],
+        )
 
-    elif kind == "binaryOp":
-        op = node.get("op", "==")
-        left = ast_expr_to_py(node.get("left"), default_fallback, valid_keys)
-        right = ast_expr_to_py(node.get("right"), default_fallback, valid_keys)
-        return f"({left} {op} {right})"
+    if kind == "binaryOp":
+        op_str = node.get("op", "==")
+        left = ast_expr_to_node(node.get("left"), default_fallback)
+        right = ast_expr_to_node(node.get("right"), default_fallback)
 
-    elif kind == "unaryOp":
-        op = node.get("op", "not")
-        expr = ast_expr_to_py(node.get("expr"), default_fallback, valid_keys)
-        if op == "not":
-            return f"(not {expr})"
-        return f"({op}{expr})"
+        if op_str in MAP_COMPARE_OPS:
+            return ast.Compare(left=left, ops=[MAP_COMPARE_OPS[op_str]], comparators=[right])
+        if op_str in MAP_BIN_OPS:
+            return ast.BinOp(left=left, op=MAP_BIN_OPS[op_str], right=right)
+        return ast.Compare(left=left, ops=[ast.Eq()], comparators=[right])
 
-    return default_fallback
+    if kind == "unaryOp":
+        op_str = node.get("op", "not")
+        expr = ast_expr_to_node(node.get("expr"), default_fallback)
+        op_map = {"not": ast.Not(), "-": ast.USub(), "+": ast.UAdd()}
+        return ast.UnaryOp(op=op_map.get(op_str, ast.Not()), operand=expr)
+
+    return ast.parse(default_fallback, mode="eval").body
+
+
+def ast_expr_to_py(node: dict[str, Any] | None, default_fallback: str = "True") -> str:
+    """Recursively converts a slot AST expression dict to Python code string using AST unparsing."""
+    return ast.unparse(ast_expr_to_node(node, default_fallback))
 
 
 def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[str]) -> set[str]:
@@ -84,69 +168,112 @@ def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[s
     return invalid
 
 
+# AST Node Compilers
+def _compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
+    """Unifies step/mutation node and logical assigner node generation by building dict-return ASTs."""
+    keys: list[ast.expr | None] = []
+    values: list[ast.expr] = []
+    for item in items:
+        target = item.target_var_key
+        if target and target in valid_keys:
+            keys.append(ast.Constant(value=target))
+            expr = getattr(item, "expression", None)
+            if expr is not None:
+                values.append(ast_expr_to_node(expr))
+            else:
+                val = getattr(item, "value", None)
+                values.append(ast.Constant(value=val))
+
+    func_def = ast.parse("def _stub(state: State) -> dict: pass").body[0]
+    assert isinstance(func_def, ast.FunctionDef)
+    func_def.name = node_id
+    func_def.body = [ast.Return(value=ast.Dict(keys=keys, values=values))]
+    return func_def
+
+
+def compile_ast_step_node(node_id: str, slots: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
+    return _compile_ast_dict_returning_node(node_id, slots, valid_keys)
+
+
+def compile_ast_logical_node(node_id: str, assignments: list[Any], valid_keys: set[str]) -> ast.FunctionDef:
+    return _compile_ast_dict_returning_node(node_id, assignments, valid_keys)
+
+
+def compile_ast_switch_node(node_id: str, slots: list[Any], valid_keys: set[str]) -> list[ast.stmt]:
+    node_func = ast.parse("def _stub_node(state: State) -> None: pass").body[0]
+    assert isinstance(node_func, ast.FunctionDef)
+    node_func.name = f"{node_id}_node"
+
+    def build_if_chain(index: int) -> list[ast.stmt]:
+        if index >= len(slots):
+            res: list[ast.stmt] = [ast.Return(value=ast.Constant(value=""))]
+            return res
+
+        slot = slots[index]
+        label = slot.raw_string or f"Slot {index + 1}"
+        test_node = ast_expr_to_node(slot.expression, default_fallback="False")
+        body_node: list[ast.stmt] = [ast.Return(value=ast.Constant(value=label))]
+        orelse_node = build_if_chain(index + 1)
+
+        return [ast.If(test=test_node, body=body_node, orelse=orelse_node)]
+
+    router_func = ast.parse("def _stub(state: State) -> str: pass").body[0]
+    assert isinstance(router_func, ast.FunctionDef)
+    router_func.name = node_id
+    router_func.body = build_if_chain(0)
+
+    return [node_func, router_func]
+
+
+# Flow Verification & Compilation
 def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
     diagnostics = []
+    valid_keys = {var.key for op in flow_data.operations.definer for var in op.variables if var.key}
+    logical_ops_map = {op.id: op.assignments for op in flow_data.operations.logical}
 
-    # Get all definer variables
-    all_variables = []
-    for op in flow_data.operations.definer:
-        all_variables.extend(op.variables)
-
-    valid_keys = {var.key for var in all_variables if var.key}
-
-    # 1. Check STEP nodes for invalid target_var_key in slots
     for node in flow_data.nodes:
         if node.node_type == "STEP":
             for slot in node.slots:
-                target_key = slot.target_var_key
-                if target_key and target_key not in valid_keys:
+                if slot.target_var_key and slot.target_var_key not in valid_keys:
                     diagnostics.append(
                         DiagnosticRead(
                             line=1,
                             column=1,
                             code="E001",
-                            message=f"Invalid mutation target: variable '{target_key}' is missing or deleted.",
                             severity="error",
+                            message=f"Invalid mutation target: variable '{slot.target_var_key}' is missing or deleted.",
                             node_id=node.id,
                             slot_id=slot.id,
                         )
                     )
 
-        # 2. Check LOGICAL_ASSIGNER nodes
         elif node.node_type == "LOGICAL_ASSIGNER":
-            ref_id = node.ref_id
-            logical_ops = flow_data.operations.logical
-            target_op = next((o for o in logical_ops if o.id == ref_id), None) if ref_id else None
-            assignments = target_op.assignments if target_op else []
+            assignments = logical_ops_map.get(node.ref_id or "") or []
             for asgn in assignments:
-                target_key = asgn.target_var_key
-                if target_key and target_key not in valid_keys:
+                if asgn.target_var_key and asgn.target_var_key not in valid_keys:
                     diagnostics.append(
                         DiagnosticRead(
                             line=1,
                             column=1,
                             code="E002",
-                            message=f"Invalid assignment target: variable '{target_key}' is missing or deleted.",
                             severity="error",
+                            message=f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted.",
                             node_id=node.id,
                             slot_id=asgn.id,
                         )
                     )
 
-        # 3. Check SWITCH nodes
         elif node.node_type == "SWITCH":
             for slot in node.slots:
-                expr = slot.expression
-                if expr:
-                    invalid_refs = _find_invalid_state_refs(expr, valid_keys)
-                    for invalid_var in invalid_refs:
+                if slot.expression:
+                    for invalid_var in _find_invalid_state_refs(slot.expression, valid_keys):
                         diagnostics.append(
                             DiagnosticRead(
                                 line=1,
                                 column=1,
                                 code="E003",
-                                message=f"Invalid state reference: variable '{invalid_var}' is missing or deleted.",
                                 severity="error",
+                                message=f"Invalid state reference: variable '{invalid_var}' is missing or deleted.",
                                 node_id=node.id,
                                 slot_id=slot.id,
                             )
@@ -155,32 +282,16 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
     return diagnostics
 
 
-def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
-    legacy_schema: list[Any] = []
+async def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
     if isinstance(payload, dict):
         legacy_schema = payload.get("state_schema") or []
         flow_data = GraphFlowData.model_validate(payload)
     else:
+        legacy_schema = []
         flow_data = payload
 
-    code_lines = []
+    all_variables = [var for op in flow_data.operations.definer for var in op.variables]
 
-    # Imports
-    code_lines.append("from typing import TypedDict, Literal, Any")
-    code_lines.append("from langgraph.graph import StateGraph, START, END")
-    code_lines.append("")
-
-    # 1. State Definition
-    code_lines.append("# ----------------------------------------------------")
-    code_lines.append("# State Definition")
-    code_lines.append("# ----------------------------------------------------")
-
-    # Get all variables from definer operations
-    all_variables = []
-    for op in flow_data.operations.definer:
-        all_variables.extend(op.variables)
-
-    # Fallback to legacy state_schema if operations.definer is empty
     if not all_variables and legacy_schema:
         for item in legacy_schema:
             all_variables.append(
@@ -195,270 +306,170 @@ def generate_graph_code(payload: dict[str, Any] | GraphFlowData) -> str:
 
     valid_keys = {var.key for var in all_variables if var.key}
 
+    # State Definition Block
     if all_variables:
-        code_lines.append("class State(TypedDict):")
-        for var in all_variables:
-            var_key = var.key
-            var_type = var.type
-            py_type = TYPE_MAP_GB_TO_PY.get(var_type, "str")
-            code_lines.append(f"    {var_key}: {py_type}")
-        code_lines.append("")
-
-        code_lines.append("initial_state: State = {")
-        for var in all_variables:
-            var_key = var.key
-            var_type = var.type
-            default_val = var.default_value
-            if default_val is None:
-                if var_type in ("number", "float"):
-                    default_val = 0 if var_type == "number" else 0.0
-                elif var_type == "boolean":
-                    default_val = False
-                else:
-                    default_val = ""
-            code_lines.append(f'    "{var_key}": {repr(default_val)},')
-        code_lines.append("}")
-        code_lines.append("")
+        vars_str = "\n".join(f"    {v.key}: {TYPE_MAP_GB_TO_PY.get(v.type, 'str')}" for v in all_variables if v.key)
+        defaults_str = "\n".join(
+            f'    "{v.key}": {repr(v.default_value if v.default_value is not None else DEFAULT_TYPE_VALUES.get(v.type, ""))},'
+            for v in all_variables
+            if v.key
+        )
+        state_definition_str = f"class State(TypedDict):\n{vars_str}\n\ninitial_state: State = {{\n{defaults_str}\n}}"
     else:
-        code_lines.append("class State(TypedDict):")
-        code_lines.append("    pass")
-        code_lines.append("")
-        code_lines.append("initial_state: State = {}")
-        code_lines.append("")
+        state_definition_str = "class State(TypedDict):\n    pass\n\ninitial_state: State = {}"
 
-    # 2. Nodes (Excludes DEFINER nodes - 0 python functions!)
-    code_lines.append("# ----------------------------------------------------")
-    code_lines.append("# Nodes")
-    code_lines.append("# ----------------------------------------------------")
-
-    nodes = flow_data.nodes
-    edges = flow_data.edges
-
-    definer_node_ids = {n.id for n in nodes if n.node_type == "DEFINER"}
+    # AST Nodes compilation
+    logical_ops_map = {op.id: op.assignments for op in flow_data.operations.logical}
     executable_logic_nodes = [
-        n for n in nodes if n.node_type in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
+        n for n in flow_data.nodes if n.node_type in ("STEP", "SWITCH", "LOGICAL_ASSIGNER", "AGENTIC_ASSIGNER")
     ]
 
+    node_asts = []
     for node in executable_logic_nodes:
-        node_name = node.id
         if node.node_type == "SWITCH":
-            slots = node.slots
-            code_lines.append(f"def {node_name}_node(state: State) -> None:")
-            code_lines.append("    pass")
-            code_lines.append("")
-            code_lines.append(f"def {node_name}(state: State) -> str:")
-            if not slots:
-                code_lines.append("    # Add output slots in the UI first")
-                code_lines.append('    return ""')
-            else:
-                for i, slot in enumerate(slots):
-                    label = slot.raw_string or f"Slot {i + 1}"
-                    expr_dict = slot.expression
-                    cond_str = ast_expr_to_py(expr_dict, default_fallback="False", valid_keys=valid_keys)
-
-                    code_lines.append(f"    {'if' if i == 0 else 'elif'} {cond_str}:")
-                    code_lines.append(f'        return "{label}"')
-                code_lines.append('    return ""')
+            node_asts.extend(compile_ast_switch_node(node.id, node.slots, valid_keys))
         elif node.node_type == "LOGICAL_ASSIGNER":
-            code_lines.append(f"def {node_name}(state: State) -> dict:")
-            ref_id = node.ref_id
-            logical_ops = flow_data.operations.logical
-            target_op = next((o for o in logical_ops if o.id == ref_id), None) if ref_id else None
-            assignments = target_op.assignments if target_op else []
-
-            if assignments:
-                code_lines.append("    return {")
-                for asgn in assignments:
-                    target_key = asgn.target_var_key
-                    if target_key:
-                        if target_key not in valid_keys:
-                            continue
-                        val = asgn.value
-                        expr_str = repr(val)
-                        if asgn.expression:
-                            expr_str = ast_expr_to_py(asgn.expression, valid_keys=valid_keys)
-                        code_lines.append(f'        "{target_key}": {expr_str},')
-                code_lines.append("    }")
-            else:
-                code_lines.append("    return {}")
+            assignments = logical_ops_map.get(node.ref_id or "") or []
+            node_asts.append(compile_ast_logical_node(node.id, assignments, valid_keys))
         else:
-            # STEP / AGENTIC_ASSIGNER nodes
-            code_lines.append(f"def {node_name}(state: State) -> dict:")
-            slots = node.slots
-            mutations = [s for s in slots if s.target_var_key]
-            if mutations:
-                code_lines.append("    return {")
-                for m in mutations:
-                    slot_target_key = m.target_var_key
-                    if not slot_target_key or slot_target_key not in valid_keys:
-                        continue
-                    expr_str = ast_expr_to_py(m.expression, valid_keys=valid_keys)
-                    code_lines.append(f'        "{slot_target_key}": {expr_str},')
-                code_lines.append("    }")
-            else:
-                code_lines.append("    return {}")
-        code_lines.append("")
+            node_asts.append(compile_ast_step_node(node.id, node.slots, valid_keys))
 
-    # 3. Graph Definition
-    code_lines.append("# ----------------------------------------------------")
-    code_lines.append("# Graph Definition")
-    code_lines.append("# ----------------------------------------------------")
-    code_lines.append("workflow = StateGraph(State)")
-    code_lines.append("")
+    module_node = ast.Module(body=node_asts, type_ignores=[])
+    ast.fix_missing_locations(module_node)
+    node_definitions_str = ast.unparse(module_node)
 
-    for node in executable_logic_nodes:
-        if node.node_type == "SWITCH":
-            code_lines.append(f'workflow.add_node("{node.id}", {node.id}_node)')
-        else:
-            code_lines.append(f'workflow.add_node("{node.id}", {node.id})')
-    code_lines.append("")
+    # Graph Definition Block
+    workflow_lines = ["workflow = StateGraph(State)", ""]
+    workflow_lines.extend(
+        f'workflow.add_node("{n.id}", {n.id}_node)'
+        if n.node_type == "SWITCH"
+        else f'workflow.add_node("{n.id}", {n.id})'
+        for n in executable_logic_nodes
+    )
+    workflow_lines.append("")
 
-    # Bypass resolution for START -> definer -> first_target (with cycle protection)
+    definer_node_ids = {n.id for n in flow_data.nodes if n.node_type == "DEFINER"}
+
     def resolve_target(target_id: str, visited: set[str] | None = None) -> str:
-        if visited is None:
-            visited = set()
+        visited = visited or set()
         if target_id in visited:
             return "END"
         visited.add(target_id)
 
         if target_id in definer_node_ids:
-            # Trace outgoing edge from definer node
-            definer_out = next((e for e in edges if e.source_id == target_id), None)
-            if definer_out:
-                return resolve_target(definer_out.target_id, visited)
-            return "END"
+            definer_out = next((e for e in flow_data.edges if e.source_id == target_id), None)
+            return resolve_target(definer_out.target_id, visited) if definer_out else "END"
         return "END" if target_id == "end" else f'"{target_id}"'
 
-    start_edges = [e for e in edges if e.source_id == "start"]
-    for e in start_edges:
-        target = resolve_target(e.target_id)
-        code_lines.append(f"workflow.add_edge(START, {target})")
+    workflow_lines.extend(
+        f"workflow.add_edge(START, {resolve_target(e.target_id)})" for e in flow_data.edges if e.source_id == "start"
+    )
 
     static_edges = [
         e
-        for e in edges
+        for e in flow_data.edges
         if e.source_id != "start"
         and e.source_id not in definer_node_ids
         and e.source_type == "node"
         and e.target_id != "start"
     ]
-    for e in static_edges:
-        tgt = resolve_target(e.target_id)
-        code_lines.append(f'workflow.add_edge("{e.source_id}", {tgt})')
+    workflow_lines.extend(f'workflow.add_edge("{e.source_id}", {resolve_target(e.target_id)})' for e in static_edges)
+    workflow_lines.append("")
 
-    switch_nodes = [n for n in executable_logic_nodes if n.node_type == "SWITCH"]
-
-    for switch in switch_nodes:
-        node_name = switch.id
-        switch_slots = {s.id: s.raw_string for s in switch.slots}
-        routing_edges = [e for e in edges if e.source_id in switch_slots]
-
+    for switch in [n for n in executable_logic_nodes if n.node_type == "SWITCH"]:
+        routing_edges = [e for e in flow_data.edges if e.source_id in {s.id for s in switch.slots}]
         if routing_edges:
-            path_map_lines = []
-            for slot in switch.slots:
-                slot_edge = next((e for e in routing_edges if e.source_id == slot.id), None)
-                if slot_edge:
-                    tgt = "END" if slot_edge.target_id == "end" else f'"{slot_edge.target_id}"'
-                    path_map_lines.append(f'        "{slot.raw_string}": {tgt},')
+            slot_map = {
+                s.raw_string: resolve_target(e.target_id)
+                for s in switch.slots
+                for e in routing_edges
+                if e.source_id == s.id
+            }
+            slot_map_str = ", ".join(f'"{k}": {v}' for k, v in slot_map.items())
+            workflow_lines.append(f'workflow.add_conditional_edges("{switch.id}", {switch.id}, {{{slot_map_str}}})')
 
-            code_lines.append("workflow.add_conditional_edges(")
-            code_lines.append(f'    "{node_name}",')
-            code_lines.append(f"    {node_name},")
-            code_lines.append("    {")
-            code_lines.extend(path_map_lines)
-            code_lines.append("    }")
-            code_lines.append(")")
-            code_lines.append("")
+    workflow_lines.extend(["", "app = workflow.compile()"])
+    workflow_definition_str = "\n".join(workflow_lines)
 
-    code_lines.append("app = workflow.compile()")
+    template = textwrap.dedent(
+        """\
+        from typing import TypedDict, Literal, Any
+        from langgraph.graph import StateGraph, START, END
 
-    generated_code = "\n".join(code_lines)
+        # ----------------------------------------------------
+        # State Definition
+        # ----------------------------------------------------
+        {state_definition}
 
-    # Format code with ruff if available
-    try:
-        process = subprocess.Popen(
-            [_get_ruff_path(), "format", "-"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        stdout, _ = process.communicate(input=generated_code)
-        if process.returncode == 0 and stdout:
-            return stdout
-    except Exception:
-        pass
+        # ----------------------------------------------------
+        # Nodes
+        # ----------------------------------------------------
+        {node_definitions}
 
-    return generated_code
+        # ----------------------------------------------------
+        # Graph Definition
+        # ----------------------------------------------------
+        {workflow_definition}
+        """
+    )
+    generated_code = template.format(
+        state_definition=state_definition_str,
+        node_definitions=node_definitions_str,
+        workflow_definition=workflow_definition_str,
+    )
+
+    formatted = await _run_ruff(["format", "-"], generated_code)
+    return formatted or generated_code
 
 
-def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
+async def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
     if not code.strip():
         return []
 
-    try:
-        process = subprocess.Popen(
-            [_get_ruff_path(), "check", "--output-format=json", "-"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        stdout, _ = process.communicate(input=code)
-        if process.returncode != 0 and not stdout:
-            return []
+    stdout = await _run_ruff(["check", "--output-format=json", "-"], code)
+    if not stdout:
+        return []
 
+    try:
         data = json.loads(stdout)
-        diagnostics = []
-        for item in data:
-            diagnostics.append(
-                DiagnosticRead(
-                    line=item.get("location", {}).get("row", 1),
-                    column=item.get("location", {}).get("column", 1),
-                    code=item.get("code", "UNK"),
-                    message=item.get("message", ""),
-                    severity="warning" if item.get("code", "").startswith("W") else "error",
-                )
+        return [
+            DiagnosticRead(
+                line=item.get("location", {}).get("row", 1),
+                column=item.get("location", {}).get("column", 1),
+                code=item.get("code", "UNK"),
+                message=item.get("message", ""),
+                severity="warning" if item.get("code", "").startswith("W") else "error",
             )
-        return diagnostics
+            for item in data
+        ]
     except Exception:
         return []
 
 
-def compile_flow_with_langgraph(payload: dict[str, Any] | GraphFlowData) -> dict[str, Any]:
+async def compile_flow_with_langgraph(payload: dict[str, Any] | GraphFlowData) -> dict[str, Any]:
     """
     Compiles the flow payload into executable python code, executes it,
     runs the compiled LangGraph workflow with its initial state, and returns the final state.
     """
-    if isinstance(payload, dict):
-        flow_data = GraphFlowData.model_validate(payload)
-    else:
-        flow_data = payload
+    flow_data = payload if isinstance(payload, GraphFlowData) else GraphFlowData.model_validate(payload)
 
-    # Run semantic validation
     errors = validate_flow_data(flow_data)
     severe_errors = [e for e in errors if e.severity == "error"]
     if severe_errors:
         err_msg = "; ".join(e.message for e in severe_errors)
         return {"variables": [], "error": f"Compilation/Execution failed: {err_msg}"}
 
-    namespace: dict[str, Any] = {}
     try:
-        code = generate_graph_code(flow_data)
-        exec(code, namespace)
+        code = await generate_graph_code(flow_data)
     except Exception as e:
         return {"variables": [], "error": f"Compilation/Execution failed: {str(e)}"}
 
-    app = namespace.get("app")
-    initial_state = namespace.get("initial_state", {})
-
-    if not app:
-        return {"variables": [], "error": "Compiled workflow does not define 'app'"}
-
+    loop = asyncio.get_running_loop()
+    executor = get_executor()
     try:
-        final_state = app.invoke(initial_state)
+        result = await asyncio.wait_for(loop.run_in_executor(executor, _worker_execute_langgraph, code), timeout=5.0)
+        return result
+    except TimeoutError:
+        return {"variables": [], "error": "LangGraph execution timed out (possible infinite loop in visual graph)"}
     except Exception as e:
         return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
-
-    variables_list = [{"key": k, "value": v} for k, v in final_state.items()]
-    return {"variables": variables_list}

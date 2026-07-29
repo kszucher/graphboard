@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, status
 
+from app.context import UnitOfWork
 from app.db import get_uow
 from app.graphs import service as graph_service
 from app.graphs.schemas import (
@@ -27,84 +28,86 @@ router = APIRouter(prefix="/graphs", tags=["graphs"])
 
 
 @router.post("/", response_model=uuid.UUID, status_code=status.HTTP_201_CREATED)
-async def create_graph(payload: GraphCreate, uow: Any = Depends(get_uow)) -> uuid.UUID:
+async def create_graph(payload: GraphCreate, uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
     graph_id = await graph_service.create_graph(uow, payload.user_id, payload.graph_name)
-    await uow.commit()
+
     return graph_id
 
 
 @router.get("/user/{user_id}", response_model=list[GraphRead])
-async def list_graphs(user_id: uuid.UUID, uow: Any = Depends(get_uow)) -> list[GraphRead]:
+async def list_graphs(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> list[GraphRead]:
     graphs = await graph_service.list_graphs_by_user(uow, user_id)
     return [GraphRead.model_validate(g) for g in graphs]
 
 
 @router.get("/{graph_id}/flow", response_model=GraphFlowRead)
-async def get_graph_flow(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     flow = await graph_service.get_and_reset_graph_flow(uow, graph_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(flow)
 
 
 @router.put("/{graph_id}/sync", response_model=GraphFlowRead)
 async def sync_graph_flow_endpoint(
-    graph_id: uuid.UUID, payload: GraphSyncPayload, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, payload: GraphSyncPayload, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.sync_graph_flow(uow, graph_id, payload)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.post("/{graph_id}/run", response_model=dict[str, Any])
-async def run_graph(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> dict[str, Any]:
+async def run_graph(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> dict[str, Any]:
     flow_data = await graph_service.run_graph_flow(uow, graph_id)
-    await uow.commit()
+
     return {"variables": flow_data.get("variables", [])}
 
 
 @router.post("/{graph_id}/history/undo", response_model=GraphFlowRead)
-async def undo_graph_flow_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def undo_graph_flow_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     flow = await graph_service.undo_graph_flow(uow, graph_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(flow)
 
 
 @router.post("/{graph_id}/history/redo", response_model=GraphFlowRead)
-async def redo_graph_flow_endpoint(graph_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def redo_graph_flow_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     flow = await graph_service.redo_graph_flow(uow, graph_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(flow)
 
 
 # Node REST API
 @router.post("/{graph_id}/nodes", response_model=GraphFlowRead)
 async def add_node_endpoint(
-    graph_id: uuid.UUID, payload: NodeCreateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, payload: NodeCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.add_node(
         uow, graph_id, payload.node_type, payload.connector_id, payload.direction
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/nodes/{node_id}", response_model=GraphFlowRead)
-async def delete_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def delete_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     updated_flow = await graph_service.delete_node(uow, graph_id, node_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.post("/{graph_id}/nodes/{node_id}/shortcircuit", response_model=GraphFlowRead)
-async def shortcircuit_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def shortcircuit_node_endpoint(
+    graph_id: uuid.UUID, node_id: str, uow: UnitOfWork = Depends(get_uow)
+) -> GraphFlowRead:
     updated_flow = await graph_service.shortcircuit_node(uow, graph_id, node_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.patch("/{graph_id}/nodes/{node_id}", response_model=GraphFlowRead)
 async def update_node_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: NodeUpdateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, node_id: str, payload: NodeUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.update_node(
         uow,
@@ -115,61 +118,63 @@ async def update_node_endpoint(
         is_output=payload.is_output,
         ref_id=payload.ref_id,
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 # Slots REST API
 @router.post("/{graph_id}/nodes/{node_id}/slots", response_model=GraphFlowRead)
 async def create_slot_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: SlotCreateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, node_id: str, payload: SlotCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.create_slot(uow, graph_id, node_id, payload.index)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.patch("/{graph_id}/slots/{slot_id}", response_model=GraphFlowRead)
 async def update_slot_endpoint(
-    graph_id: uuid.UUID, slot_id: str, payload: SlotUpdateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, slot_id: str, payload: SlotUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.update_slot(uow, graph_id, slot_id, payload.raw_string, payload.expression)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/slots/{slot_id}", response_model=GraphFlowRead)
-async def delete_slot_endpoint(graph_id: uuid.UUID, slot_id: str, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def delete_slot_endpoint(graph_id: uuid.UUID, slot_id: str, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     updated_flow = await graph_service.delete_slot(uow, graph_id, slot_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.post("/{graph_id}/slots/{slot_id}/move", response_model=GraphFlowRead)
 async def move_slot_endpoint(
-    graph_id: uuid.UUID, slot_id: str, payload: SlotMoveRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, slot_id: str, payload: SlotMoveRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.move_slot(uow, graph_id, slot_id, payload.direction)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 # Edges REST API
 @router.delete("/{graph_id}/edges/{edge_id}", response_model=GraphFlowRead)
-async def delete_edge_endpoint(graph_id: uuid.UUID, edge_id: uuid.UUID, uow: Any = Depends(get_uow)) -> GraphFlowRead:
+async def delete_edge_endpoint(
+    graph_id: uuid.UUID, edge_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
+) -> GraphFlowRead:
     updated_flow = await graph_service.delete_edge(uow, graph_id, edge_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.post("/{graph_id}/edges", response_model=GraphFlowRead)
 async def create_edge_endpoint(
-    graph_id: uuid.UUID, payload: EdgeCreateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, payload: EdgeCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.create_edge(
         uow, graph_id, payload.source, payload.target, payload.source_handle, payload.target_handle
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -178,7 +183,7 @@ async def reconnect_edge_endpoint(
     graph_id: uuid.UUID,
     edge_id: uuid.UUID,
     payload: EdgeReconnectRequest,
-    uow: Any = Depends(get_uow),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> GraphFlowRead:
     updated_flow = await graph_service.reconnect_edge(
         uow,
@@ -189,67 +194,67 @@ async def reconnect_edge_endpoint(
         payload.source_handle,
         payload.target_handle,
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 # Definer Variables REST API
 @router.post("/{graph_id}/nodes/{node_id}/definer/variables", response_model=GraphFlowRead)
 async def create_definer_variable_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: DefinerVariableCreateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, node_id: str, payload: DefinerVariableCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.create_definer_variable(
         uow, graph_id, node_id, payload.key, payload.type, payload.default_value, payload.description
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.patch("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
 async def update_definer_variable_endpoint(
-    graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updates = payload.model_dump(exclude_unset=True)
     updated_flow = await graph_service.update_definer_variable(uow, graph_id, var_id, updates)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
 async def delete_definer_variable_endpoint(
-    graph_id: uuid.UUID, var_id: str, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, var_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.delete_definer_variable(uow, graph_id, var_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 # Logical Assigner Operations REST API
 @router.post("/{graph_id}/nodes/{node_id}/logical/assignments", response_model=GraphFlowRead)
 async def create_logical_assignment_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: LogicalAssignmentCreateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, node_id: str, payload: LogicalAssignmentCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.create_logical_assignment(
         uow, graph_id, node_id, payload.target_var_key, payload.value_type, payload.value, payload.expression
     )
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.patch("/{graph_id}/logical/assignments/{assignment_id}", response_model=GraphFlowRead)
 async def update_logical_assignment_endpoint(
-    graph_id: uuid.UUID, assignment_id: str, payload: LogicalAssignmentUpdateRequest, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, assignment_id: str, payload: LogicalAssignmentUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updates = payload.model_dump(exclude_unset=True)
     updated_flow = await graph_service.update_logical_assignment(uow, graph_id, assignment_id, updates)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/logical/assignments/{assignment_id}", response_model=GraphFlowRead)
 async def delete_logical_assignment_endpoint(
-    graph_id: uuid.UUID, assignment_id: str, uow: Any = Depends(get_uow)
+    graph_id: uuid.UUID, assignment_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     updated_flow = await graph_service.delete_logical_assignment(uow, graph_id, assignment_id)
-    await uow.commit()
+
     return GraphFlowRead.model_validate(updated_flow)

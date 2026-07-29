@@ -142,7 +142,7 @@ async def create_graph(
             "operations": operations_container,
         }
     )
-    compiled_code = generate_graph_code(flow_data)
+    compiled_code = await generate_graph_code(flow_data)
     flow_data.code = compiled_code
     initial_flow = flow_data.model_dump(mode="json")
 
@@ -192,7 +192,7 @@ async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
     from app.graphs.compiler import compile_flow_with_langgraph
 
     flow_data = GraphFlowData.model_validate(graph.flow_json or {})
-    exec_result = compile_flow_with_langgraph(flow_data)
+    exec_result = await compile_flow_with_langgraph(flow_data)
 
     uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph.id, payload={})
     return exec_result
@@ -224,7 +224,7 @@ async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data
     semantic_diagnostics = validate_flow_data(flow_data)
 
     # 2. Run Ruff diagnostics
-    ruff_diagnostics = run_ruff_diagnostics(flow_data.code)
+    ruff_diagnostics = await run_ruff_diagnostics(flow_data.code)
 
     # 3. Merge diagnostics
     all_diagnostics = []
@@ -249,7 +249,7 @@ async def _commit_state_snapshot(uow: UnitOfWork, graph: models.Graph, flow_data
     await uow.graph_history.delete_future_snapshots(graph.id, graph.current_history_sequence)
 
     # Reformat/Compile Python code based on visual topology & operations
-    generated_code = generate_graph_code(flow_data)
+    generated_code = await generate_graph_code(flow_data)
     flow_data.code = generated_code
 
     # Convert to standard dict for database persistence
