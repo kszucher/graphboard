@@ -22,7 +22,7 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 1. **Build Visually**: Arrange execution nodes (Steps, Switches/Decisions, Entry & Exit sentinels) on an auto-layout canvas.
 2. **Define Logic via Expressions**: Assign AST expression conditions to decision slots and state updates to step nodes.
 3. **Inspect Generated Python Code**: Graphboard deterministically compiles your visual graph into clean Python code using standard `LangGraph` primitive calls (`StateGraph`, `add_node`, `add_conditional_edges`) and `TypedDict` state definitions.
-4. **Instant Diagnostic Feedback**: The Python backend executes native `Ruff` static analysis on the generated code, surfacing errors and warnings directly onto visual canvas elements and the CodeMirror sidebar viewer.
+4. **Strict Schema Integrity & Topological Guard**: State variable renames cascade automatically to all referencing nodes/expressions, and variable deletions are strictly blocked if they are referenced. A pre-execution guard validates topological completeness (unset expressions or unconnected nodes) before running the graph.
 
 ---
 
@@ -60,9 +60,10 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 * **Deterministic Code Synthesis**: Created a python AST compilation engine that parses visual nodes and slots into native LangGraph code (`StateGraph`, `START`, `END`, conditional routing).
 * **Safe Sandbox Runtime**: Configured a subprocess pool executor to safely execute compiled python workflows on the FastAPI backend, returning terminal execution results.
 
-### Phase 5: Interactive Code Inspector & Diagnostics
+### Phase 5: Interactive Code Inspector & Strict State Integrity
 * **Bidirectional AST Selection**: Traversed CodeMirror 6 and visual canvas nodes to highlight code functions when clicking nodes, and select visual elements when clicking code regions.
-* **Real-time Ruff Diagnostics**: Ran native Ruff static analysis on generated python code via sub-millisecond backend subprocesses, returning line/column diagnostics to highlight canvas errors.
+* **Strict State Integrity**: Implemented cascading variable renames and blocked deletes of variables referenced in expressions, slots, and assignments.
+* **Pre-Execution Completeness Guard**: Refactored the validation system to verify topological completeness (unconnected slots/nodes and unset expressions) only right before running the graph.
 * **Read-Only Editor lock**: Secured generated code viewer in CodeMirror to be read-only while keeping AST-based folding and navigation fully interactive.
 
 ---
@@ -72,10 +73,10 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 ```mermaid
 graph TD
     Canvas[Visual React Flow Canvas] -- "Node / Slot AST Mutations" --> API[FastAPI Backend]
-    API -- "Synthesizes Python Script" --> Compiler[AST Generator]
-    Compiler -- "Runs Static Analysis" --> Ruff[Native Ruff Linter]
+    API -- "Enforces Variable Dependencies" --> Operations[Strict State Integrity]
+    Canvas -- "Queries /code on Invalidation" --> CodeEP[GET /graphs/graph_id/code]
+    CodeEP -- "Synthesizes Python Script" --> Compiler[AST Generator]
     Compiler -- "Generated Code String" --> Sidebar[Read-Only Code Mirror Sidebar]
-    Ruff -- "Line & Column Diagnostics" --> Canvas
 ```
 
 ### Key Technical Choices
@@ -88,7 +89,7 @@ graph TD
 ## 🛠️ Tech Stack
 
 * **Frontend**: React 19, TypeScript, React Flow (@xyflow/react), ELKjs, CodeMirror 6, TanStack Query v5, Radix UI.
-* **Backend**: Python 3.12+, FastAPI, LangGraph, SQLAlchemy 2.0, Pydantic v2, Ruff.
+* **Backend**: Python 3.12+, FastAPI, LangGraph, SQLAlchemy 2.0, Pydantic v2.
 
 ---
 
@@ -96,6 +97,6 @@ graph TD
 
 * **Handle Lifecycle (`updateNodeInternals`)**: When slots are added or removed dynamically on SWITCH nodes, React Flow's cached handle locations become stale. We listen to `node.slots` changes in `FlowNode.tsx` to trigger `updateNodeInternals(id)` whenever slot structure updates.
 * **CodeMirror Read-Only Guard**: Setting `EditorState.readOnly.of(true)` across CodeMirror locks typing while allowing `@codemirror/language` AST syntax tree iteration to continue driving bidirectional node highlighting and code folding.
-* **Native Ruff CLI Subprocess**: Running `ruff check` natively on the backend executes in sub-milliseconds, completely eliminating WASM bundle overhead on the frontend.
+* **Cascading Rename & Blocked Delete**: Renaming a defined variable key cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and Step slot targets). Deleting a defined variable is strictly blocked with a 400 Bad Request error if any references remain in expressions or assignments.
 * **Sentinel Topology Enforcement (`START -> DEFINER -> END`)**: `DEFINER` nodes are protected sentinels that cannot be deleted or shortcircuited. During AST code generation, `resolve_target` traces through `DEFINER` nodes with cycle protection to emit direct LangGraph edges from `START` to downstream execution nodes.
 

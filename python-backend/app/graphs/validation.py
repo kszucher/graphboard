@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from app.constants import NodeType
-from app.graphs.schemas import DiagnosticRead, GraphFlowData
+from app.exceptions import ValidationError
+from app.graphs.schemas import GraphFlowData
 
 
 def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[str]) -> set[str]:
@@ -25,8 +26,68 @@ def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[s
     return invalid
 
 
-def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
-    diagnostics = []
+def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
+    """Verifies that the graph is topologically complete and has valid references before execution.
+
+    Raises ValidationError if there are:
+      1. Unset expressions in SWITCH node slots.
+      2. Unconnected switch slots (no outgoing edge).
+      3. Unreachable nodes (no path from START node).
+      4. Invalid variable reference targets or expression state references.
+    """
+    # 1. Check Unset Expressions and Unconnected Slots on SWITCH nodes
+    switch_nodes = [n for n in flow_data.nodes if n.node_type == NodeType.SWITCH]
+    edge_sources = {e.source_id for e in flow_data.edges}
+
+    for n in switch_nodes:
+        for slot in n.slots:
+            if slot.expression is None:
+                raise ValidationError(f"Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'.")
+            if slot.id not in edge_sources:
+                raise ValidationError(
+                    f"Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                )
+
+    # 2. Check reachability of nodes from "start"
+    slot_to_node: dict[str, str] = {}
+    for n in flow_data.nodes:
+        for s in n.slots:
+            slot_to_node[s.id] = n.id
+
+    # Build adjacency list: node_id -> set of target node_ids
+    adj: dict[str, set[str]] = {n.id: set() for n in flow_data.nodes}
+    if "start" not in adj:
+        adj["start"] = set()
+    if "end" not in adj:
+        adj["end"] = set()
+
+    for e in flow_data.edges:
+        src_node = slot_to_node.get(e.source_id, e.source_id)
+        tgt_node = slot_to_node.get(e.target_id, e.target_id)
+        if src_node in adj:
+            adj[src_node].add(tgt_node)
+
+    # Traverse from "start"
+    visited = set()
+
+    def dfs(node_id: str) -> None:
+        if node_id in visited:
+            return
+        visited.add(node_id)
+        for nxt in adj.get(node_id, []):
+            dfs(nxt)
+
+    if "start" in adj:
+        dfs("start")
+
+    # START and DEFINER nodes are excluded from reachability checks
+    for n in flow_data.nodes:
+        if n.node_type in (NodeType.START, NodeType.DEFINER):
+            continue
+        if n.id not in visited:
+            raise ValidationError(f"Node '{n.id}' is unreachable from the START node.")
+
+    # 3. Check for invalid variable references
     valid_keys = {
         var.key
         for node in flow_data.nodes
@@ -35,52 +96,30 @@ def validate_flow_data(flow_data: GraphFlowData) -> list[DiagnosticRead]:
         if var.key
     }
 
-    for node in flow_data.nodes:
-        if node.node_type == NodeType.STEP:
-            for slot in node.slots:
+    for n in flow_data.nodes:
+        if n.node_type == NodeType.STEP:
+            for slot in n.slots:
                 if slot.target_var_key and slot.target_var_key not in valid_keys:
-                    diagnostics.append(
-                        DiagnosticRead(
-                            line=1,
-                            column=1,
-                            code="E001",
-                            severity="error",
-                            message=f"Invalid mutation target: variable '{slot.target_var_key}' is missing or deleted.",
-                            node_id=node.id,
-                            slot_id=slot.id,
-                        )
+                    raise ValidationError(
+                        f"Invalid mutation target: variable '{slot.target_var_key}' is missing or deleted."
                     )
-
-        elif node.node_type == NodeType.LOGICAL_ASSIGNER:
-            assignments = node.assignments or []
-            for asgn in assignments:
+        elif n.node_type == NodeType.LOGICAL_ASSIGNER:
+            for asgn in n.assignments or []:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
-                    diagnostics.append(
-                        DiagnosticRead(
-                            line=1,
-                            column=1,
-                            code="E002",
-                            severity="error",
-                            message=f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted.",
-                            node_id=node.id,
-                            slot_id=asgn.id,
-                        )
+                    raise ValidationError(
+                        f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted."
                     )
-
-        elif node.node_type == NodeType.SWITCH:
-            for slot in node.slots:
-                if slot.expression:
-                    for invalid_var in _find_invalid_state_refs(slot.expression, valid_keys):
-                        diagnostics.append(
-                            DiagnosticRead(
-                                line=1,
-                                column=1,
-                                code="E003",
-                                severity="error",
-                                message=f"Invalid state reference: variable '{invalid_var}' is missing or deleted.",
-                                node_id=node.id,
-                                slot_id=slot.id,
-                            )
+                if asgn.expression:
+                    invalid_refs = _find_invalid_state_refs(asgn.expression, valid_keys)
+                    if invalid_refs:
+                        raise ValidationError(
+                            f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
                         )
-
-    return diagnostics
+        elif n.node_type == NodeType.SWITCH:
+            for slot in n.slots:
+                if slot.expression:
+                    invalid_refs = _find_invalid_state_refs(slot.expression, valid_keys)
+                    if invalid_refs:
+                        raise ValidationError(
+                            f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
+                        )

@@ -123,16 +123,16 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/graphs/{graph_id}/sync": {
+  "/graphs/{graph_id}/code": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get?: never;
-    /** Sync Graph Flow Endpoint */
-    put: operations["sync_graph_flow_endpoint_graphs__graph_id__sync_put"];
+    /** Get Graph Code Endpoint */
+    get: operations["get_graph_code_endpoint_graphs__graph_id__code_get"];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -487,26 +487,6 @@ export interface components {
       /** Description */
       description?: string | null;
     };
-    /** DiagnosticRead */
-    DiagnosticRead: {
-      /** Line */
-      line: number;
-      /** Column */
-      column: number;
-      /** Code */
-      code: string;
-      /** Message */
-      message: string;
-      /**
-       * Severity
-       * @enum {string}
-       */
-      severity: "error" | "warning";
-      /** Node Id */
-      node_id?: string | null;
-      /** Slot Id */
-      slot_id?: string | null;
-    };
     /** EdgeCreateRequest */
     EdgeCreateRequest: {
       /** Source */
@@ -553,6 +533,11 @@ export interface components {
       /** Target Handle */
       target_handle: string;
     };
+    /** GraphCodeRead */
+    GraphCodeRead: {
+      /** Code */
+      code: string;
+    };
     /** GraphCreate */
     GraphCreate: {
       /**
@@ -565,17 +550,10 @@ export interface components {
     };
     /** GraphFlowRead */
     GraphFlowRead: {
-      /**
-       * Code
-       * @default
-       */
-      code: string;
       /** Nodes */
       nodes: components["schemas"]["NodeRead"][];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
-      /** Diagnostics */
-      diagnostics?: components["schemas"]["DiagnosticRead"][];
       /**
        * Can Undo
        * @default false
@@ -601,13 +579,6 @@ export interface components {
        * Format: uuid
        */
       user_id: string;
-    };
-    /** GraphSyncPayload */
-    GraphSyncPayload: {
-      /** Nodes */
-      nodes: components["schemas"]["NodeRead"][];
-      /** Edges */
-      edges: components["schemas"]["EdgeRead"][];
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -739,8 +710,6 @@ export interface components {
       } | null;
       /** Target Var Key */
       target_var_key?: string | null;
-      /** Ref Id */
-      ref_id?: string | null;
     };
     /** SlotUpdateRequest */
     SlotUpdateRequest: {
@@ -752,8 +721,6 @@ export interface components {
       } | null;
       /** Target Var Key */
       target_var_key?: string | null;
-      /** Ref Id */
-      ref_id?: string | null;
     };
     /** UserCreate */
     UserCreate: {
@@ -1013,7 +980,7 @@ export interface operations {
       };
     };
   };
-  sync_graph_flow_endpoint_graphs__graph_id__sync_put: {
+  get_graph_code_endpoint_graphs__graph_id__code_get: {
     parameters: {
       query?: never;
       header?: {
@@ -1024,11 +991,7 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["GraphSyncPayload"];
-      };
-    };
+    requestBody?: never;
     responses: {
       /** @description Successful Response */
       200: {
@@ -1036,7 +999,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
+          "application/json": components["schemas"]["GraphCodeRead"];
         };
       };
       /** @description Validation Error */

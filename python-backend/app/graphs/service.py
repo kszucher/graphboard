@@ -5,18 +5,18 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
 from app.constants import EventName, NodeType
+from app.exceptions import ValidationError
 from app.graphs import operations as graph_operations
 from app.graphs import topology as graph_topology
-from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics
+from app.graphs.compiler import generate_graph_code
 from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    GraphSyncPayload,
     NodeRead,
     SlotRead,
 )
-from app.graphs.validation import validate_flow_data
+from app.graphs.validation import assert_flow_is_complete
 
 if TYPE_CHECKING:
     from app import models
@@ -142,34 +142,33 @@ async def list_graphs_by_user(uow: UnitOfWork, user_id: uuid.UUID) -> list:
     return await uow.graphs.list_by_user(user_id)
 
 
-async def sync_graph_flow(
-    uow: UnitOfWork,
-    graph_id: uuid.UUID,
-    payload: GraphSyncPayload,
-) -> dict:
+async def get_compiled_code(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
         from app.exceptions import ValidationError
 
         raise ValidationError(f"Graph {graph_id} not found")
-
-    flow_data = GraphFlowData(
-        nodes=payload.nodes,
-        edges=payload.edges,
-    )
-    return await _commit_state_snapshot(uow, graph, flow_data)
+    flow_data = GraphFlowData.model_validate(graph.flow_json or {})
+    code = await generate_graph_code(flow_data)
+    return {"code": code}
 
 
 async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"Graph {graph_id} not found")
 
     from app.graphs.compiler import compile_flow_with_langgraph
 
     flow_data = GraphFlowData.model_validate(graph.flow_json or {})
+    try:
+        assert_flow_is_complete(flow_data)
+    except ValidationError as e:
+        return {
+            "variables": [],
+            "error": f"Compilation/Execution failed: {e.message}",
+        }
+
     exec_result = await compile_flow_with_langgraph(flow_data)
 
     uow.emit(event=EventName.GRAPH_UPDATED, graph_id=graph.id, payload={})
@@ -205,27 +204,9 @@ async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict
 async def _prepare_response_flow(uow: UnitOfWork, graph: models.Graph, flow_data: GraphFlowData) -> dict:
     next_snap = await uow.graph_history.get_by_sequence(graph.id, graph.current_history_sequence + 1)
 
-    # 1. Compile Python code from topology
-    code = await generate_graph_code(flow_data)
-
-    # 2. Run semantic validation
-    semantic_diagnostics = validate_flow_data(flow_data)
-
-    # 3. Run Ruff diagnostics on freshly compiled code
-    ruff_diagnostics = await run_ruff_diagnostics(code)
-
-    # 4. Merge diagnostics
-    all_diagnostics = []
-    all_diagnostics.extend(semantic_diagnostics)
-    all_diagnostics.extend(ruff_diagnostics)
-
-    diag_dicts = [d.model_dump(mode="json") for d in all_diagnostics]
-
     res = flow_data.model_dump(mode="json")
     res.update(
         {
-            "code": code,
-            "diagnostics": diag_dicts,
             "can_undo": graph.current_history_sequence > 0,
             "can_redo": next_snap is not None,
         }
@@ -366,6 +347,15 @@ async def update_slot(
     raw_string: str | None = None,
     expression: dict[str, Any] | None = None,
 ) -> dict:
+    if expression is not None:
+        return await _mutate_flow(
+            uow,
+            graph_id,
+            graph_operations.update_switch_expression,
+            slot_id,
+            raw_string=raw_string,
+            expression=expression,
+        )
     return await _mutate_flow(uow, graph_id, graph_topology.update_slot, slot_id, raw_string, expression)
 
 

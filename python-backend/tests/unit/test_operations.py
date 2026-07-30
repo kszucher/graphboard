@@ -1,6 +1,7 @@
 import pytest
 
 from app.constants import NodeType
+from app.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.schemas import (
     DefinerVariableSchema,
@@ -14,13 +15,13 @@ def test_validate_and_coerce_default() -> None:
     # Number coercion
     assert operations.validate_and_coerce_default("number", 42) == 42
     assert operations.validate_and_coerce_default("number", "100") == 100
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         operations.validate_and_coerce_default("number", "not_a_number")
 
     # Float coercion
     assert operations.validate_and_coerce_default("float", 4.2) == 4.2
     assert operations.validate_and_coerce_default("float", "3.14") == 3.14
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         operations.validate_and_coerce_default("float", "not_a_float")
 
     # Boolean coercion
@@ -67,24 +68,24 @@ def test_create_definer_variable_naming_rules() -> None:
     )
 
     # Snake case violations
-    with pytest.raises(ValueError, match="must be valid snake_case"):
+    with pytest.raises(ValidationError, match="must be valid snake_case"):
         operations.create_definer_variable(flow, "definer_1", "UserAge")
-    with pytest.raises(ValueError, match="must be valid snake_case"):
+    with pytest.raises(ValidationError, match="must be valid snake_case"):
         operations.create_definer_variable(flow, "definer_1", "user-age")
-    with pytest.raises(ValueError, match="must be valid snake_case"):
+    with pytest.raises(ValidationError, match="must be valid snake_case"):
         operations.create_definer_variable(flow, "definer_1", "1_user_age")
-    with pytest.raises(ValueError, match="must be valid snake_case"):
+    with pytest.raises(ValidationError, match="must be valid snake_case"):
         operations.create_definer_variable(flow, "definer_1", "user age")
 
     # Python keyword violations
-    with pytest.raises(ValueError, match="cannot be a Python keyword"):
+    with pytest.raises(ValidationError, match="cannot be a Python keyword"):
         operations.create_definer_variable(flow, "definer_1", "def")
-    with pytest.raises(ValueError, match="cannot be a Python keyword"):
+    with pytest.raises(ValidationError, match="cannot be a Python keyword"):
         operations.create_definer_variable(flow, "definer_1", "class")
 
     # Duplicate variable keys
     operations.create_definer_variable(flow, "definer_1", "x")
-    with pytest.raises(ValueError, match="already exists"):
+    with pytest.raises(ValidationError, match="already exists"):
         operations.create_definer_variable(flow, "definer_1", "x")
 
 
@@ -169,7 +170,7 @@ def test_create_logical_assignment_invalid_variable() -> None:
     )
 
     # Attempt assignment to undefined variable 'y'
-    with pytest.raises(ValueError, match="is not defined in state schema"):
+    with pytest.raises(ValidationError, match="is not defined in state schema"):
         operations.create_logical_assignment(flow, "assigner_1", "y", "number", 42)
 
 
@@ -209,7 +210,7 @@ def test_update_logical_assignment() -> None:
     assert asgn.value == "hello"
 
     # Fail update when new target key doesn't exist
-    with pytest.raises(ValueError, match="is not defined in state schema"):
+    with pytest.raises(ValidationError, match="is not defined in state schema"):
         operations.update_logical_assignment(flow, "asgn_1", {"target_var_key": "non_existent"})
 
 

@@ -29,11 +29,6 @@ class DefinerVariableSchema(BaseModel):
     description: str | None = None
 
 
-class DefinerOperationSchema(BaseModel):
-    id: str
-    variables: list[DefinerVariableSchema] = Field(default_factory=list)
-
-
 class LogicalAssignmentSchema(BaseModel):
     id: str
     target_var_key: str
@@ -42,17 +37,11 @@ class LogicalAssignmentSchema(BaseModel):
     expression: dict[str, Any] | None = None
 
 
-class LogicalOperationSchema(BaseModel):
-    id: str
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-
 class SlotRead(BaseModel):
     id: str = ""
     raw_string: str = ""
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
-    ref_id: str | None = None
 
 
 class NodeRead(BaseModel):
@@ -72,28 +61,15 @@ class EdgeRead(BaseModel):
     target_type: Literal["node", "slot"] = "node"
 
 
-class DiagnosticRead(BaseModel):
-    line: int
-    column: int
-    code: str
-    message: str
-    severity: Literal["error", "warning"]
-    node_id: str | None = None
-    slot_id: str | None = None
-
-
 class GraphFlowRead(BaseModel):
-    code: str = ""
     nodes: list[NodeRead]
     edges: list[EdgeRead]
-    diagnostics: list[DiagnosticRead] = Field(default_factory=list)
     can_undo: bool = False
     can_redo: bool = False
 
 
-class GraphSyncPayload(BaseModel):
-    nodes: list[NodeRead]
-    edges: list[EdgeRead]
+class GraphCodeRead(BaseModel):
+    code: str
 
 
 class GraphFlowData(BaseModel):
@@ -146,7 +122,6 @@ class SlotUpdateRequest(BaseModel):
     raw_string: str | None = None
     expression: dict[str, Any] | None = None
     target_var_key: str | None = None
-    ref_id: str | None = None
 
 
 class SlotMoveRequest(BaseModel):

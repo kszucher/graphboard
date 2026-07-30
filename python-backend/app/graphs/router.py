@@ -11,10 +11,10 @@ from app.graphs.schemas import (
     DefinerVariableUpdateRequest,
     EdgeCreateRequest,
     EdgeReconnectRequest,
+    GraphCodeRead,
     GraphCreate,
     GraphFlowRead,
     GraphRead,
-    GraphSyncPayload,
     LogicalAssignmentCreateRequest,
     LogicalAssignmentUpdateRequest,
     NodeCreateRequest,
@@ -47,13 +47,10 @@ async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
     return GraphFlowRead.model_validate(flow)
 
 
-@router.put("/{graph_id}/sync", response_model=GraphFlowRead)
-async def sync_graph_flow_endpoint(
-    graph_id: uuid.UUID, payload: GraphSyncPayload, uow: UnitOfWork = Depends(get_uow)
-) -> GraphFlowRead:
-    updated_flow = await graph_service.sync_graph_flow(uow, graph_id, payload)
-
-    return GraphFlowRead.model_validate(updated_flow)
+@router.get("/{graph_id}/code", response_model=GraphCodeRead)
+async def get_graph_code_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphCodeRead:
+    code_data = await graph_service.get_compiled_code(uow, graph_id)
+    return GraphCodeRead.model_validate(code_data)
 
 
 @router.post("/{graph_id}/run", response_model=dict[str, Any])

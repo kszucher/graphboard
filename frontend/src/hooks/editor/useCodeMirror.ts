@@ -1,14 +1,12 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { foldGutter, indentUnit } from '@codemirror/language';
-import { type Diagnostic, linter, lintGutter } from '@codemirror/lint';
 import { EditorState, Range, StateEffect, StateField } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import type { DecorationSet } from '@codemirror/view';
 import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
-import type { Diagnostic as BackendDiagnostic } from '../../canvas/types';
-import { findFunctionAt, getFoldEffectsForFunctions, resolveHighlightLineRange, } from '../../domain/code/ast';
+import { findFunctionAt, getFoldEffectsForFunctions, resolveHighlightLineRange } from '../../domain/code/ast';
 
 const setSelectedItemEffect = StateEffect.define<string | null>();
 
@@ -90,14 +88,12 @@ const editorTheme = EditorView.theme({
 interface UseCodeMirrorProps {
   code: string;
   selectedNodeId: string | null;
-  diagnostics: BackendDiagnostic[];
   setSelectedNodeId: (nodeId: string | null) => void;
 }
 
 export function useCodeMirror({
   code,
   selectedNodeId,
-  diagnostics,
   setSelectedNodeId,
 }: UseCodeMirrorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -144,27 +140,6 @@ export function useCodeMirror({
       }
     });
 
-    const cmLinter = linter((view) => {
-      const cmDiags: Diagnostic[] = [];
-      for (const d of diagnostics) {
-        try {
-          const row = Math.max(1, Math.min(d.line, view.state.doc.lines));
-          const line = view.state.doc.line(row);
-          const col = Math.max(0, Math.min(d.column - 1, line.length));
-          const from = line.from + col;
-          cmDiags.push({
-            from,
-            to: Math.min(from + 1, line.to),
-            severity: d.severity,
-            message: `[${d.code}] ${d.message}`,
-          });
-        } catch {
-          // ignore mapping bounds error
-        }
-      }
-      return cmDiags;
-    });
-
     const state = EditorState.create({
       doc: code,
       extensions: [
@@ -180,8 +155,6 @@ export function useCodeMirror({
         drawSelection(),
         oneDark,
         foldGutter(),
-        cmLinter,
-        lintGutter(),
         selectionField,
         readOnlyField,
         updateListener,
@@ -209,7 +182,7 @@ export function useCodeMirror({
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnostics]);
+  }, [setSelectedNodeId]);
 
   return {
     containerRef,

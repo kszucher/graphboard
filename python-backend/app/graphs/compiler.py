@@ -13,14 +13,13 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any, cast
 
 from app.constants import NodeType
-from app.graphs.schemas import DiagnosticRead, GraphFlowData, SlotRead
+from app.graphs.schemas import GraphFlowData, SlotRead
 
 try:
     import black
 except ImportError:
     black = None  # type: ignore[assignment]
 
-from app.graphs.validation import validate_flow_data
 
 _execution_executor: ProcessPoolExecutor | None = None
 
@@ -350,20 +349,7 @@ def _worker_execute_langgraph(code: str) -> dict[str, Any]:
         return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
 
 
-async def run_ruff_diagnostics(code: str) -> list[DiagnosticRead]:
-    """Diagnostics are handled dynamically in CodeMirror on the frontend."""
-    return []
-
-
 async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any]:
-    errors = validate_flow_data(flow_data)
-    severe_errors = [e for e in errors if e.severity == "error"]
-    if severe_errors:
-        return {
-            "variables": [],
-            "error": f"Compilation/Execution failed: {'; '.join(e.message for e in severe_errors)}",
-        }
-
     try:
         code = await generate_graph_code(flow_data)
         return await asyncio.wait_for(

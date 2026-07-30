@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.graphs.compiler import generate_graph_code, run_ruff_diagnostics
+from app.graphs.compiler import generate_graph_code
 from app.graphs.schemas import GraphFlowData
 
 
@@ -102,13 +102,3 @@ async def test_generate_graph_code_with_switch_node() -> None:
     assert "workflow.add_conditional_edges(" in code
 
 
-async def test_run_ruff_diagnostics_empty() -> None:
-    diagnostics = await run_ruff_diagnostics("")
-    assert len(diagnostics) == 0
-
-
-async def test_run_ruff_diagnostics_handled_by_frontend() -> None:
-    # Backend returns empty diagnostics list since CodeMirror handles it
-    diagnostics = await run_ruff_diagnostics("def invalid_code():\n    return")
-    assert isinstance(diagnostics, list)
-    assert len(diagnostics) == 0

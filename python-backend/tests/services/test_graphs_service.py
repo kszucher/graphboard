@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.constants import EventName, NodeType
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
-from app.graphs.schemas import GraphSyncPayload, NodeRead
+from app.graphs.schemas import NodeRead
 from app.models import Graph, GraphHistory, User
 
 
@@ -82,43 +82,35 @@ async def test_undo_redo_graph_flow(
     await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
     await real_uow.session.commit()
 
-    # Let's perform two syncs to build history
-    payload1 = GraphSyncPayload(
-        nodes=[NodeRead(id="node1", node_type=NodeType.STEP)],
-        edges=[],
-    )
-    payload2 = GraphSyncPayload(
-        nodes=[NodeRead(id="node1", node_type=NodeType.STEP), NodeRead(id="node2", node_type=NodeType.STEP)],
-        edges=[],
-    )
+    # Get initial node count (usually default nodes count = 6)
+    initial_count = len(dummy_graph.flow_json["nodes"])
 
-    # Sync 1 -> Sequence 1
-    await graphs_service.sync_graph_flow(real_uow, dummy_graph.id, payload1)
-    # Sync 2 -> Sequence 2
-    await graphs_service.sync_graph_flow(real_uow, dummy_graph.id, payload2)
+    # Mutation 1 -> Sequence 1 (Add node)
+    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.STEP)
+    # Mutation 2 -> Sequence 2 (Add another node)
+    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.STEP)
 
     await real_uow.session.refresh(dummy_graph)
     assert dummy_graph.current_history_sequence == 2
-    assert len(dummy_graph.flow_json["nodes"]) == 2
+    assert len(dummy_graph.flow_json["nodes"]) == initial_count + 2
 
-    # Perform Undo -> Sequence 1
+    # Perform Undo -> Sequence 1 (1 node removed)
     undo_res = await graphs_service.undo_graph_flow(real_uow, dummy_graph.id)
     assert undo_res["can_undo"] is True
     assert undo_res["can_redo"] is True
-    assert len(undo_res["nodes"]) == 1
-    assert undo_res["nodes"][0]["id"] == "node1"
+    assert len(undo_res["nodes"]) == initial_count + 1
 
-    # Perform Undo again -> Sequence 0 (empty nodes)
+    # Perform Undo again -> Sequence 0 (back to initial default nodes)
     undo_res2 = await graphs_service.undo_graph_flow(real_uow, dummy_graph.id)
     assert undo_res2["can_undo"] is False
     assert undo_res2["can_redo"] is True
-    assert len(undo_res2["nodes"]) == 0
+    assert len(undo_res2["nodes"]) == initial_count
 
     # Perform Redo -> Sequence 1
     redo_res = await graphs_service.redo_graph_flow(real_uow, dummy_graph.id)
     assert redo_res["can_undo"] is True
     assert redo_res["can_redo"] is True
-    assert len(redo_res["nodes"]) == 1
+    assert len(redo_res["nodes"]) == initial_count + 1
 
 
 @pytest.mark.asyncio
