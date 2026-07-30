@@ -67,9 +67,7 @@ def base_flow() -> GraphFlowData:
         NodeRead(
             id="step_1",
             node_type=NodeType.STEP,
-            slots=[
-                SlotRead(id="step_1_slot", raw_string="success", target_var_key="y")
-            ]
+            slots=[SlotRead(id="step_1_slot", raw_string="success", target_var_key="y")],
         ),
         NodeRead(id="end", node_type=NodeType.END),
     ]

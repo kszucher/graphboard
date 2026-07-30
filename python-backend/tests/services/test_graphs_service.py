@@ -8,7 +8,6 @@ from sqlalchemy import select
 from app.constants import EventName, NodeType
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
-from app.graphs.schemas import NodeRead
 from app.models import Graph, GraphHistory, User
 
 

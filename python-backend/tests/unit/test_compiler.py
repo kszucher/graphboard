@@ -100,5 +100,3 @@ async def test_generate_graph_code_with_switch_node() -> None:
     assert 'if state.get("status") == "active":' in code
     assert 'return "is_active"' in code
     assert "workflow.add_conditional_edges(" in code
-
-

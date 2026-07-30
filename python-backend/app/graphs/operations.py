@@ -106,25 +106,26 @@ def is_variable_referenced_in_expression(expr: dict | None, var_key: str) -> boo
 
 
 # ----------------------------------------------------
-# Type Coercion
+# Type Validation
 # ----------------------------------------------------
-def validate_and_coerce_default(var_type: str, val: Any) -> Any:
+def validate_default_value_type(var_type: str, val: Any) -> Any:
     if val is None or val == "":
         return None
-    try:
-        if var_type == "number":
-            return int(val)
-        if var_type == "float":
+
+    if var_type == "number":
+        if isinstance(val, int) and not isinstance(val, bool):
+            return val
+    elif var_type == "float":
+        if isinstance(val, (float, int)) and not isinstance(val, bool):
             return float(val)
-        if var_type == "boolean":
-            if isinstance(val, bool):
-                return val
-            if isinstance(val, str):
-                return val.lower() in ("true", "1", "t", "yes")
-            return bool(val)
-        return str(val)
-    except (ValueError, TypeError):
-        raise ValidationError(f"Default value '{val}' cannot be converted to type '{var_type}'.")
+    elif var_type == "boolean":
+        if isinstance(val, bool):
+            return val
+    elif var_type == "string":
+        if isinstance(val, str):
+            return val
+
+    raise ValidationError(f"Default value '{val}' is not of type '{var_type}'.")
 
 
 def get_all_definer_variables(flow_data: GraphFlowData) -> list[DefinerVariableSchema]:
@@ -157,7 +158,7 @@ def create_definer_variable(
     if any(v.key == key for v in existing_vars):
         raise ValidationError(f"Variable name '{key}' already exists in state schema.")
 
-    coerced_default = validate_and_coerce_default(var_type, default_value)
+    validated_default = validate_default_value_type(var_type, default_value)
 
     nodes = flow_data.nodes
     target_node = next((n for n in nodes if n.id == node_id), None)
@@ -171,7 +172,7 @@ def create_definer_variable(
         id=str(uuid.uuid4()),
         key=key,
         type=var_type,
-        default_value=coerced_default,
+        default_value=validated_default,
         description=description,
     )
     target_node.variables.append(new_var)
@@ -233,7 +234,7 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: dict
     if "type" in updates and updates["type"]:
         target_var.type = updates["type"]
     if "default_value" in updates:
-        target_var.default_value = validate_and_coerce_default(new_type, updates["default_value"])
+        target_var.default_value = validate_default_value_type(new_type, updates["default_value"])
     if "description" in updates:
         target_var.description = updates["description"]
 
@@ -312,7 +313,7 @@ def create_logical_assignment(
     if expression is not None and not check_expression_variables(expression, valid_keys):
         raise ValidationError("Assignment expression references undefined variables.")
 
-    coerced_val = validate_and_coerce_default(value_type, value)
+    validated_val = validate_default_value_type(value_type, value)
 
     nodes = flow_data.nodes
     target_node = next((n for n in nodes if n.id == node_id), None)
@@ -325,7 +326,7 @@ def create_logical_assignment(
     existing_asgn = next((a for a in target_node.assignments if a.target_var_key == target_var_key), None)
     if existing_asgn:
         existing_asgn.value_type = value_type
-        existing_asgn.value = coerced_val
+        existing_asgn.value = validated_val
         if expression is not None:
             existing_asgn.expression = expression
     else:
@@ -333,7 +334,7 @@ def create_logical_assignment(
             id=str(uuid.uuid4()),
             target_var_key=target_var_key,
             value_type=value_type,
-            value=coerced_val,
+            value=validated_val,
             expression=expression,
         )
         target_node.assignments.append(new_asgn)
@@ -364,7 +365,7 @@ def update_logical_assignment(flow_data: GraphFlowData, assignment_id: str, upda
                     if "value_type" in updates and updates["value_type"]:
                         asgn.value_type = updates["value_type"]
                     if "value" in updates:
-                        asgn.value = validate_and_coerce_default(val_type, updates["value"])
+                        asgn.value = validate_default_value_type(val_type, updates["value"])
 
                     return flow_data
     raise ValidationError(f"Logical Assignment with ID '{assignment_id}' not found.")

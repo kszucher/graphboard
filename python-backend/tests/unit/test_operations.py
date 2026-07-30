@@ -11,35 +11,44 @@ from app.graphs.schemas import (
 )
 
 
-def test_validate_and_coerce_default() -> None:
-    # Number coercion
-    assert operations.validate_and_coerce_default("number", 42) == 42
-    assert operations.validate_and_coerce_default("number", "100") == 100
+def test_validate_default_value_type() -> None:
+    # Number validation
+    assert operations.validate_default_value_type("number", 42) == 42
     with pytest.raises(ValidationError):
-        operations.validate_and_coerce_default("number", "not_a_number")
-
-    # Float coercion
-    assert operations.validate_and_coerce_default("float", 4.2) == 4.2
-    assert operations.validate_and_coerce_default("float", "3.14") == 3.14
+        operations.validate_default_value_type("number", "100")
     with pytest.raises(ValidationError):
-        operations.validate_and_coerce_default("float", "not_a_float")
+        operations.validate_default_value_type("number", 42.5)
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("number", "not_a_number")
 
-    # Boolean coercion
-    assert operations.validate_and_coerce_default("boolean", True) is True
-    assert operations.validate_and_coerce_default("boolean", "true") is True
-    assert operations.validate_and_coerce_default("boolean", "1") is True
-    assert operations.validate_and_coerce_default("boolean", "T") is True
-    assert operations.validate_and_coerce_default("boolean", "yes") is True
-    assert operations.validate_and_coerce_default("boolean", "false") is False
-    assert operations.validate_and_coerce_default("boolean", "0") is False
+    # Float validation
+    assert operations.validate_default_value_type("float", 4.2) == 4.2
+    assert operations.validate_default_value_type("float", 42) == 42.0
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("float", "3.14")
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("float", "not_a_float")
 
-    # String coercion
-    assert operations.validate_and_coerce_default("string", "hello") == "hello"
-    assert operations.validate_and_coerce_default("string", 123) == "123"
+    # Boolean validation
+    assert operations.validate_default_value_type("boolean", True) is True
+    assert operations.validate_default_value_type("boolean", False) is False
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("boolean", "true")
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("boolean", "1")
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("boolean", "T")
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("boolean", "yes")
+
+    # String validation
+    assert operations.validate_default_value_type("string", "hello") == "hello"
+    with pytest.raises(ValidationError):
+        operations.validate_default_value_type("string", 123)
 
     # None and empty string fallback
-    assert operations.validate_and_coerce_default("number", None) is None
-    assert operations.validate_and_coerce_default("number", "") is None
+    assert operations.validate_default_value_type("number", None) is None
+    assert operations.validate_default_value_type("number", "") is None
 
 
 def test_create_definer_variable_success() -> None:
@@ -49,7 +58,7 @@ def test_create_definer_variable_success() -> None:
     )
 
     updated = operations.create_definer_variable(
-        flow, node_id="definer_1", key="user_age", var_type="number", default_value="25", description="User's age"
+        flow, node_id="definer_1", key="user_age", var_type="number", default_value=25, description="User's age"
     )
 
     vars_list = operations.get_all_definer_variables(updated)
@@ -104,7 +113,7 @@ def test_update_definer_variable() -> None:
     )
 
     updated = operations.update_definer_variable(
-        flow, var_id="var_x", updates={"type": "float", "default_value": "3.5", "description": "new desc"}
+        flow, var_id="var_x", updates={"type": "float", "default_value": 3.5, "description": "new desc"}
     )
 
     var = updated.nodes[0].variables[0]
@@ -144,7 +153,7 @@ def test_create_logical_assignment_success() -> None:
 
     # Assign value 42 to x
     updated = operations.create_logical_assignment(
-        flow, node_id="assigner_1", target_var_key="x", value_type="number", value="42"
+        flow, node_id="assigner_1", target_var_key="x", value_type="number", value=42
     )
 
     assignments = updated.nodes[1].assignments
@@ -154,7 +163,7 @@ def test_create_logical_assignment_success() -> None:
 
     # Verify updating the same key updates in-place
     updated = operations.create_logical_assignment(
-        updated, node_id="assigner_1", target_var_key="x", value_type="number", value="100"
+        updated, node_id="assigner_1", target_var_key="x", value_type="number", value=100
     )
     assert len(assignments) == 1
     assert assignments[0].value == 100
@@ -196,7 +205,7 @@ def test_update_logical_assignment() -> None:
 
     # Update value and expression
     updated = operations.update_logical_assignment(
-        flow, assignment_id="asgn_1", updates={"value": "20", "expression": {"kind": "literal", "value": 20}}
+        flow, assignment_id="asgn_1", updates={"value": 20, "expression": {"kind": "literal", "value": 20}}
     )
     asgn = updated.nodes[1].assignments[0]
     assert asgn.value == 20
