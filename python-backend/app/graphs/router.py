@@ -31,8 +31,8 @@ router = APIRouter(prefix="/graphs", tags=["graphs"])
 
 @router.post("/", response_model=uuid.UUID, status_code=status.HTTP_201_CREATED)
 async def create_graph(payload: GraphCreate, uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
-    graph_id = await graph_service.create_graph(uow, payload.user_id, payload.graph_name)
-
+    async with uow:
+        graph_id = await graph_service.create_graph(uow, payload.user_id, payload.graph_name)
     return graph_id
 
 
@@ -57,22 +57,22 @@ async def get_graph_code_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends
 
 @router.post("/{graph_id}/run", response_model=dict[str, Any])
 async def run_graph(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> dict[str, Any]:
-    flow_data = await graph_service.run_graph_flow(uow, graph_id)
-
+    async with uow:
+        flow_data = await graph_service.run_graph_flow(uow, graph_id)
     return {"variables": flow_data.get("variables", [])}
 
 
 @router.post("/{graph_id}/history/undo", response_model=GraphFlowRead)
 async def undo_graph_flow_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    flow = await graph_service.undo_graph_flow(uow, graph_id)
-
+    async with uow:
+        flow = await graph_service.undo_graph_flow(uow, graph_id)
     return GraphFlowRead.model_validate(flow)
 
 
 @router.post("/{graph_id}/history/redo", response_model=GraphFlowRead)
 async def redo_graph_flow_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    flow = await graph_service.redo_graph_flow(uow, graph_id)
-
+    async with uow:
+        flow = await graph_service.redo_graph_flow(uow, graph_id)
     return GraphFlowRead.model_validate(flow)
 
 
@@ -81,17 +81,17 @@ async def redo_graph_flow_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depend
 async def add_node_endpoint(
     graph_id: uuid.UUID, payload: NodeCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.add_node(
-        uow, graph_id, payload.node_type, payload.connector_id, payload.direction
-    )
-
+    async with uow:
+        updated_flow = await graph_service.add_node(
+            uow, graph_id, payload.node_type, payload.connector_id, payload.direction
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/nodes/{node_id}", response_model=GraphFlowRead)
 async def delete_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    updated_flow = await graph_service.delete_node(uow, graph_id, node_id)
-
+    async with uow:
+        updated_flow = await graph_service.delete_node(uow, graph_id, node_id)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -99,8 +99,8 @@ async def delete_node_endpoint(graph_id: uuid.UUID, node_id: str, uow: UnitOfWor
 async def shortcircuit_node_endpoint(
     graph_id: uuid.UUID, node_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.shortcircuit_node(uow, graph_id, node_id)
-
+    async with uow:
+        updated_flow = await graph_service.shortcircuit_node(uow, graph_id, node_id)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -108,13 +108,13 @@ async def shortcircuit_node_endpoint(
 async def update_node_endpoint(
     graph_id: uuid.UUID, node_id: str, payload: NodeUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.update_node(
-        uow,
-        graph_id,
-        node_id,
-        new_id=payload.new_id,
-    )
-
+    async with uow:
+        updated_flow = await graph_service.update_node(
+            uow,
+            graph_id,
+            node_id,
+            new_id=payload.new_id,
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -123,8 +123,8 @@ async def update_node_endpoint(
 async def create_slot_endpoint(
     graph_id: uuid.UUID, node_id: str, payload: SlotCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.create_slot(uow, graph_id, node_id, payload.index)
-
+    async with uow:
+        updated_flow = await graph_service.create_slot(uow, graph_id, node_id, payload.index)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -132,15 +132,15 @@ async def create_slot_endpoint(
 async def update_slot_endpoint(
     graph_id: uuid.UUID, slot_id: str, payload: SlotUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.update_slot(uow, graph_id, slot_id, payload.raw_string, payload.expression)
-
+    async with uow:
+        updated_flow = await graph_service.update_slot(uow, graph_id, slot_id, payload.raw_string, payload.expression)
     return GraphFlowRead.model_validate(updated_flow)
 
 
 @router.delete("/{graph_id}/slots/{slot_id}", response_model=GraphFlowRead)
 async def delete_slot_endpoint(graph_id: uuid.UUID, slot_id: str, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    updated_flow = await graph_service.delete_slot(uow, graph_id, slot_id)
-
+    async with uow:
+        updated_flow = await graph_service.delete_slot(uow, graph_id, slot_id)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -148,8 +148,8 @@ async def delete_slot_endpoint(graph_id: uuid.UUID, slot_id: str, uow: UnitOfWor
 async def move_slot_endpoint(
     graph_id: uuid.UUID, slot_id: str, payload: SlotMoveRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.move_slot(uow, graph_id, slot_id, payload.direction)
-
+    async with uow:
+        updated_flow = await graph_service.move_slot(uow, graph_id, slot_id, payload.direction)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -158,8 +158,8 @@ async def move_slot_endpoint(
 async def delete_edge_endpoint(
     graph_id: uuid.UUID, edge_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.delete_edge(uow, graph_id, edge_id)
-
+    async with uow:
+        updated_flow = await graph_service.delete_edge(uow, graph_id, edge_id)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -167,10 +167,10 @@ async def delete_edge_endpoint(
 async def create_edge_endpoint(
     graph_id: uuid.UUID, payload: EdgeCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.create_edge(
-        uow, graph_id, payload.source, payload.target, payload.source_handle, payload.target_handle
-    )
-
+    async with uow:
+        updated_flow = await graph_service.create_edge(
+            uow, graph_id, payload.source, payload.target, payload.source_handle, payload.target_handle
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -181,16 +181,16 @@ async def reconnect_edge_endpoint(
     payload: EdgeReconnectRequest,
     uow: UnitOfWork = Depends(get_uow),
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.reconnect_edge(
-        uow,
-        graph_id,
-        edge_id,
-        payload.source,
-        payload.target,
-        payload.source_handle,
-        payload.target_handle,
-    )
-
+    async with uow:
+        updated_flow = await graph_service.reconnect_edge(
+            uow,
+            graph_id,
+            edge_id,
+            payload.source,
+            payload.target,
+            payload.source_handle,
+            payload.target_handle,
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -199,10 +199,10 @@ async def reconnect_edge_endpoint(
 async def create_definer_variable_endpoint(
     graph_id: uuid.UUID, node_id: str, payload: DefinerVariableCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.create_definer_variable(
-        uow, graph_id, node_id, payload.key, payload.type, payload.default_value, payload.description
-    )
-
+    async with uow:
+        updated_flow = await graph_service.create_definer_variable(
+            uow, graph_id, node_id, payload.key, payload.type, payload.default_value, payload.description
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -210,9 +210,9 @@ async def create_definer_variable_endpoint(
 async def update_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updates = cast(DefinerVariableUpdates, payload.model_dump(exclude_unset=True))
-    updated_flow = await graph_service.update_definer_variable(uow, graph_id, var_id, updates)
-
+    async with uow:
+        updates = cast(DefinerVariableUpdates, payload.model_dump(exclude_unset=True))
+        updated_flow = await graph_service.update_definer_variable(uow, graph_id, var_id, updates)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -220,8 +220,8 @@ async def update_definer_variable_endpoint(
 async def delete_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.delete_definer_variable(uow, graph_id, var_id)
-
+    async with uow:
+        updated_flow = await graph_service.delete_definer_variable(uow, graph_id, var_id)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -230,10 +230,10 @@ async def delete_definer_variable_endpoint(
 async def create_logical_assignment_endpoint(
     graph_id: uuid.UUID, node_id: str, payload: LogicalAssignmentCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.create_logical_assignment(
-        uow, graph_id, node_id, payload.target_var_key, payload.value_type, payload.value, payload.expression
-    )
-
+    async with uow:
+        updated_flow = await graph_service.create_logical_assignment(
+            uow, graph_id, node_id, payload.target_var_key, payload.value_type, payload.value, payload.expression
+        )
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -241,9 +241,9 @@ async def create_logical_assignment_endpoint(
 async def update_logical_assignment_endpoint(
     graph_id: uuid.UUID, assignment_id: str, payload: LogicalAssignmentUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updates = cast(LogicalAssignmentUpdates, payload.model_dump(exclude_unset=True))
-    updated_flow = await graph_service.update_logical_assignment(uow, graph_id, assignment_id, updates)
-
+    async with uow:
+        updates = cast(LogicalAssignmentUpdates, payload.model_dump(exclude_unset=True))
+        updated_flow = await graph_service.update_logical_assignment(uow, graph_id, assignment_id, updates)
     return GraphFlowRead.model_validate(updated_flow)
 
 
@@ -251,6 +251,6 @@ async def update_logical_assignment_endpoint(
 async def delete_logical_assignment_endpoint(
     graph_id: uuid.UUID, assignment_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updated_flow = await graph_service.delete_logical_assignment(uow, graph_id, assignment_id)
-
+    async with uow:
+        updated_flow = await graph_service.delete_logical_assignment(uow, graph_id, assignment_id)
     return GraphFlowRead.model_validate(updated_flow)

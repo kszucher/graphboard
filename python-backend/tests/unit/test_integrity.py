@@ -3,6 +3,7 @@ import pytest
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import operations as graph_operations
+from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
@@ -11,7 +12,6 @@ from app.graphs.schemas import (
     NodeRead,
     SlotRead,
 )
-from app.graphs.integrity import assert_flow_is_complete
 
 
 @pytest.fixture

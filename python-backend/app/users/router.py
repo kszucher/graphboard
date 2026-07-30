@@ -14,15 +14,15 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("/get-or-create", response_model=uuid.UUID)
 async def get_or_create_user(uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
-    user_id = await user_service.get_or_create_user(uow)
-
+    async with uow:
+        user_id = await user_service.get_or_create_user(uow)
     return user_id
 
 
 @router.post("/", response_model=uuid.UUID, status_code=status.HTTP_201_CREATED)
 async def create_user(payload: UserCreate, uow: UnitOfWork = Depends(get_uow)) -> uuid.UUID:
-    user_id = await user_service.create_user(uow, payload.user_name)
-
+    async with uow:
+        user_id = await user_service.create_user(uow, payload.user_name)
     return user_id
 
 
@@ -37,4 +37,5 @@ async def get_active_graph_id(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_
 
 @router.post("/set-active-graph", status_code=status.HTTP_204_NO_CONTENT)
 async def set_active_graph(payload: SetActiveGraph, uow: UnitOfWork = Depends(get_uow)) -> None:
-    await user_service.set_active_graph(uow, payload.user_id, payload.graph_id)
+    async with uow:
+        await user_service.set_active_graph(uow, payload.user_id, payload.graph_id)

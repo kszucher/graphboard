@@ -9,6 +9,7 @@ from app.exceptions import ValidationError
 from app.graphs import operations as graph_operations
 from app.graphs import topology as graph_topology
 from app.graphs.compiler import generate_graph_code
+from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
     DefinerVariableSchema,
     DefinerVariableUpdates,
@@ -19,7 +20,6 @@ from app.graphs.schemas import (
     SlotRead,
     VariableType,
 )
-from app.graphs.integrity import assert_flow_is_complete
 
 if TYPE_CHECKING:
     from app import models

@@ -66,3 +66,12 @@ class UnitOfWork:
         """Rollback the transaction and clear events."""
         await self.session.rollback()
         self._events.clear()
+
+    async def __aenter__(self) -> UnitOfWork:
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if exc_type is not None:
+            await self.rollback()
+        else:
+            await self.commit()
