@@ -1,7 +1,7 @@
 import { Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
+import { useCreateLogicalAssignment, useDeleteLogicalAssignment, } from '../../api/mutations';
 import type { ASTExpression, LogicalAssignment } from '../../canvas/types';
-import { useCreateLogicalAssignment, useDeleteLogicalAssignment, } from '../../hooks/graph/useGraphMutations';
 import { ARITHMETIC_OPERATORS, formatAstToChips, } from './ExpressionEngine';
 import {
   ExpressionBuilder,

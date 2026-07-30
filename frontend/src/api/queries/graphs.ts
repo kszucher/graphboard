@@ -42,6 +42,10 @@ export const useUserGraphs = (userId: string | null) => {
   return useQuery(graphQueries.byUser(userId));
 };
 
+export const useGraphQuery = (graphId: string) => {
+  return useQuery(graphQueries.flow(graphId));
+};
+
 export const useGraphCode = (graphId: string | null) => {
   return useQuery(graphQueries.code(graphId));
 };

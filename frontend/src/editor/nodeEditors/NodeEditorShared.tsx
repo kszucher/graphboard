@@ -1,8 +1,8 @@
 import { CubeIcon, Pencil1Icon, PlusIcon, ResetIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Box, Button, Card, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
+import { useGraphQuery } from '../../api/queries';
 import type { ApiNode, ASTExpression, DefinerVariable } from '../../canvas/types';
-import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import { coerceTypedValue, type DraftToken, getTokenStyle, TARGET_TOKEN_STYLE, tokensToAst } from './ExpressionEngine';
 
 export function ExpressionChip({

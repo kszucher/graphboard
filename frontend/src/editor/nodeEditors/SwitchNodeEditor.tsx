@@ -1,7 +1,7 @@
 import { Badge, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
+import { useUpdateSlot } from '../../api/mutations';
 import type { ASTExpression } from '../../canvas/types';
-import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
 import { COMPARISON_OPERATORS, formatAstToChips, } from './ExpressionEngine';
 import {
   ExpressionBuilder,

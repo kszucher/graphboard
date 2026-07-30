@@ -2,13 +2,11 @@ import { CaretDownIcon, CheckIcon, MixIcon, PlayIcon, ReaderIcon, ResetIcon } fr
 import { Box, Button, DropdownMenu, Flex, IconButton, Text } from '@radix-ui/themes';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useMemo, useState } from 'react';
-import { useCreateGraph, useSetActiveGraph } from './api/mutations';
-import { useActiveGraphId, useUserGraphs, useUserId } from './api/queries';
+import { useAddNode, useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
+import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
 import type { NodeType } from './canvas/types';
 import { Sidebar } from './editor/Sidebar.tsx';
-import { useAddNode, useRedo, useRunGraph, useUndo } from './hooks/graph/useGraphMutations';
-import { useGraphQuery } from './hooks/graph/useGraphQuery';
 
 const NODE_TYPES: NodeType[] = [
   'STEP',

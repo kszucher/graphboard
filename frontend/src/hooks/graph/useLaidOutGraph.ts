@@ -1,10 +1,10 @@
 import type { EdgeChange, NodeChange } from '@xyflow/react';
 import { applyEdgeChanges, applyNodeChanges, useReactFlow } from '@xyflow/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useGraphQuery } from '../../api/queries';
 import type { AppFlowEdge, AppFlowNode } from '../../canvas/types';
 import { runLayout } from '../../domain/graph/layout';
 import { fromApiPayload } from '../../domain/graph/mappers';
-import { useGraphQuery } from './useGraphQuery';
 
 export const useLaidOutGraph = (graphId: string) => {
   const query = useGraphQuery(graphId);

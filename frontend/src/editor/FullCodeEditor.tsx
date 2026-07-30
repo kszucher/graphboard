@@ -1,8 +1,8 @@
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { useNodes, useReactFlow } from '@xyflow/react';
 import { useCallback } from 'react';
+import { useGraphCode } from '../api/queries';
 import { useCodeMirror } from '../hooks/editor/useCodeMirror';
-import { useGraphCode } from '../hooks/graph/useGraphQuery';
 
 interface FullCodeEditorProps {
   graphId: string;

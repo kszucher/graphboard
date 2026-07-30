@@ -1,12 +1,12 @@
 import { Flex } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
 import { memo, useCallback, useMemo } from 'react';
+import { useUpdateSlot } from '../../api/mutations';
+import { useGraphQuery } from '../../api/queries';
 import { NODE_PADDING } from '../../domain/graph/layout';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { Editor } from '../../editor/Editor.tsx';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import { useUpdateSlot } from '../../hooks/graph/useGraphMutations';
-import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import type { ApiSlot } from '../types';
 import { FlowNodeSlotActions } from './FlowNodeSlotActions.tsx';
 

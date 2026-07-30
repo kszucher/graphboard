@@ -1,7 +1,7 @@
 import { Box, Button, Flex, Separator, Text } from '@radix-ui/themes';
 import { useNodes } from '@xyflow/react';
+import { useRunGraph } from '../api/mutations';
 import type { AppFlowNode } from '../canvas/types';
-import { useRunGraph } from '../hooks/graph/useGraphMutations';
 import { FullCodeEditor } from './FullCodeEditor';
 import { NodeEditorRouter } from './nodeEditors/NodeEditorRouter';
 

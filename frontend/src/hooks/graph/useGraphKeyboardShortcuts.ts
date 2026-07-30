@@ -1,8 +1,8 @@
 import { useReactFlow } from '@xyflow/react';
 import { useEffect, useRef } from 'react';
+import { useDeleteEdge, useDeleteNode } from '../../api/mutations';
 import type { AppFlowEdge, AppFlowNode } from '../../canvas/types';
 import { getNextDownstreamNodeId, getNextUpstreamNodeId, getSiblingNodeId } from '../../domain/graph/traversal';
-import { useDeleteEdge, useDeleteNode } from './useGraphMutations';
 
 export const useGraphKeyboardShortcuts = (graphId: string) => {
   const { getNodes, getEdges, setNodes } = useReactFlow();

@@ -1,8 +1,8 @@
 import { PlusIcon, ResetIcon } from '@radix-ui/react-icons';
 import { Badge, Button, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
+import { useCreateDefinerVariable, useDeleteDefinerVariable, } from '../../api/mutations';
 import type { DefinerVariable } from '../../canvas/types';
-import { useCreateDefinerVariable, useDeleteDefinerVariable, } from '../../hooks/graph/useGraphMutations';
 import { coerceTypedValue, validateVariableName } from './ExpressionEngine';
 import {
   ExpressionChip,

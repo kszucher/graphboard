@@ -1,17 +1,11 @@
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons';
 import { DropdownMenu } from '@radix-ui/themes';
 import { useCallback, useMemo } from 'react';
+import { useCreateSlot, useDeleteEdge, useDeleteSlot, useInsertNode, useMoveSlot, } from '../../api/mutations';
+import { useGraphQuery } from '../../api/queries';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/graph/traversal';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import {
-  useCreateSlot,
-  useDeleteEdge,
-  useDeleteSlot,
-  useInsertNode,
-  useMoveSlot,
-} from '../../hooks/graph/useGraphMutations';
-import { useGraphQuery } from '../../hooks/graph/useGraphQuery';
 import type { ApiSlot, InsertableNodeType } from '../types';
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
