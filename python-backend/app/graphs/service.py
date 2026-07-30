@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from app.constants import EventName, NodeType
 from app.exceptions import ValidationError
@@ -11,10 +11,13 @@ from app.graphs import topology as graph_topology
 from app.graphs.compiler import generate_graph_code
 from app.graphs.schemas import (
     DefinerVariableSchema,
+    DefinerVariableUpdates,
     EdgeRead,
     GraphFlowData,
+    LogicalAssignmentUpdates,
     NodeRead,
     SlotRead,
+    VariableType,
 )
 from app.graphs.validation import assert_flow_is_complete
 
@@ -405,7 +408,7 @@ async def create_definer_variable(
     graph_id: uuid.UUID,
     node_id: str,
     key: str,
-    var_type: Literal["boolean", "string", "number", "float"] = "string",
+    var_type: VariableType = "string",
     default_value: Any = None,
     description: str | None = None,
 ) -> dict:
@@ -421,7 +424,9 @@ async def create_definer_variable(
     )
 
 
-async def update_definer_variable(uow: UnitOfWork, graph_id: uuid.UUID, var_id: str, updates: dict) -> dict:
+async def update_definer_variable(
+    uow: UnitOfWork, graph_id: uuid.UUID, var_id: str, updates: DefinerVariableUpdates
+) -> dict:
     return await _mutate_flow(uow, graph_id, graph_operations.update_definer_variable, var_id, updates)
 
 
@@ -435,7 +440,7 @@ async def create_logical_assignment(
     graph_id: uuid.UUID,
     node_id: str,
     target_var_key: str,
-    value_type: Literal["boolean", "string", "number", "float"] = "string",
+    value_type: VariableType = "string",
     value: Any = None,
     expression: dict[str, Any] | None = None,
 ) -> dict:
@@ -451,7 +456,9 @@ async def create_logical_assignment(
     )
 
 
-async def update_logical_assignment(uow: UnitOfWork, graph_id: uuid.UUID, assignment_id: str, updates: dict) -> dict:
+async def update_logical_assignment(
+    uow: UnitOfWork, graph_id: uuid.UUID, assignment_id: str, updates: LogicalAssignmentUpdates
+) -> dict:
     return await _mutate_flow(uow, graph_id, graph_operations.update_logical_assignment, assignment_id, updates)
 
 

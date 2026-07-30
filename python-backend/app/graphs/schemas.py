@@ -1,9 +1,25 @@
 import uuid
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.constants import NodeType
+
+VariableType: TypeAlias = Literal["boolean", "string", "number", "float"]
+
+
+class DefinerVariableUpdates(TypedDict, total=False):
+    key: str
+    type: VariableType
+    default_value: Any
+    description: str | None
+
+
+class LogicalAssignmentUpdates(TypedDict, total=False):
+    target_var_key: str
+    value_type: VariableType
+    value: Any
+    expression: dict[str, Any] | None
 
 
 class OrmModel(BaseModel):
@@ -24,7 +40,7 @@ class GraphRead(OrmModel):
 class DefinerVariableSchema(BaseModel):
     id: str = ""
     key: str
-    type: Literal["boolean", "string", "number", "float"]
+    type: VariableType
     default_value: Any = None
     description: str | None = None
 
@@ -32,7 +48,7 @@ class DefinerVariableSchema(BaseModel):
 class LogicalAssignmentSchema(BaseModel):
     id: str
     target_var_key: str
-    value_type: Literal["boolean", "string", "number", "float"] = "string"
+    value_type: VariableType = "string"
     value: Any = None
     expression: dict[str, Any] | None = None
 
@@ -89,27 +105,28 @@ class NodeUpdateRequest(BaseModel):
 
 class DefinerVariableCreateRequest(BaseModel):
     key: str
-    type: Literal["boolean", "string", "number", "float"] = "string"
+    type: VariableType = "string"
     default_value: Any = None
     description: str | None = None
 
 
 class DefinerVariableUpdateRequest(BaseModel):
-    type: Literal["boolean", "string", "number", "float"] | None = None
+    key: str | None = None
+    type: VariableType | None = None
     default_value: Any = None
     description: str | None = None
 
 
 class LogicalAssignmentCreateRequest(BaseModel):
     target_var_key: str
-    value_type: Literal["boolean", "string", "number", "float"] = "string"
+    value_type: VariableType = "string"
     value: Any = None
     expression: dict[str, Any] | None = None
 
 
 class LogicalAssignmentUpdateRequest(BaseModel):
     target_var_key: str | None = None
-    value_type: Literal["boolean", "string", "number", "float"] | None = None
+    value_type: VariableType | None = None
     value: Any = None
     expression: dict[str, Any] | None = None
 

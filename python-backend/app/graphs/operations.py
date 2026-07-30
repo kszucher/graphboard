@@ -1,13 +1,16 @@
 import re
 import uuid
-from typing import Any, Literal
+from typing import Any
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs.schemas import (
     DefinerVariableSchema,
+    DefinerVariableUpdates,
     GraphFlowData,
     LogicalAssignmentSchema,
+    LogicalAssignmentUpdates,
+    VariableType,
 )
 
 PYTHON_KEYWORDS = {
@@ -143,7 +146,7 @@ def create_definer_variable(
     flow_data: GraphFlowData,
     node_id: str,
     key: str,
-    var_type: Literal["boolean", "string", "number", "float"] = "string",
+    var_type: VariableType = "string",
     default_value: Any = None,
     description: str | None = None,
 ) -> GraphFlowData:
@@ -179,7 +182,7 @@ def create_definer_variable(
     return flow_data
 
 
-def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: dict) -> GraphFlowData:
+def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: DefinerVariableUpdates) -> GraphFlowData:
     target_var = None
     for node in flow_data.nodes:
         if node.node_type == NodeType.DEFINER and node.variables is not None:
@@ -300,7 +303,7 @@ def create_logical_assignment(
     flow_data: GraphFlowData,
     node_id: str,
     target_var_key: str,
-    value_type: Literal["boolean", "string", "number", "float"] = "string",
+    value_type: VariableType = "string",
     value: Any = None,
     expression: dict[str, Any] | None = None,
 ) -> GraphFlowData:
@@ -342,7 +345,9 @@ def create_logical_assignment(
     return flow_data
 
 
-def update_logical_assignment(flow_data: GraphFlowData, assignment_id: str, updates: dict) -> GraphFlowData:
+def update_logical_assignment(
+    flow_data: GraphFlowData, assignment_id: str, updates: LogicalAssignmentUpdates
+) -> GraphFlowData:
     for node in flow_data.nodes:
         if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
             for asgn in node.assignments:

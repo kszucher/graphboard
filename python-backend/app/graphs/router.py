@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, status
 
@@ -9,6 +9,7 @@ from app.graphs import service as graph_service
 from app.graphs.schemas import (
     DefinerVariableCreateRequest,
     DefinerVariableUpdateRequest,
+    DefinerVariableUpdates,
     EdgeCreateRequest,
     EdgeReconnectRequest,
     GraphCodeRead,
@@ -17,6 +18,7 @@ from app.graphs.schemas import (
     GraphRead,
     LogicalAssignmentCreateRequest,
     LogicalAssignmentUpdateRequest,
+    LogicalAssignmentUpdates,
     NodeCreateRequest,
     NodeUpdateRequest,
     SlotCreateRequest,
@@ -208,7 +210,7 @@ async def create_definer_variable_endpoint(
 async def update_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updates = payload.model_dump(exclude_unset=True)
+    updates = cast(DefinerVariableUpdates, payload.model_dump(exclude_unset=True))
     updated_flow = await graph_service.update_definer_variable(uow, graph_id, var_id, updates)
 
     return GraphFlowRead.model_validate(updated_flow)
@@ -239,7 +241,7 @@ async def create_logical_assignment_endpoint(
 async def update_logical_assignment_endpoint(
     graph_id: uuid.UUID, assignment_id: str, payload: LogicalAssignmentUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
-    updates = payload.model_dump(exclude_unset=True)
+    updates = cast(LogicalAssignmentUpdates, payload.model_dump(exclude_unset=True))
     updated_flow = await graph_service.update_logical_assignment(uow, graph_id, assignment_id, updates)
 
     return GraphFlowRead.model_validate(updated_flow)
