@@ -11,7 +11,7 @@ from app.graphs.schemas import (
     NodeRead,
     SlotRead,
 )
-from app.graphs.validation import assert_flow_is_complete
+from app.graphs.integrity import assert_flow_is_complete
 
 
 @pytest.fixture

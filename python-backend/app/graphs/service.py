@@ -19,7 +19,7 @@ from app.graphs.schemas import (
     SlotRead,
     VariableType,
 )
-from app.graphs.validation import assert_flow_is_complete
+from app.graphs.integrity import assert_flow_is_complete
 
 if TYPE_CHECKING:
     from app import models
