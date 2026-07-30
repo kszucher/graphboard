@@ -1,12 +1,16 @@
-from typing import Any
-
+from app.constants import NodeType
 from app.graphs.compiler import generate_graph_code
-from app.graphs.schemas import GraphFlowData
+from app.graphs.schemas import (
+    DefinerVariableSchema,
+    EdgeRead,
+    GraphFlowData,
+    NodeRead,
+    SlotRead,
+)
 
 
 async def test_generate_graph_code_empty() -> None:
-    payload: dict[str, Any] = {"nodes": [], "edges": []}
-    flow_data = GraphFlowData.model_validate(payload)
+    flow_data = GraphFlowData(nodes=[], edges=[])
     code = await generate_graph_code(flow_data)
     assert "class State(TypedDict):" in code
     assert "workflow = StateGraph(State)" in code
@@ -14,20 +18,19 @@ async def test_generate_graph_code_empty() -> None:
 
 
 async def test_generate_graph_code_with_variables() -> None:
-    payload: dict[str, Any] = {
-        "nodes": [
-            {
-                "id": "def1",
-                "node_type": "DEFINER",
-                "variables": [
-                    {"key": "user_id", "type": "number", "default_value": 0},
-                    {"key": "username", "type": "string", "default_value": "guest"},
+    flow_data = GraphFlowData(
+        nodes=[
+            NodeRead(
+                id="def1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(key="user_id", type="number", default_value=0),
+                    DefinerVariableSchema(key="username", type="string", default_value="guest"),
                 ],
-            }
+            )
         ],
-        "edges": [],
-    }
-    flow_data = GraphFlowData.model_validate(payload)
+        edges=[],
+    )
     code = await generate_graph_code(flow_data)
     assert "user_id: int" in code
     assert "username: str" in code
@@ -36,27 +39,28 @@ async def test_generate_graph_code_with_variables() -> None:
 
 
 async def test_generate_graph_code_with_step_node() -> None:
-    payload: dict[str, Any] = {
-        "nodes": [
-            {
-                "id": "def1",
-                "node_type": "DEFINER",
-                "variables": [
-                    {"id": "v1", "key": "status", "type": "string", "default_value": ""},
+    flow_data = GraphFlowData(
+        nodes=[
+            NodeRead(
+                id="def1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
                 ],
-            },
-            {
-                "id": "step_1",
-                "node_type": "STEP",
-                "slots": [{"target_var_key": "status", "expression": {"kind": "literal", "value": "processed"}}],
-            },
+            ),
+            NodeRead(
+                id="step_1",
+                node_type=NodeType.STEP,
+                slots=[
+                    SlotRead(target_var_key="status", expression={"kind": "literal", "value": "processed"}),
+                ],
+            ),
         ],
-        "edges": [
-            {"source_id": "start", "target_id": "step_1"},
-            {"source_id": "step_1", "source_type": "node", "target_id": "end"},
+        edges=[
+            EdgeRead(source_id="start", target_id="step_1"),
+            EdgeRead(source_id="step_1", source_type="node", target_id="end"),
         ],
-    }
-    flow_data = GraphFlowData.model_validate(payload)
+    )
     code = await generate_graph_code(flow_data)
     assert "def step_1(state: State) -> dict:" in code
     assert '"status": "processed"' in code
@@ -66,35 +70,34 @@ async def test_generate_graph_code_with_step_node() -> None:
 
 
 async def test_generate_graph_code_with_switch_node() -> None:
-    payload: dict[str, Any] = {
-        "nodes": [
-            {
-                "id": "def1",
-                "node_type": "DEFINER",
-                "variables": [
-                    {"id": "v1", "key": "status", "type": "string", "default_value": "active"},
+    flow_data = GraphFlowData(
+        nodes=[
+            NodeRead(
+                id="def1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
                 ],
-            },
-            {
-                "id": "switch_1",
-                "node_type": "SWITCH",
-                "slots": [
-                    {
-                        "id": "slot_a",
-                        "raw_string": "is_active",
-                        "expression": {
+            ),
+            NodeRead(
+                id="switch_1",
+                node_type=NodeType.SWITCH,
+                slots=[
+                    SlotRead(
+                        id="slot_a",
+                        raw_string="is_active",
+                        expression={
                             "kind": "binaryOp",
                             "op": "==",
                             "left": {"kind": "stateRef", "varKey": "status"},
                             "right": {"kind": "literal", "value": "active"},
                         },
-                    }
+                    )
                 ],
-            },
+            ),
         ],
-        "edges": [{"source_id": "slot_a", "source_type": "slot", "target_id": "end"}],
-    }
-    flow_data = GraphFlowData.model_validate(payload)
+        edges=[EdgeRead(source_id="slot_a", source_type="slot", target_id="end")],
+    )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
     assert 'if state.get("status") == "active":' in code

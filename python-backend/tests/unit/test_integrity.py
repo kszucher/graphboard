@@ -138,16 +138,24 @@ def test_cascading_rename(base_flow: GraphFlowData) -> None:
     graph_operations.update_definer_variable(base_flow, "var_x", {"key": "z"})
 
     # Check that variables changed
-    assert base_flow.nodes[1].variables[0].key == "z"
+    variables = base_flow.nodes[1].variables
+    assert variables is not None
+    assert variables[0].key == "z"
 
     # Check that target_var_key changed in LOGICAL_ASSIGNER assignments
-    assert base_flow.nodes[3].assignments[0].target_var_key == "z"
+    assignments = base_flow.nodes[3].assignments
+    assert assignments is not None
+    assert assignments[0].target_var_key == "z"
 
     # Check that expression variable changed in LOGICAL_ASSIGNER expression
-    assert base_flow.nodes[3].assignments[0].expression["left"]["varKey"] == "z"
+    expr = assignments[0].expression
+    assert isinstance(expr, dict)
+    assert expr.get("left", {}).get("varKey") == "z"
 
     # Check that expression variable changed in SWITCH slot expression
-    assert base_flow.nodes[2].slots[0].expression["left"]["varKey"] == "z"
+    slot_expr = base_flow.nodes[2].slots[0].expression
+    assert isinstance(slot_expr, dict)
+    assert slot_expr.get("left", {}).get("varKey") == "z"
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:

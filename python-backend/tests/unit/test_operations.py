@@ -116,7 +116,9 @@ def test_update_definer_variable() -> None:
         flow, var_id="var_x", updates={"type": "float", "default_value": 3.5, "description": "new desc"}
     )
 
-    var = updated.nodes[0].variables[0]
+    variables = updated.nodes[0].variables
+    assert variables is not None
+    var = variables[0]
     assert var.type == "float"
     assert var.default_value == 3.5
     assert var.description == "new desc"
@@ -135,7 +137,9 @@ def test_delete_definer_variable() -> None:
     )
 
     updated = operations.delete_definer_variable(flow, "var_x")
-    assert len(updated.nodes[0].variables) == 0
+    variables = updated.nodes[0].variables
+    assert variables is not None
+    assert len(variables) == 0
 
 
 def test_create_logical_assignment_success() -> None:
@@ -157,6 +161,7 @@ def test_create_logical_assignment_success() -> None:
     )
 
     assignments = updated.nodes[1].assignments
+    assert assignments is not None
     assert len(assignments) == 1
     assert assignments[0].target_var_key == "x"
     assert assignments[0].value == 42
@@ -165,6 +170,8 @@ def test_create_logical_assignment_success() -> None:
     updated = operations.create_logical_assignment(
         updated, node_id="assigner_1", target_var_key="x", value_type="number", value=100
     )
+    assignments = updated.nodes[1].assignments
+    assert assignments is not None
     assert len(assignments) == 1
     assert assignments[0].value == 100
 
@@ -207,7 +214,9 @@ def test_update_logical_assignment() -> None:
     updated = operations.update_logical_assignment(
         flow, assignment_id="asgn_1", updates={"value": 20, "expression": {"kind": "literal", "value": 20}}
     )
-    asgn = updated.nodes[1].assignments[0]
+    assignments = updated.nodes[1].assignments
+    assert assignments is not None
+    asgn = assignments[0]
     assert asgn.value == 20
     assert asgn.expression == {"kind": "literal", "value": 20}
 
@@ -236,4 +245,6 @@ def test_delete_logical_assignment() -> None:
     )
 
     updated = operations.delete_logical_assignment(flow, "asgn_1")
-    assert len(updated.nodes[0].assignments) == 0
+    assignments = updated.nodes[0].assignments
+    assert assignments is not None
+    assert len(assignments) == 0
