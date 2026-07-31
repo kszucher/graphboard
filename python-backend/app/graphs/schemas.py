@@ -64,7 +64,6 @@ class NodeRead(BaseModel):
     id: str
     node_type: NodeType
     slots: list[SlotRead] = Field(default_factory=list)
-    variables: list[DefinerVariableSchema] | None = None
     assignments: list[LogicalAssignmentSchema] | None = None
     prompt: str | None = None
     agentic_inputs: list[str] | None = None
@@ -79,9 +78,10 @@ class EdgeRead(BaseModel):
     target_type: Literal["node", "slot"] = "node"
 
 
-class GraphFlowRead(BaseModel):
+class GraphFlowRead(OrmModel):
     nodes: list[NodeRead]
     edges: list[EdgeRead]
+    state: list[DefinerVariableSchema] = Field(default_factory=list)
     can_undo: bool = False
     can_redo: bool = False
 
@@ -93,6 +93,7 @@ class GraphCodeRead(BaseModel):
 class GraphFlowData(BaseModel):
     nodes: list[NodeRead] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
+    state: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
 class NodeCreateRequest(BaseModel):

@@ -38,12 +38,6 @@ async def create_graph(
     default_nodes = [
         NodeRead(id="start", node_type=NodeType.START, slots=[]),
         NodeRead(
-            id="definer",
-            node_type=NodeType.DEFINER,
-            slots=[],
-            variables=[DefinerVariableSchema(id="v1", key="x", type="number", default_value=0)],
-        ),
-        NodeRead(
             id="switch_step",
             node_type=NodeType.SWITCH,
             slots=[
@@ -82,15 +76,8 @@ async def create_graph(
     ]
     default_edges = [
         EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "start->definer"),
+            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "start->switch_step"),
             source_id="start",
-            source_type="node",
-            target_id="definer",
-            target_type="node",
-        ),
-        EdgeRead(
-            id=py_uuid.uuid5(py_uuid.NAMESPACE_DNS, "definer->switch_step"),
-            source_id="definer",
             source_type="node",
             target_id="switch_step",
             target_type="node",
@@ -127,6 +114,7 @@ async def create_graph(
     flow_data = GraphFlowData(
         nodes=default_nodes,
         edges=default_edges,
+        state=[DefinerVariableSchema(id="v1", key="x", type="number", default_value=0)],
     )
     initial_flow = flow_data.model_dump(mode="json")
 
@@ -421,7 +409,6 @@ async def reconnect_edge(
 async def create_definer_variable(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
-    node_id: str,
     key: str,
     var_type: VariableType = "string",
     default_value: Any = None,
@@ -431,7 +418,6 @@ async def create_definer_variable(
         uow,
         graph_id,
         graph_operations.create_definer_variable,
-        node_id,
         key,
         var_type,
         default_value,

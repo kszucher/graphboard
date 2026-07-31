@@ -346,7 +346,7 @@ export interface paths {
     patch: operations["reconnect_edge_endpoint_graphs__graph_id__edges__edge_id__reconnect_patch"];
     trace?: never;
   };
-  "/graphs/{graph_id}/nodes/{node_id}/definer/variables": {
+  "/graphs/{graph_id}/state/variables": {
     parameters: {
       query?: never;
       header?: never;
@@ -356,14 +356,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Create Definer Variable Endpoint */
-    post: operations["create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post"];
+    post: operations["create_definer_variable_endpoint_graphs__graph_id__state_variables_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/graphs/{graph_id}/definer/variables/{var_id}": {
+  "/graphs/{graph_id}/state/variables/{var_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -374,11 +374,11 @@ export interface paths {
     put?: never;
     post?: never;
     /** Delete Definer Variable Endpoint */
-    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete"];
+    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__delete"];
     options?: never;
     head?: never;
     /** Update Definer Variable Endpoint */
-    patch: operations["update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch"];
+    patch: operations["update_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__patch"];
     trace?: never;
   };
   "/graphs/{graph_id}/nodes/{node_id}/logical/assignments": {
@@ -556,6 +556,8 @@ export interface components {
       nodes: components["schemas"]["NodeRead"][];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
+      /** State */
+      state?: components["schemas"]["DefinerVariableSchema"][];
       /**
        * Can Undo
        * @default false
@@ -651,8 +653,6 @@ export interface components {
       node_type: components["schemas"]["NodeType"];
       /** Slots */
       slots?: components["schemas"]["SlotRead"][];
-      /** Variables */
-      variables?: components["schemas"]["DefinerVariableSchema"][] | null;
       /** Assignments */
       assignments?: components["schemas"]["LogicalAssignmentSchema"][] | null;
       /** Prompt */
@@ -1526,7 +1526,7 @@ export interface operations {
       };
     };
   };
-  create_definer_variable_endpoint_graphs__graph_id__nodes__node_id__definer_variables_post: {
+  create_definer_variable_endpoint_graphs__graph_id__state_variables_post: {
     parameters: {
       query?: never;
       header?: {
@@ -1534,7 +1534,6 @@ export interface operations {
       };
       path: {
         graph_id: string;
-        node_id: string;
       };
       cookie?: never;
     };
@@ -1564,7 +1563,7 @@ export interface operations {
       };
     };
   };
-  delete_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__delete: {
+  delete_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__delete: {
     parameters: {
       query?: never;
       header?: {
@@ -1598,7 +1597,7 @@ export interface operations {
       };
     };
   };
-  update_definer_variable_endpoint_graphs__graph_id__definer_variables__var_id__patch: {
+  update_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__patch: {
     parameters: {
       query?: never;
       header?: {

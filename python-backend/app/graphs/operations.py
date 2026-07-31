@@ -132,11 +132,7 @@ def validate_default_value_type(var_type: str, val: Any) -> Any:
 
 
 def get_all_definer_variables(flow_data: GraphFlowData) -> list[DefinerVariableSchema]:
-    variables = []
-    for node in flow_data.nodes:
-        if node.node_type == NodeType.DEFINER and node.variables is not None:
-            variables.extend(node.variables)
-    return variables
+    return flow_data.state
 
 
 # ----------------------------------------------------
@@ -144,7 +140,6 @@ def get_all_definer_variables(flow_data: GraphFlowData) -> list[DefinerVariableS
 # ----------------------------------------------------
 def create_definer_variable(
     flow_data: GraphFlowData,
-    node_id: str,
     key: str,
     var_type: VariableType = "string",
     default_value: Any = None,
@@ -163,14 +158,6 @@ def create_definer_variable(
 
     validated_default = validate_default_value_type(var_type, default_value)
 
-    nodes = flow_data.nodes
-    target_node = next((n for n in nodes if n.id == node_id), None)
-    if not target_node:
-        raise ValidationError(f"Node '{node_id}' not found.")
-
-    if target_node.variables is None:
-        target_node.variables = []
-
     new_var = DefinerVariableSchema(
         id=str(uuid.uuid4()),
         key=key,
@@ -178,18 +165,12 @@ def create_definer_variable(
         default_value=validated_default,
         description=description,
     )
-    target_node.variables.append(new_var)
+    flow_data.state.append(new_var)
     return flow_data
 
 
 def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: DefinerVariableUpdates) -> GraphFlowData:
-    target_var = None
-    for node in flow_data.nodes:
-        if node.node_type == NodeType.DEFINER and node.variables is not None:
-            for var in node.variables:
-                if var.id == var_id:
-                    target_var = var
-                    break
+    target_var = next((v for v in flow_data.state if v.id == var_id), None)
 
     if not target_var:
         raise ValidationError(f"Variable with ID '{var_id}' not found.")
@@ -255,19 +236,11 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
 
 
 def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowData:
-    # Find variable key
-    var_key = None
-    definer_node = None
-    for node in flow_data.nodes:
-        if node.node_type == NodeType.DEFINER and node.variables is not None:
-            for v in node.variables:
-                if v.id == var_id:
-                    var_key = v.key
-                    definer_node = node
-                    break
-
-    if not var_key or not definer_node:
+    # Find variable
+    target_var = next((v for v in flow_data.state if v.id == var_id), None)
+    if not target_var:
         raise ValidationError(f"Variable with ID '{var_id}' not found.")
+    var_key = target_var.key
 
     # Check dependencies to block delete
     # 1. Check STEP slots target_var_key
@@ -313,8 +286,7 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
                     f"Cannot delete variable '{var_key}' because it is referenced as an output in Agentic Assigner node '{node.id}'."
                 )
 
-    if definer_node.variables:
-        definer_node.variables = [v for v in definer_node.variables if v.id != var_id]
+    flow_data.state = [v for v in flow_data.state if v.id != var_id]
     return flow_data
 
 

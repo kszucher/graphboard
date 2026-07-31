@@ -274,8 +274,7 @@ def compile_ast_agentic_node(
 
     keys: list[ast.expr | None] = [ast.Constant(value=k) for k in outputs]
     values: list[ast.expr] = [
-        ast.Attribute(value=ast.Name(id="res", ctx=ast.Load()), attr=k, ctx=ast.Load())
-        for k in outputs
+        ast.Attribute(value=ast.Name(id="res", ctx=ast.Load()), attr=k, ctx=ast.Load()) for k in outputs
     ]
     body_stmts.append(ast.Return(value=ast.Dict(keys=keys, values=values)))
 
@@ -330,11 +329,9 @@ def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.Function
 class PureAstLangGraphCompiler:
     def __init__(self, flow_data: GraphFlowData):
         self.flow_data = flow_data
-        self.all_variables = [
-            v for n in flow_data.nodes if n.node_type == NodeType.DEFINER and n.variables for v in n.variables if v.key
-        ]
+        self.all_variables = [v for v in flow_data.state if v.key] if flow_data.state else []
         self.valid_keys = {v.key for v in self.all_variables}
-        self.definer_ids = {n.id for n in flow_data.nodes if n.node_type == NodeType.DEFINER}
+        self.definer_ids = set()
         self.executable_nodes = [
             n
             for n in flow_data.nodes
@@ -351,6 +348,16 @@ class PureAstLangGraphCompiler:
             out_edge = next((e for e in self.flow_data.edges if e.source_id == target_id), None)
             return self.resolve_target_id(out_edge.target_id, visited) if out_edge else "END"
         return target_id
+
+    def resolve_source_id(self, source_id: str, visited: set[str] | None = None) -> str:
+        visited = visited or set()
+        if source_id in visited or source_id == "start":
+            return "START"
+        visited.add(source_id)
+        if source_id in self.definer_ids:
+            in_edge = next((e for e in self.flow_data.edges if e.target_id == source_id), None)
+            return self.resolve_source_id(in_edge.source_id, visited) if in_edge else "START"
+        return source_id
 
     def build_state_ast(self) -> list[ast.stmt]:
         if not self.all_variables:
@@ -406,7 +413,8 @@ class PureAstLangGraphCompiler:
             tid = self.resolve_target_id(e.target_id)
             if tid in self.switch_nodes:
                 edges_to_switches.add(e.id)
-                switch_sources[tid].append("START" if e.source_id == "start" else e.source_id)
+                resolved_src = self.resolve_source_id(e.source_id)
+                switch_sources[tid].append(resolved_src)
 
         # Add Nodes
         for n in self.executable_nodes:

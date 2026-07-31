@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.context import UnitOfWork
 from app.db import get_uow
@@ -43,14 +43,18 @@ async def list_graphs(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) ->
 
 
 @router.get("/{graph_id}/flow", response_model=GraphFlowRead)
-async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
+async def get_graph_flow(graph_id: uuid.UUID, response: Response, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     flow = await graph_service.get_and_reset_graph_flow(uow, graph_id)
 
     return GraphFlowRead.model_validate(flow)
 
 
 @router.get("/{graph_id}/code", response_model=GraphCodeRead)
-async def get_graph_code_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphCodeRead:
+async def get_graph_code_endpoint(
+    graph_id: uuid.UUID, response: Response, uow: UnitOfWork = Depends(get_uow)
+) -> GraphCodeRead:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     code_data = await graph_service.get_compiled_code(uow, graph_id)
     return GraphCodeRead.model_validate(code_data)
 
@@ -198,18 +202,18 @@ async def reconnect_edge_endpoint(
 
 
 # Definer Variables REST API
-@router.post("/{graph_id}/nodes/{node_id}/definer/variables", response_model=GraphFlowRead)
+@router.post("/{graph_id}/state/variables", response_model=GraphFlowRead)
 async def create_definer_variable_endpoint(
-    graph_id: uuid.UUID, node_id: str, payload: DefinerVariableCreateRequest, uow: UnitOfWork = Depends(get_uow)
+    graph_id: uuid.UUID, payload: DefinerVariableCreateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
     async with uow:
         updated_flow = await graph_service.create_definer_variable(
-            uow, graph_id, node_id, payload.key, payload.type, payload.default_value, payload.description
+            uow, graph_id, payload.key, payload.type, payload.default_value, payload.description
         )
     return GraphFlowRead.model_validate(updated_flow)
 
 
-@router.patch("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
+@router.patch("/{graph_id}/state/variables/{var_id}", response_model=GraphFlowRead)
 async def update_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, payload: DefinerVariableUpdateRequest, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:
@@ -219,7 +223,7 @@ async def update_definer_variable_endpoint(
     return GraphFlowRead.model_validate(updated_flow)
 
 
-@router.delete("/{graph_id}/definer/variables/{var_id}", response_model=GraphFlowRead)
+@router.delete("/{graph_id}/state/variables/{var_id}", response_model=GraphFlowRead)
 async def delete_definer_variable_endpoint(
     graph_id: uuid.UUID, var_id: str, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphFlowRead:

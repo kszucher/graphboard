@@ -41,11 +41,8 @@ def test_add_node_switch() -> None:
 
 def test_add_node_operations() -> None:
     flow = GraphFlowData(nodes=[], edges=[])
-    updated = topology.add_node(flow, NodeType.DEFINER)
-    assert updated.nodes[0].variables == []
-
-    updated = topology.add_node(updated, NodeType.LOGICAL_ASSIGNER)
-    assert updated.nodes[1].assignments == []
+    updated = topology.add_node(flow, NodeType.LOGICAL_ASSIGNER)
+    assert updated.nodes[0].assignments == []
 
 
 def test_add_node_with_connector_after() -> None:

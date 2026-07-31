@@ -88,13 +88,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
             raise ValidationError(f"Node '{n.id}' is unreachable from the START node.")
 
     # 3. Check for invalid variable references
-    valid_keys = {
-        var.key
-        for node in flow_data.nodes
-        if node.node_type == NodeType.DEFINER and node.variables
-        for var in node.variables
-        if var.key
-    }
+    valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
 
     for n in flow_data.nodes:
         if n.node_type == NodeType.STEP:

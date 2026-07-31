@@ -19,14 +19,6 @@ def base_flow() -> GraphFlowData:
     nodes = [
         NodeRead(id="start", node_type=NodeType.START),
         NodeRead(
-            id="definer",
-            node_type=NodeType.DEFINER,
-            variables=[
-                DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
-                DefinerVariableSchema(id="var_y", key="y", type="boolean", default_value=False),
-            ],
-        ),
-        NodeRead(
             id="switch_1",
             node_type=NodeType.SWITCH,
             slots=[
@@ -73,15 +65,19 @@ def base_flow() -> GraphFlowData:
     ]
 
     edges = [
-        EdgeRead(source_id="start", target_id="definer"),
-        EdgeRead(source_id="definer", target_id="switch_1"),
+        EdgeRead(source_id="start", target_id="switch_1"),
         EdgeRead(source_id="switch_1_option_a", target_id="assigner_1"),
         EdgeRead(source_id="switch_1_option_b", target_id="step_1"),
         EdgeRead(source_id="assigner_1", target_id="end"),
         EdgeRead(source_id="step_1", target_id="end"),
     ]
 
-    return GraphFlowData(nodes=nodes, edges=edges)
+    state = [
+        DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+        DefinerVariableSchema(id="var_y", key="y", type="boolean", default_value=False),
+    ]
+
+    return GraphFlowData(nodes=nodes, edges=edges, state=state)
 
 
 def test_validation_variable_existence_on_assignment_creation(base_flow: GraphFlowData) -> None:
@@ -138,12 +134,12 @@ def test_cascading_rename(base_flow: GraphFlowData) -> None:
     graph_operations.update_definer_variable(base_flow, "var_x", {"key": "z"})
 
     # Check that variables changed
-    variables = base_flow.nodes[1].variables
+    variables = base_flow.state
     assert variables is not None
     assert variables[0].key == "z"
 
     # Check that target_var_key changed in LOGICAL_ASSIGNER assignments
-    assignments = base_flow.nodes[3].assignments
+    assignments = base_flow.nodes[2].assignments
     assert assignments is not None
     assert assignments[0].target_var_key == "z"
 
@@ -153,7 +149,7 @@ def test_cascading_rename(base_flow: GraphFlowData) -> None:
     assert expr.get("left", {}).get("varKey") == "z"
 
     # Check that expression variable changed in SWITCH slot expression
-    slot_expr = base_flow.nodes[2].slots[0].expression
+    slot_expr = base_flow.nodes[1].slots[0].expression
     assert isinstance(slot_expr, dict)
     assert slot_expr.get("left", {}).get("varKey") == "z"
 
@@ -165,8 +161,9 @@ def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
 
 def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
     # Set switch expression to None
-    base_flow.nodes[2].slots[0].expression = None
+    base_flow.nodes[1].slots[0].expression = None
 
+    # We expect ValidationError
     with pytest.raises(ValidationError, match="unset condition"):
         assert_flow_is_complete(base_flow)
 
@@ -200,10 +197,12 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
     )
     # Reroute step_1 to agentic_1 instead of end, and agentic_1 to end
     base_flow.edges = [e for e in base_flow.edges if e.source_id != "step_1"]
-    base_flow.edges.extend([
-        EdgeRead(source_id="step_1", target_id="agentic_1"),
-        EdgeRead(source_id="agentic_1", target_id="end"),
-    ])
+    base_flow.edges.extend(
+        [
+            EdgeRead(source_id="step_1", target_id="agentic_1"),
+            EdgeRead(source_id="agentic_1", target_id="end"),
+        ]
+    )
 
     # Should pass completeness check
     assert_flow_is_complete(base_flow)

@@ -1,6 +1,5 @@
 import { Box, Text } from '@radix-ui/themes';
 import type { AppFlowNode, NodeType } from '../../canvas/types';
-import { DefinerNodeEditor } from './DefinerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
 import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
@@ -18,10 +17,6 @@ export const NodeEditorRouter = ({
 }: NodeEditorRouterProps) => {
   const selectedNodeType: NodeType | undefined = selectedNode?.data?.node?.node_type;
   const selectedNodeId: string | undefined = selectedNode?.id;
-
-  if (selectedNodeType === 'DEFINER' && selectedNodeId) {
-    return <DefinerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
-  }
 
   if (selectedNodeType === 'LOGICAL_ASSIGNER' && selectedNodeId) {
     return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
@@ -49,7 +44,7 @@ export const NodeEditorRouter = ({
       }}
     >
       <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-        Select a <Text weight="bold">DEFINER</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text
+        Select a <Text weight="bold">STEP</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text
         weight="bold">SWITCH</Text> node on the canvas to edit operation settings.
       </Text>
     </Box>

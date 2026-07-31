@@ -1,7 +1,8 @@
 import { PlusIcon, ResetIcon } from '@radix-ui/react-icons';
 import { Badge, Button, Flex, IconButton, Select, Text, TextField } from '@radix-ui/themes';
 import { useCallback, useMemo, useState } from 'react';
-import { useCreateDefinerVariable, useDeleteDefinerVariable, } from '../../api/mutations';
+import { useCreateDefinerVariable, useDeleteDefinerVariable } from '../../api/mutations';
+import { useGraphQuery } from '../../api/queries';
 import type { DefinerVariable } from '../../canvas/types';
 import { coerceTypedValue, validateVariableName } from './ExpressionEngine';
 import {
@@ -10,35 +11,27 @@ import {
   StaticRow,
   TargetVariableChip,
   TypedValueInput,
-  useNodeEditorData,
 } from './NodeEditorShared';
 
-interface DefinerNodeEditorProps {
+interface StateEditorProps {
   graphId: string;
-  nodeId: string;
   disabled?: boolean;
 }
 
 type DefinerDraftStep = 'key' | 'type' | 'value_and_save';
 
-export const DefinerNodeEditor = ({
+export const StateEditor = ({
   graphId,
-  nodeId,
   disabled = false,
-}: DefinerNodeEditorProps) => {
-  const { node, nodes } = useNodeEditorData(graphId, nodeId);
-
-  const variables: DefinerVariable[] = node?.variables || [];
+}: StateEditorProps) => {
+  const { data: graphFlow } = useGraphQuery(graphId);
+  const variables: DefinerVariable[] = graphFlow?.state || [];
 
   const allVariableKeys = useMemo(() => {
     const set = new Set<string>();
-    nodes.forEach(n => {
-      if (n.node_type === 'DEFINER') {
-        n.variables?.forEach(v => set.add(v.key));
-      }
-    });
+    variables.forEach(v => set.add(v.key));
     return set;
-  }, [nodes]);
+  }, [variables]);
 
   const { mutateAsync: createVar } = useCreateDefinerVariable(graphId);
   const { mutateAsync: deleteVar } = useDeleteDefinerVariable(graphId);
@@ -84,7 +77,6 @@ export const DefinerNodeEditor = ({
 
     try {
       await createVar({
-        nodeId,
         key: lockedKey,
         type: lockedType,
         defaultValue: parsedDefault,
@@ -93,7 +85,7 @@ export const DefinerNodeEditor = ({
     } catch (e: unknown) {
       setErrorMsg((e as Error)?.message || 'Failed to add state variable.');
     }
-  }, [disabled, definerStep, lockedKey, lockedType, draftDefault, createVar, nodeId, handleResetDraft]);
+  }, [disabled, definerStep, lockedKey, lockedType, draftDefault, createVar, handleResetDraft]);
 
   const handleDelete = useCallback(
     async (varId: string) => {
@@ -245,8 +237,7 @@ export const DefinerNodeEditor = ({
 
   return (
     <NodeEditorCard
-      title="Definer State Schema"
-      nodeId={nodeId}
+      title="Graph State Schema"
       errorMsg={errorMsg}
       listContent={listContent}
       workbenchContent={workbenchContent}

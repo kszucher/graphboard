@@ -1,9 +1,9 @@
-import { Box, Button, Flex, Separator, Text } from '@radix-ui/themes';
+import { Box, Flex, Separator } from '@radix-ui/themes';
 import { useNodes } from '@xyflow/react';
-import { useRunGraph } from '../api/mutations';
 import type { AppFlowNode } from '../canvas/types';
 import { FullCodeEditor } from './FullCodeEditor';
 import { NodeEditorRouter } from './nodeEditors/NodeEditorRouter';
+import { StateEditor } from './nodeEditors/StateEditor';
 
 interface SidebarProps {
   isSidebarOpen: boolean;
@@ -12,7 +12,6 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProps) => {
-  const { mutate: runGraph } = useRunGraph(graphId);
   const nodes = useNodes();
   const selectedNode = nodes.find((n) => n.selected);
 
@@ -30,36 +29,48 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
         flexDirection: 'column',
       }}
     >
-      <Flex direction="column" gap="3" p="4"
-            style={{ width: '580px', height: '100%', minHeight: 0, boxSizing: 'border-box' }}>
-        {/* Header */}
-        <Flex justify="between" align="center" style={{ flexShrink: 0 }}>
-          <Text size="3" weight="bold">Workflow Code</Text>
-          <Button
-            size="2"
-            variant="solid"
-            color="green"
-            onClick={() => void runGraph()}
-            disabled={!isGraphSelected}
-            style={{ cursor: isGraphSelected ? 'pointer' : 'default' }}
-          >
-            ▶ Run Graph
-          </Button>
-        </Flex>
-
-        {/* Top Panel: Workflow Code Viewer */}
-        <Box style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Flex
+        direction="column"
+        style={{
+          width: '580px',
+          height: '100%',
+          minHeight: 0,
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Top Panel: Workflow Code Viewer (50% height) */}
+        <Box style={{ height: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '16px 16px 8px 16px' }}>
           <FullCodeEditor graphId={graphId}/>
         </Box>
 
         {/* Separator Divider */}
         <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
 
-        {/* Bottom Panel: Dynamic Node Editor (~300px height) */}
-        <Box style={{ height: '300px', minHeight: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          <NodeEditorRouter graphId={graphId} selectedNode={(selectedNode as AppFlowNode) || null}
-                            disabled={!isGraphSelected}/>
-        </Box>
+        {/* Bottom Section (50% height) split into two equal vertical parts */}
+        <Flex
+          direction="column"
+          gap="3"
+          style={{
+            height: '50%',
+            minHeight: 0,
+            padding: '8px 16px 16px 16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Top half of bottom section (State Editor) */}
+          <Box style={{ flex: '1 1 50%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <StateEditor graphId={graphId} disabled={!isGraphSelected}/>
+          </Box>
+
+          {/* Bottom half of bottom section (Node Editor) */}
+          <Box style={{ flex: '1 1 50%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <NodeEditorRouter
+              graphId={graphId}
+              selectedNode={(selectedNode as AppFlowNode) || null}
+              disabled={!isGraphSelected}
+            />
+          </Box>
+        </Flex>
       </Flex>
     </Box>
   );

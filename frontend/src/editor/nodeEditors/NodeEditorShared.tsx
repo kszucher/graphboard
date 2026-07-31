@@ -138,7 +138,7 @@ const EMPTY_NODES: ApiNode[] = [];
 // eslint-disable-next-line react-refresh/only-export-components
 export function useNodeEditorData(graphId: string, nodeId: string) {
   const { data: graphFlow } = useGraphQuery(graphId);
-  const rawFlow = (graphFlow || {}) as { nodes?: ApiNode[] };
+  const rawFlow = (graphFlow || {}) as { nodes?: ApiNode[]; state?: DefinerVariable[] };
   const nodes = rawFlow.nodes || EMPTY_NODES;
 
   const node = useMemo(() => {
@@ -146,10 +146,8 @@ export function useNodeEditorData(graphId: string, nodeId: string) {
   }, [nodes, nodeId]);
 
   const stateVariables: DefinerVariable[] = useMemo(() => {
-    return nodes
-      .filter((n: ApiNode) => n.node_type === 'DEFINER')
-      .flatMap((n: ApiNode) => n.variables || []);
-  }, [nodes]);
+    return rawFlow.state || [];
+  }, [rawFlow]);
 
   return {
     rawFlow,
@@ -169,7 +167,7 @@ export function NodeEditorCard({
   listContent,
   workbenchContent,
 }: {
-  nodeId: string;
+  nodeId?: string;
   title: string;
   errorMsg?: string | null;
   listContent: ReactNode;
@@ -191,7 +189,7 @@ export function NodeEditorCard({
         {/* Header */}
         <Flex align="center" justify="between" style={{ flexShrink: 0 }}>
           <Text size="2" weight="bold">
-            {title} ({nodeId})
+            {title} {nodeId ? `(${nodeId})` : ''}
           </Text>
         </Flex>
 

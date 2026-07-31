@@ -54,7 +54,7 @@ async def test_add_node(
 
     # Assert response
     assert "nodes" in result
-    # Check that a STEP node was created (in addition to default if any, but conftest set dummy flow_json to empty)
+    # Check that a STEP node was created
     assert len(result["nodes"]) == 1
     assert result["nodes"][0]["node_type"] == "STEP"
 
@@ -81,7 +81,7 @@ async def test_undo_redo_graph_flow(
     await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
     await real_uow.session.commit()
 
-    # Get initial node count (usually default nodes count = 6)
+    # Get initial node count
     initial_count = len(dummy_graph.flow_json["nodes"])
 
     # Mutation 1 -> Sequence 1 (Add node)
@@ -122,11 +122,6 @@ async def test_run_graph_flow_success(
     flow_payload: dict[str, Any] = {
         "nodes": [
             {
-                "id": "definer",
-                "node_type": "DEFINER",
-                "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-            },
-            {
                 "id": "step_1",
                 "node_type": "STEP",
                 "slots": [{"target_var_key": "x", "expression": {"kind": "literal", "value": 42}}],
@@ -136,6 +131,7 @@ async def test_run_graph_flow_success(
             {"source_id": "start", "target_id": "step_1"},
             {"source_id": "step_1", "source_type": "node", "target_id": "end"},
         ],
+        "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
     dummy_graph.flow_json = flow_payload
@@ -162,14 +158,6 @@ async def test_run_graph_flow_switch_routing(
     # Test Scenario 1: x = 5 (default_value) -> routes to step_a -> y = 100
     flow_payload_a: dict[str, Any] = {
         "nodes": [
-            {
-                "id": "definer",
-                "node_type": "DEFINER",
-                "variables": [
-                    {"id": "v1", "key": "x", "type": "number", "default_value": 5},
-                    {"id": "v2", "key": "y", "type": "number", "default_value": 0},
-                ],
-            },
             {
                 "id": "switch_1",
                 "node_type": "SWITCH",
@@ -205,6 +193,10 @@ async def test_run_graph_flow_switch_routing(
             {"source_id": "step_a", "source_type": "node", "target_id": "end"},
             {"source_id": "step_b", "source_type": "node", "target_id": "end"},
         ],
+        "state": [
+            {"id": "v1", "key": "x", "type": "number", "default_value": 5},
+            {"id": "v2", "key": "y", "type": "number", "default_value": 0},
+        ],
     }
 
     dummy_graph.flow_json = flow_payload_a
@@ -218,9 +210,7 @@ async def test_run_graph_flow_switch_routing(
 
     # Test Scenario 2: x = -5 (default_value) -> routes to step_b -> y = 200
     flow_payload_b = dict(flow_payload_a)
-    flow_payload_b["nodes"] = [dict(n) for n in flow_payload_a["nodes"]]
-    # The definer node is at index 0
-    flow_payload_b["nodes"][0]["variables"] = [
+    flow_payload_b["state"] = [
         {"id": "v1", "key": "x", "type": "number", "default_value": -5},
         {"id": "v2", "key": "y", "type": "number", "default_value": 0},
     ]
@@ -240,14 +230,9 @@ async def test_run_graph_flow_invalid_state_ref(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Step node attempts to mutate target "non_existent" not registered in definer
+    # Step node attempts to mutate target "non_existent" not registered in state
     flow_payload: dict[str, Any] = {
         "nodes": [
-            {
-                "id": "definer",
-                "node_type": "DEFINER",
-                "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-            },
             {
                 "id": "step_1",
                 "node_type": "STEP",
@@ -258,6 +243,7 @@ async def test_run_graph_flow_invalid_state_ref(
             {"source_id": "start", "target_id": "step_1"},
             {"source_id": "step_1", "source_type": "node", "target_id": "end"},
         ],
+        "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
     dummy_graph.flow_json = flow_payload
@@ -280,11 +266,6 @@ async def test_run_graph_flow_cycle_limit(
     # Cyclic loop: START -> step_1 -> step_2 -> step_1 -> ...
     flow_payload: dict[str, Any] = {
         "nodes": [
-            {
-                "id": "definer",
-                "node_type": "DEFINER",
-                "variables": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-            },
             {"id": "step_1", "node_type": "STEP", "slots": []},
             {"id": "step_2", "node_type": "STEP", "slots": []},
         ],
@@ -293,6 +274,7 @@ async def test_run_graph_flow_cycle_limit(
             {"source_id": "step_1", "source_type": "node", "target_id": "step_2"},
             {"source_id": "step_2", "source_type": "node", "target_id": "step_1"},
         ],
+        "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
     dummy_graph.flow_json = flow_payload

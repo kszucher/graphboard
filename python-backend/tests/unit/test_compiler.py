@@ -10,7 +10,7 @@ from app.graphs.schemas import (
 
 
 async def test_generate_graph_code_empty() -> None:
-    flow_data = GraphFlowData(nodes=[], edges=[])
+    flow_data = GraphFlowData(nodes=[], edges=[], state=[])
     code = await generate_graph_code(flow_data)
     assert "class State(TypedDict):" in code
     assert "workflow = StateGraph(State)" in code
@@ -19,17 +19,12 @@ async def test_generate_graph_code_empty() -> None:
 
 async def test_generate_graph_code_with_variables() -> None:
     flow_data = GraphFlowData(
-        nodes=[
-            NodeRead(
-                id="def1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(key="user_id", type="number", default_value=0),
-                    DefinerVariableSchema(key="username", type="string", default_value="guest"),
-                ],
-            )
-        ],
+        nodes=[],
         edges=[],
+        state=[
+            DefinerVariableSchema(key="user_id", type="number", default_value=0),
+            DefinerVariableSchema(key="username", type="string", default_value="guest"),
+        ],
     )
     code = await generate_graph_code(flow_data)
     assert "user_id: int" in code
@@ -42,13 +37,6 @@ async def test_generate_graph_code_with_step_node() -> None:
     flow_data = GraphFlowData(
         nodes=[
             NodeRead(
-                id="def1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
-                ],
-            ),
-            NodeRead(
                 id="step_1",
                 node_type=NodeType.STEP,
                 slots=[
@@ -59,6 +47,9 @@ async def test_generate_graph_code_with_step_node() -> None:
         edges=[
             EdgeRead(source_id="start", target_id="step_1"),
             EdgeRead(source_id="step_1", source_type="node", target_id="end"),
+        ],
+        state=[
+            DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
         ],
     )
     code = await generate_graph_code(flow_data)
@@ -72,13 +63,6 @@ async def test_generate_graph_code_with_step_node() -> None:
 async def test_generate_graph_code_with_switch_node() -> None:
     flow_data = GraphFlowData(
         nodes=[
-            NodeRead(
-                id="def1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
-                ],
-            ),
             NodeRead(
                 id="switch_1",
                 node_type=NodeType.SWITCH,
@@ -97,6 +81,9 @@ async def test_generate_graph_code_with_switch_node() -> None:
             ),
         ],
         edges=[EdgeRead(source_id="slot_a", source_type="slot", target_id="end")],
+        state=[
+            DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
+        ],
     )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
@@ -109,14 +96,6 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
     flow_data = GraphFlowData(
         nodes=[
             NodeRead(
-                id="def1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="v1", key="category", type="string", default_value="math"),
-                    DefinerVariableSchema(id="v2", key="question", type="string", default_value=""),
-                ],
-            ),
-            NodeRead(
                 id="agentic_1",
                 node_type=NodeType.AGENTIC_ASSIGNER,
                 prompt="Generate a question about {category}.",
@@ -128,13 +107,20 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
             EdgeRead(source_id="start", target_id="agentic_1"),
             EdgeRead(source_id="agentic_1", source_type="node", target_id="end"),
         ],
+        state=[
+            DefinerVariableSchema(id="v1", key="category", type="string", default_value="math"),
+            DefinerVariableSchema(id="v2", key="question", type="string", default_value=""),
+        ],
     )
     code = await generate_graph_code(flow_data)
     assert "class agentic_1Output(BaseModel):" in code
     assert "question: str" in code
     assert "def agentic_1(state: State) -> dict:" in code
     assert "client = Groq()" in code
-    assert 'prompt_text = "Generate a question about {category}."' in code or "prompt_text = 'Generate a question about {category}.'" in code
+    assert (
+        'prompt_text = "Generate a question about {category}."' in code
+        or "prompt_text = 'Generate a question about {category}.'" in code
+    )
     assert "prompt_text = prompt_text.replace(" in code
     assert '"{category}", str(state.get("category"))' in code or "'{category}', str(state.get('category'))" in code
     assert "from pydantic import BaseModel, Field" in code

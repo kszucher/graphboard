@@ -26,3 +26,5 @@ These baseline guidelines apply to all development tasks in this repository.
 - **Always** run typecheck and build validation after modifying frontend source code.
 - Run build verification using the local project build scripts (e.g., `npm run build`).
 - **NEVER** try to open up a browser to validate UI functionality; the user will always handle visual validation.
+- **NEVER** manually edit `schema.ts`. Always run the API generator (`npm run generate:api` with the backend running) to update frontend type schemas when API routes or structures change.
+

@@ -53,12 +53,13 @@ def test_validate_default_value_type() -> None:
 
 def test_create_definer_variable_success() -> None:
     flow = GraphFlowData(
-        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[])],
+        nodes=[],
         edges=[],
+        state=[],
     )
 
     updated = operations.create_definer_variable(
-        flow, node_id="definer_1", key="user_age", var_type="number", default_value=25, description="User's age"
+        flow, key="user_age", var_type="number", default_value=25, description="User's age"
     )
 
     vars_list = operations.get_all_definer_variables(updated)
@@ -72,51 +73,45 @@ def test_create_definer_variable_success() -> None:
 
 def test_create_definer_variable_naming_rules() -> None:
     flow = GraphFlowData(
-        nodes=[NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[])],
+        nodes=[],
         edges=[],
+        state=[],
     )
 
     # Snake case violations
     with pytest.raises(ValidationError, match="must be valid snake_case"):
-        operations.create_definer_variable(flow, "definer_1", "UserAge")
+        operations.create_definer_variable(flow, "UserAge")
     with pytest.raises(ValidationError, match="must be valid snake_case"):
-        operations.create_definer_variable(flow, "definer_1", "user-age")
+        operations.create_definer_variable(flow, "user-age")
     with pytest.raises(ValidationError, match="must be valid snake_case"):
-        operations.create_definer_variable(flow, "definer_1", "1_user_age")
+        operations.create_definer_variable(flow, "1_user_age")
     with pytest.raises(ValidationError, match="must be valid snake_case"):
-        operations.create_definer_variable(flow, "definer_1", "user age")
+        operations.create_definer_variable(flow, "user age")
 
     # Python keyword violations
     with pytest.raises(ValidationError, match="cannot be a Python keyword"):
-        operations.create_definer_variable(flow, "definer_1", "def")
+        operations.create_definer_variable(flow, "def")
     with pytest.raises(ValidationError, match="cannot be a Python keyword"):
-        operations.create_definer_variable(flow, "definer_1", "class")
+        operations.create_definer_variable(flow, "class")
 
     # Duplicate variable keys
-    operations.create_definer_variable(flow, "definer_1", "x")
+    operations.create_definer_variable(flow, "x")
     with pytest.raises(ValidationError, match="already exists"):
-        operations.create_definer_variable(flow, "definer_1", "x")
+        operations.create_definer_variable(flow, "x")
 
 
 def test_update_definer_variable() -> None:
     flow = GraphFlowData(
-        nodes=[
-            NodeRead(
-                id="definer_1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1, description="old desc")
-                ],
-            )
-        ],
+        nodes=[],
         edges=[],
+        state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1, description="old desc")],
     )
 
     updated = operations.update_definer_variable(
         flow, var_id="var_x", updates={"type": "float", "default_value": 3.5, "description": "new desc"}
     )
 
-    variables = updated.nodes[0].variables
+    variables = updated.state
     assert variables is not None
     var = variables[0]
     assert var.type == "float"
@@ -126,18 +121,13 @@ def test_update_definer_variable() -> None:
 
 def test_delete_definer_variable() -> None:
     flow = GraphFlowData(
-        nodes=[
-            NodeRead(
-                id="definer_1",
-                node_type=NodeType.DEFINER,
-                variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1)],
-            )
-        ],
+        nodes=[],
         edges=[],
+        state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=1)],
     )
 
     updated = operations.delete_definer_variable(flow, "var_x")
-    variables = updated.nodes[0].variables
+    variables = updated.state
     assert variables is not None
     assert len(variables) == 0
 
@@ -145,14 +135,10 @@ def test_delete_definer_variable() -> None:
 def test_create_logical_assignment_success() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(
-                id="definer_1",
-                node_type=NodeType.DEFINER,
-                variables=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0)],
-            ),
             NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
         ],
         edges=[],
+        state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0)],
     )
 
     # Assign value 42 to x
@@ -160,7 +146,7 @@ def test_create_logical_assignment_success() -> None:
         flow, node_id="assigner_1", target_var_key="x", value_type="number", value=42
     )
 
-    assignments = updated.nodes[1].assignments
+    assignments = updated.nodes[0].assignments
     assert assignments is not None
     assert len(assignments) == 1
     assert assignments[0].target_var_key == "x"
@@ -170,7 +156,7 @@ def test_create_logical_assignment_success() -> None:
     updated = operations.create_logical_assignment(
         updated, node_id="assigner_1", target_var_key="x", value_type="number", value=100
     )
-    assignments = updated.nodes[1].assignments
+    assignments = updated.nodes[0].assignments
     assert assignments is not None
     assert len(assignments) == 1
     assert assignments[0].value == 100
@@ -179,10 +165,10 @@ def test_create_logical_assignment_success() -> None:
 def test_create_logical_assignment_invalid_variable() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="definer_1", node_type=NodeType.DEFINER, variables=[]),
             NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
         ],
         edges=[],
+        state=[],
     )
 
     # Attempt assignment to undefined variable 'y'
@@ -194,27 +180,23 @@ def test_update_logical_assignment() -> None:
     flow = GraphFlowData(
         nodes=[
             NodeRead(
-                id="definer_1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
-                    DefinerVariableSchema(id="var_y", key="y", type="string", default_value=""),
-                ],
-            ),
-            NodeRead(
                 id="assigner_1",
                 node_type=NodeType.LOGICAL_ASSIGNER,
                 assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value_type="number", value=10)],
             ),
         ],
         edges=[],
+        state=[
+            DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+            DefinerVariableSchema(id="var_y", key="y", type="string", default_value=""),
+        ],
     )
 
     # Update value and expression
     updated = operations.update_logical_assignment(
         flow, assignment_id="asgn_1", updates={"value": 20, "expression": {"kind": "literal", "value": 20}}
     )
-    assignments = updated.nodes[1].assignments
+    assignments = updated.nodes[0].assignments
     assert assignments is not None
     asgn = assignments[0]
     assert asgn.value == 20
@@ -242,6 +224,7 @@ def test_delete_logical_assignment() -> None:
             )
         ],
         edges=[],
+        state=[],
     )
 
     updated = operations.delete_logical_assignment(flow, "asgn_1")
@@ -254,13 +237,6 @@ def test_agentic_assigner_cascade_rename_and_blocked_delete() -> None:
     flow = GraphFlowData(
         nodes=[
             NodeRead(
-                id="definer_1",
-                node_type=NodeType.DEFINER,
-                variables=[
-                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
-                ],
-            ),
-            NodeRead(
                 id="agentic_1",
                 node_type=NodeType.AGENTIC_ASSIGNER,
                 prompt="Prompt with {x}",
@@ -269,11 +245,14 @@ def test_agentic_assigner_cascade_rename_and_blocked_delete() -> None:
             ),
         ],
         edges=[],
+        state=[
+            DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+        ],
     )
 
     # 1. Test Rename cascades to prompt, inputs, and outputs
     updated = operations.update_definer_variable(flow, var_id="var_x", updates={"key": "new_x"})
-    agentic_node = updated.nodes[1]
+    agentic_node = updated.nodes[0]
     assert agentic_node.prompt == "Prompt with {new_x}"
     assert agentic_node.agentic_inputs == ["new_x"]
     assert agentic_node.agentic_outputs == ["new_x"]

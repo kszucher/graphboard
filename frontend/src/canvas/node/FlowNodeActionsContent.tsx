@@ -12,7 +12,6 @@ import type { InsertableNodeType, NodeType } from '../types';
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
   { type: 'STEP', label: 'Step' },
   { type: 'SWITCH', label: 'Switch' },
-  { type: 'DEFINER', label: 'Definer' },
   { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
   { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
 ];
@@ -78,7 +77,7 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
 
   if (!nodeData) return null;
 
-  const isSentinel = nodeData.node_type === 'START' || nodeData.node_type === 'END' || nodeData.node_type === 'DEFINER';
+  const isSentinel = nodeData.node_type === 'START' || nodeData.node_type === 'END';
 
   const canShortcircuit = nodeData
     ? (['STEP', 'LOGICAL_ASSIGNER', 'AGENTIC_ASSIGNER'] as NodeType[]).includes(nodeData.node_type)

@@ -11,7 +11,6 @@ import { Sidebar } from './editor/Sidebar.tsx';
 const NODE_TYPES: NodeType[] = [
   'STEP',
   'SWITCH',
-  'DEFINER',
   'LOGICAL_ASSIGNER',
   'AGENTIC_ASSIGNER',
 ];

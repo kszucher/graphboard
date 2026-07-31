@@ -374,18 +374,16 @@ export const useCreateDefinerVariable = (graphId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      nodeId,
       key,
       type,
       defaultValue,
     }: {
-      nodeId: string;
       key: string;
       type: 'boolean' | 'string' | 'number' | 'float';
       defaultValue?: unknown;
     }) => {
-      const res = await apiClient.POST('/graphs/{graph_id}/nodes/{node_id}/definer/variables', {
-        params: { path: { graph_id: graphId, node_id: nodeId } },
+      const res = await apiClient.POST('/graphs/{graph_id}/state/variables', {
+        params: { path: { graph_id: graphId } },
         headers: { 'X-Client-Id': getClientId() },
         body: { key, type, default_value: defaultValue }
       });
@@ -402,7 +400,7 @@ export const useDeleteDefinerVariable = (graphId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (varId: string) => {
-      const res = await apiClient.DELETE('/graphs/{graph_id}/definer/variables/{var_id}', {
+      const res = await apiClient.DELETE('/graphs/{graph_id}/state/variables/{var_id}', {
         params: { path: { graph_id: graphId, var_id: varId } },
         headers: { 'X-Client-Id': getClientId() }
       });
