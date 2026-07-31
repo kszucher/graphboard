@@ -233,6 +233,16 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
                     if slot.expression:
                         rename_expression_variables(slot.expression, old_key, new_key)
 
+        # 4. Update agentic_inputs, agentic_outputs, and prompt in AGENTIC_ASSIGNER nodes
+        for node in flow_data.nodes:
+            if node.node_type == NodeType.AGENTIC_ASSIGNER:
+                if node.agentic_inputs:
+                    node.agentic_inputs = [new_key if k == old_key else k for k in node.agentic_inputs]
+                if node.agentic_outputs:
+                    node.agentic_outputs = [new_key if k == old_key else k for k in node.agentic_outputs]
+                if node.prompt:
+                    node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
+
     new_type = updates.get("type") or target_var.type
     if "type" in updates and updates["type"]:
         target_var.type = updates["type"]
@@ -290,6 +300,18 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
                     raise ValidationError(
                         f"Cannot delete variable '{var_key}' because it is referenced in Switch node '{node.id}' option '{slot.raw_string}'."
                     )
+
+    # 4. Check AGENTIC_ASSIGNER inputs and outputs
+    for node in flow_data.nodes:
+        if node.node_type == NodeType.AGENTIC_ASSIGNER:
+            if node.agentic_inputs and var_key in node.agentic_inputs:
+                raise ValidationError(
+                    f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic Assigner node '{node.id}'."
+                )
+            if node.agentic_outputs and var_key in node.agentic_outputs:
+                raise ValidationError(
+                    f"Cannot delete variable '{var_key}' because it is referenced as an output in Agentic Assigner node '{node.id}'."
+                )
 
     if definer_node.variables:
         definer_node.variables = [v for v in definer_node.variables if v.id != var_id]

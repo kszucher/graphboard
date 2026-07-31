@@ -75,6 +75,8 @@ async def create_graph(
             node_type=NodeType.AGENTIC_ASSIGNER,
             slots=[],
             prompt="",
+            agentic_inputs=[],
+            agentic_outputs=[],
         ),
         NodeRead(id="end", node_type=NodeType.END, slots=[]),
     ]
@@ -328,13 +330,26 @@ async def update_node(
     graph_id: uuid.UUID,
     node_id: str,
     new_id: str | None = None,
+    prompt: str | None = None,
+    agentic_inputs: list[str] | None = None,
+    agentic_outputs: list[str] | None = None,
 ) -> dict:
+    kwargs: dict[str, Any] = {}
+    if new_id is not None:
+        kwargs["new_id"] = new_id
+    if prompt is not None:
+        kwargs["prompt"] = prompt
+    if agentic_inputs is not None:
+        kwargs["agentic_inputs"] = agentic_inputs
+    if agentic_outputs is not None:
+        kwargs["agentic_outputs"] = agentic_outputs
+
     return await _mutate_flow(
         uow,
         graph_id,
         graph_topology.update_node,
         node_id,
-        new_id=new_id,
+        **kwargs,
     )
 
 

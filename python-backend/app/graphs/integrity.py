@@ -123,3 +123,16 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
                         )
+        elif n.node_type == NodeType.AGENTIC_ASSIGNER:
+            if not n.prompt or not n.prompt.strip():
+                raise ValidationError(f"Agentic Assigner node '{n.id}' has an empty prompt.")
+            if not n.agentic_outputs:
+                raise ValidationError(f"Agentic Assigner node '{n.id}' must have at least one output variable.")
+            if n.agentic_inputs:
+                for k in n.agentic_inputs:
+                    if k not in valid_keys:
+                        raise ValidationError(f"Invalid input reference: variable '{k}' is missing or deleted.")
+            if n.agentic_outputs:
+                for k in n.agentic_outputs:
+                    if k not in valid_keys:
+                        raise ValidationError(f"Invalid output target: variable '{k}' is missing or deleted.")

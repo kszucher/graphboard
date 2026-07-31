@@ -3,6 +3,7 @@ import type { AppFlowNode, NodeType } from '../../canvas/types';
 import { DefinerNodeEditor } from './DefinerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
+import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
 
 interface NodeEditorRouterProps {
   graphId: string;
@@ -24,6 +25,10 @@ export const NodeEditorRouter = ({
 
   if (selectedNodeType === 'LOGICAL_ASSIGNER' && selectedNodeId) {
     return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
+  }
+
+  if (selectedNodeType === 'AGENTIC_ASSIGNER' && selectedNodeId) {
+    return <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
   }
 
   if (selectedNodeType === 'SWITCH' && selectedNodeId) {

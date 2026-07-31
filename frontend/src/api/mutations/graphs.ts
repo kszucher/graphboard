@@ -2,6 +2,7 @@ import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ASTExpression, NodeType } from '../../canvas/types';
 import { apiClient, getClientId } from '../client';
 import { queryKeys } from '../queryKeys';
+import type { components } from '../generated/schema';
 
 const handleMutationSuccess = (
   queryClient: QueryClient,
@@ -144,7 +145,7 @@ export const useUpdateNode = (graphId: string) => {
       updates
     }: {
       nodeId: string;
-      updates: { new_id?: string };
+      updates: components['schemas']['NodeUpdateRequest'];
     }) => {
       const res = await apiClient.PATCH('/graphs/{graph_id}/nodes/{node_id}', {
         params: { path: { graph_id: graphId, node_id: nodeId } },

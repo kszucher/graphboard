@@ -13,7 +13,7 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any, cast
 
 from app.constants import NodeType
-from app.graphs.schemas import GraphFlowData, SlotRead
+from app.graphs.schemas import DefinerVariableSchema, GraphFlowData, NodeRead, SlotRead
 
 try:
     import black
@@ -125,6 +125,175 @@ def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: 
         returns=ast.Name(id="dict", ctx=ast.Load()),
     )
     return ast.fix_missing_locations(func)
+
+
+def compile_ast_agentic_node(
+    node: NodeRead,
+    valid_keys: set[str],
+    all_variables: list[DefinerVariableSchema],
+) -> list[ast.stmt]:
+    inputs = [k for k in (node.agentic_inputs or []) if k in valid_keys]
+    outputs = [k for k in (node.agentic_outputs or []) if k in valid_keys]
+
+    anns: list[ast.stmt] = []
+    for var_key in outputs:
+        var_type = "string"
+        var_desc = None
+        for v in all_variables:
+            if v.key == var_key:
+                var_type = v.type
+                var_desc = v.description
+                break
+
+        py_type = TYPE_MAP.get(var_type, "str")
+        val = None
+        if var_desc:
+            val = ast.Call(
+                func=ast.Name(id="Field", ctx=ast.Load()),
+                args=[],
+                keywords=[ast.keyword(arg="description", value=ast.Constant(value=var_desc))],
+            )
+
+        anns.append(
+            ast.AnnAssign(
+                target=ast.Name(id=var_key, ctx=ast.Store()),
+                annotation=ast.Name(id=py_type, ctx=ast.Load()),
+                value=val,
+                simple=1,
+            )
+        )
+
+    class_def = ast.ClassDef(
+        name=f"{node.id}Output",
+        bases=[ast.Name(id="BaseModel", ctx=ast.Load())],
+        keywords=[],
+        body=anns or [ast.Pass()],
+        decorator_list=[],
+    )
+
+    body_stmts: list[ast.stmt] = [
+        ast.Assign(
+            targets=[ast.Name(id="client", ctx=ast.Store())],
+            value=ast.Call(func=ast.Name(id="Groq", ctx=ast.Load()), args=[], keywords=[]),
+        ),
+        ast.Assign(
+            targets=[ast.Name(id="prompt_text", ctx=ast.Store())],
+            value=ast.Constant(value=node.prompt or ""),
+        ),
+    ]
+
+    for k in inputs:
+        replace_call = ast.Call(
+            func=ast.Attribute(value=ast.Name(id="prompt_text", ctx=ast.Load()), attr="replace", ctx=ast.Load()),
+            args=[
+                ast.Constant(value=f"{{{k}}}"),
+                ast.Call(
+                    func=ast.Name(id="str", ctx=ast.Load()),
+                    args=[
+                        ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="state", ctx=ast.Load()),
+                                attr="get",
+                                ctx=ast.Load(),
+                            ),
+                            args=[ast.Constant(value=k)],
+                            keywords=[],
+                        )
+                    ],
+                    keywords=[],
+                ),
+            ],
+            keywords=[],
+        )
+        body_stmts.append(ast.Assign(targets=[ast.Name(id="prompt_text", ctx=ast.Store())], value=replace_call))
+
+    parse_call = ast.Attribute(
+        value=ast.Attribute(
+            value=ast.Attribute(
+                value=ast.Attribute(
+                    value=ast.Name(id="client", ctx=ast.Load()),
+                    attr="beta",
+                    ctx=ast.Load(),
+                ),
+                attr="chat",
+                ctx=ast.Load(),
+            ),
+            attr="completions",
+            ctx=ast.Load(),
+        ),
+        attr="parse",
+        ctx=ast.Load(),
+    )
+
+    chat_completion_val = ast.Call(
+        func=parse_call,
+        args=[],
+        keywords=[
+            ast.keyword(
+                arg="messages",
+                value=ast.List(
+                    elts=[
+                        ast.Dict(
+                            keys=[ast.Constant(value="role"), ast.Constant(value="content")],
+                            values=[ast.Constant(value="user"), ast.Name(id="prompt_text", ctx=ast.Load())],
+                        )
+                    ],
+                    ctx=ast.Load(),
+                ),
+            ),
+            ast.keyword(arg="model", value=ast.Constant(value="llama3-8b-8192")),
+            ast.keyword(arg="response_format", value=ast.Name(id=f"{node.id}Output", ctx=ast.Load())),
+        ],
+    )
+
+    body_stmts.append(
+        ast.Assign(
+            targets=[ast.Name(id="chat_completion", ctx=ast.Store())],
+            value=chat_completion_val,
+        )
+    )
+
+    res_val = ast.Attribute(
+        value=ast.Attribute(
+            value=ast.Subscript(
+                value=ast.Attribute(
+                    value=ast.Name(id="chat_completion", ctx=ast.Load()),
+                    attr="choices",
+                    ctx=ast.Load(),
+                ),
+                slice=ast.Constant(value=0),
+                ctx=ast.Load(),
+            ),
+            attr="message",
+            ctx=ast.Load(),
+        ),
+        attr="parsed",
+        ctx=ast.Load(),
+    )
+    body_stmts.append(ast.Assign(targets=[ast.Name(id="res", ctx=ast.Store())], value=res_val))
+
+    keys: list[ast.expr | None] = [ast.Constant(value=k) for k in outputs]
+    values: list[ast.expr] = [
+        ast.Attribute(value=ast.Name(id="res", ctx=ast.Load()), attr=k, ctx=ast.Load())
+        for k in outputs
+    ]
+    body_stmts.append(ast.Return(value=ast.Dict(keys=keys, values=values)))
+
+    func_def = ast.FunctionDef(
+        name=node.id,
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=body_stmts,
+        decorator_list=[],
+        returns=ast.Name(id="dict", ctx=ast.Load()),
+    )
+
+    return [class_def, ast.fix_missing_locations(func_def)]
 
 
 def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.FunctionDef:
@@ -303,17 +472,25 @@ class PureAstLangGraphCompiler:
         return stmts
 
     def compile(self) -> str:
-        imports = ast.parse(
-            "from typing import TypedDict, Literal, Any\nfrom langgraph.graph import StateGraph, START, END"
-        ).body
-        nodes = [
-            compile_ast_switch_node(n.id, n.slots)
-            if n.node_type == NodeType.SWITCH
-            else compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys)
-            if n.node_type == NodeType.LOGICAL_ASSIGNER
-            else compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys)
-            for n in self.executable_nodes
+        has_agentic = any(n.node_type == NodeType.AGENTIC_ASSIGNER for n in self.executable_nodes)
+        import_lines = [
+            "from typing import TypedDict, Literal, Any",
+            "from langgraph.graph import StateGraph, START, END",
         ]
+        if has_agentic:
+            import_lines.extend(["from pydantic import BaseModel, Field", "from groq import Groq"])
+        imports = ast.parse("\n".join(import_lines)).body
+        nodes: list[ast.stmt] = []
+        for n in self.executable_nodes:
+            if n.node_type == NodeType.SWITCH:
+                nodes.append(compile_ast_switch_node(n.id, n.slots))
+            elif n.node_type == NodeType.LOGICAL_ASSIGNER:
+                nodes.append(compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys))
+            elif n.node_type == NodeType.AGENTIC_ASSIGNER:
+                nodes.extend(compile_ast_agentic_node(n, self.valid_keys, self.all_variables))
+            else:
+                nodes.append(compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys))
+
         mod = ast.Module(body=imports + self.build_state_ast() + nodes + self.build_workflow_ast(), type_ignores=[])
         return ast.unparse(ast.fix_missing_locations(mod))
 

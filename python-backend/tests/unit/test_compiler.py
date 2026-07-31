@@ -103,3 +103,39 @@ async def test_generate_graph_code_with_switch_node() -> None:
     assert 'if state.get("status") == "active":' in code
     assert 'return "is_active"' in code
     assert "workflow.add_conditional_edges(" in code
+
+
+async def test_generate_graph_code_with_agentic_assigner() -> None:
+    flow_data = GraphFlowData(
+        nodes=[
+            NodeRead(
+                id="def1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="v1", key="category", type="string", default_value="math"),
+                    DefinerVariableSchema(id="v2", key="question", type="string", default_value=""),
+                ],
+            ),
+            NodeRead(
+                id="agentic_1",
+                node_type=NodeType.AGENTIC_ASSIGNER,
+                prompt="Generate a question about {category}.",
+                agentic_inputs=["category"],
+                agentic_outputs=["question"],
+            ),
+        ],
+        edges=[
+            EdgeRead(source_id="start", target_id="agentic_1"),
+            EdgeRead(source_id="agentic_1", source_type="node", target_id="end"),
+        ],
+    )
+    code = await generate_graph_code(flow_data)
+    assert "class agentic_1Output(BaseModel):" in code
+    assert "question: str" in code
+    assert "def agentic_1(state: State) -> dict:" in code
+    assert "client = Groq()" in code
+    assert 'prompt_text = "Generate a question about {category}."' in code or "prompt_text = 'Generate a question about {category}.'" in code
+    assert "prompt_text = prompt_text.replace(" in code
+    assert '"{category}", str(state.get("category"))' in code or "'{category}', str(state.get('category'))" in code
+    assert "from pydantic import BaseModel, Field" in code
+    assert "from groq import Groq" in code

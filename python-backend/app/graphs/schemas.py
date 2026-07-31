@@ -67,6 +67,8 @@ class NodeRead(BaseModel):
     variables: list[DefinerVariableSchema] | None = None
     assignments: list[LogicalAssignmentSchema] | None = None
     prompt: str | None = None
+    agentic_inputs: list[str] | None = None
+    agentic_outputs: list[str] | None = None
 
 
 class EdgeRead(BaseModel):
@@ -101,6 +103,9 @@ class NodeCreateRequest(BaseModel):
 
 class NodeUpdateRequest(BaseModel):
     new_id: str | None = None
+    prompt: str | None = None
+    agentic_inputs: list[str] | None = None
+    agentic_outputs: list[str] | None = None
 
 
 class DefinerVariableCreateRequest(BaseModel):

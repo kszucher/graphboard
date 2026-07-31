@@ -43,7 +43,9 @@ def add_node(
     slots: list[SlotRead] = []
     variables: list[DefinerVariableSchema] | None = None
     assignments: list[LogicalAssignmentSchema] | None = None
-    prompt = None
+    prompt: str | None = None
+    agentic_inputs: list[str] | None = None
+    agentic_outputs: list[str] | None = None
     if node_type == NodeType.SWITCH:
         slots = [
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
@@ -55,6 +57,8 @@ def add_node(
         assignments = []
     elif node_type == NodeType.AGENTIC_ASSIGNER:
         prompt = ""
+        agentic_inputs = []
+        agentic_outputs = []
 
     new_node = NodeRead(
         id=node_id,
@@ -63,6 +67,8 @@ def add_node(
         variables=variables,
         assignments=assignments,
         prompt=prompt,
+        agentic_inputs=agentic_inputs,
+        agentic_outputs=agentic_outputs,
     )
     nodes.append(new_node)
 
@@ -184,6 +190,9 @@ def update_node(
     flow_data: GraphFlowData,
     node_id: str,
     new_id: str | None = None,
+    prompt: str | None = _UNSET,
+    agentic_inputs: list[str] | None = _UNSET,
+    agentic_outputs: list[str] | None = _UNSET,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -208,6 +217,13 @@ def update_node(
                 edge.target_id = new_id
             elif edge.target_id.startswith(f"{node_id}_"):
                 edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
+
+    if prompt is not _UNSET:
+        target_node.prompt = prompt
+    if agentic_inputs is not _UNSET:
+        target_node.agentic_inputs = agentic_inputs
+    if agentic_outputs is not _UNSET:
+        target_node.agentic_outputs = agentic_outputs
 
     return flow_data
 

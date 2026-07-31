@@ -248,3 +248,41 @@ def test_delete_logical_assignment() -> None:
     assignments = updated.nodes[0].assignments
     assert assignments is not None
     assert len(assignments) == 0
+
+
+def test_agentic_assigner_cascade_rename_and_blocked_delete() -> None:
+    flow = GraphFlowData(
+        nodes=[
+            NodeRead(
+                id="definer_1",
+                node_type=NodeType.DEFINER,
+                variables=[
+                    DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+                ],
+            ),
+            NodeRead(
+                id="agentic_1",
+                node_type=NodeType.AGENTIC_ASSIGNER,
+                prompt="Prompt with {x}",
+                agentic_inputs=["x"],
+                agentic_outputs=["x"],
+            ),
+        ],
+        edges=[],
+    )
+
+    # 1. Test Rename cascades to prompt, inputs, and outputs
+    updated = operations.update_definer_variable(flow, var_id="var_x", updates={"key": "new_x"})
+    agentic_node = updated.nodes[1]
+    assert agentic_node.prompt == "Prompt with {new_x}"
+    assert agentic_node.agentic_inputs == ["new_x"]
+    assert agentic_node.agentic_outputs == ["new_x"]
+
+    # 2. Test Blocked Delete when referenced
+    with pytest.raises(ValidationError, match="referenced as an input"):
+        operations.delete_definer_variable(updated, var_id="var_x")
+
+    # Clear inputs and test output block
+    agentic_node.agentic_inputs = []
+    with pytest.raises(ValidationError, match="referenced as an output"):
+        operations.delete_definer_variable(updated, var_id="var_x")

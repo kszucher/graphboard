@@ -480,6 +480,8 @@ export interface components {
     };
     /** DefinerVariableUpdateRequest */
     DefinerVariableUpdateRequest: {
+      /** Key */
+      key?: string | null;
       /** Type */
       type?: ("boolean" | "string" | "number" | "float") | null;
       /** Default Value */
@@ -655,6 +657,10 @@ export interface components {
       assignments?: components["schemas"]["LogicalAssignmentSchema"][] | null;
       /** Prompt */
       prompt?: string | null;
+      /** Agentic Inputs */
+      agentic_inputs?: string[] | null;
+      /** Agentic Outputs */
+      agentic_outputs?: string[] | null;
     };
     /**
      * NodeType
@@ -665,6 +671,12 @@ export interface components {
     NodeUpdateRequest: {
       /** New Id */
       new_id?: string | null;
+      /** Prompt */
+      prompt?: string | null;
+      /** Agentic Inputs */
+      agentic_inputs?: string[] | null;
+      /** Agentic Outputs */
+      agentic_outputs?: string[] | null;
     };
     /** SetActiveGraph */
     SetActiveGraph: {

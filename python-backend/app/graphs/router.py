@@ -114,6 +114,9 @@ async def update_node_endpoint(
             graph_id,
             node_id,
             new_id=payload.new_id,
+            prompt=payload.prompt,
+            agentic_inputs=payload.agentic_inputs,
+            agentic_outputs=payload.agentic_outputs,
         )
     return GraphFlowRead.model_validate(updated_flow)
 
