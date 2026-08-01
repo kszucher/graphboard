@@ -19,8 +19,8 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ## 💡 How It Works
 
-1. **Build Visually**: Arrange execution nodes (Steps, Switches/Decisions, Entry & Exit sentinels) on an auto-layout canvas.
-2. **Define Logic via Expressions**: Assign AST expression conditions to decision slots and state updates to step nodes.
+1. **Build Visually**: Arrange execution nodes (Logical Assigner, Agentic Assigner, Switches/Decisions, Entry & Exit sentinels) on an auto-layout canvas.
+2. **Define Logic via Expressions**: Assign AST expression conditions to decision slots and state updates to assigner nodes.
 3. **Inspect Generated Python Code**: Graphboard deterministically compiles your visual graph into clean Python code using standard `LangGraph` primitive calls (`StateGraph`, `add_node`, `add_conditional_edges`) and `TypedDict` state definitions.
 4. **Strict Schema Integrity & Topological Guard**: State variable renames cascade automatically to all referencing nodes/expressions, and variable deletions are strictly blocked if they are referenced. A pre-execution guard validates topological completeness (unset expressions or unconnected nodes) before running the graph.
 
@@ -32,7 +32,6 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 | :--- | :--- | :--- |
 | **START** | Entry point of execution flow | Mapped to `START` sentinel: `workflow.add_edge(START, "first_step")` |
 | **END** | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
-| **STEP** | Performs state updates or task execution | Generated Python function registered via `workflow.add_node("step_name", func)` |
 | **LOGICAL_ASSIGNER** | Performs deterministic inline variable assignments | Generated Python function mutating `state` dict values |
 | **AGENTIC_ASSIGNER** | Invokes LLM agents for state mutations | Generated Python function calling agentic runner |
 | **SWITCH** | Evaluates conditional branching logic | Router function evaluating AST expressions in `if/elif` order, registered via `workflow.add_conditional_edges(...)` |
@@ -47,7 +46,7 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 * **Dynamic Slot Rendering**: Implemented reactive output handles on Switch nodes that sync dynamically via `updateNodeInternals` when slot structures change.
 
 ### Phase 2: Specialized Node Operations & State Schemas
-* **State DEFINER Sentinels**: Protected workflow entry states via a non-deletable `DEFINER` sentinel node featuring a dedicated Radix UI state schema editor.
+* **State Schema Definitions**: Managed workflow state definitions via a dedicated Radix UI state schema editor.
 * **Extensible Operations Containers**: Structured specialized execution nodes (`LOGICAL_ASSIGNER`, `AGENTIC_ASSIGNER`) using decoupled domain models (`definer`, `logical`, `agentic`, `switch`) linked by reference IDs.
 
 ### Phase 3: Server Persistence & WebSocket Sync
@@ -96,7 +95,7 @@ graph TD
 
 * **Handle Lifecycle (`updateNodeInternals`)**: When slots are added or removed dynamically on SWITCH nodes, React Flow's cached handle locations become stale. We listen to `node.slots` changes in `FlowNode.tsx` to trigger `updateNodeInternals(id)` whenever slot structure updates.
 * **CodeMirror Read-Only Guard**: Setting `EditorState.readOnly.of(true)` across CodeMirror locks typing while allowing `@codemirror/language` AST syntax tree iteration to continue driving bidirectional node highlighting and code folding.
-* **Cascading Rename & Blocked Delete**: Renaming a defined variable key cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and Step slot targets). Deleting a defined variable is strictly blocked with a 400 Bad Request error if any references remain in expressions or assignments.
+* **Cascading Rename & Blocked Delete**: Renaming a defined variable key cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and agentic inputs/outputs). Deleting a defined variable is strictly blocked with a 400 Bad Request error if any references remain in expressions or assignments.
 * **State Schema Integration**: State schema variables are declared in a dedicated `state` section of the JSON graph data separate from the nodes/edges, allowing for a cleaner compilation from visual topology to executable LangGraph code.
 * **UoW Transaction Timing & Context Manager**: FastAPI dependency teardown (after `yield`) runs after the HTTP response has been sent. To prevent race conditions where the client refetches data (like generated code) before the database commit completes, all mutating route endpoints must explicitly manage transaction boundaries using `async with uow:` context blocks to guarantee commits are complete before returning the response.
 

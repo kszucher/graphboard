@@ -331,11 +331,11 @@ class PureAstLangGraphCompiler:
         self.flow_data = flow_data
         self.all_variables = [v for v in flow_data.state if v.key] if flow_data.state else []
         self.valid_keys = {v.key for v in self.all_variables}
-        self.definer_ids = set()
+        self.definer_ids: set[str] = set()
         self.executable_nodes = [
             n
             for n in flow_data.nodes
-            if n.node_type in (NodeType.STEP, NodeType.SWITCH, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER)
+            if n.node_type in (NodeType.SWITCH, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER)
         ]
         self.switch_nodes = {n.id: n for n in self.executable_nodes if n.node_type == NodeType.SWITCH}
 
@@ -496,8 +496,6 @@ class PureAstLangGraphCompiler:
                 nodes.append(compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys))
             elif n.node_type == NodeType.AGENTIC_ASSIGNER:
                 nodes.extend(compile_ast_agentic_node(n, self.valid_keys, self.all_variables))
-            else:
-                nodes.append(compile_ast_dict_returning_node(n.id, n.slots, self.valid_keys))
 
         mod = ast.Module(body=imports + self.build_state_ast() + nodes + self.build_workflow_ast(), type_ignores=[])
         return ast.unparse(ast.fix_missing_locations(mod))

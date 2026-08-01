@@ -9,8 +9,6 @@ class EventName(str, Enum):
 class NodeType(str, Enum):
     START = "START"
     END = "END"
-    STEP = "STEP"
     SWITCH = "SWITCH"
-    DEFINER = "DEFINER"
     LOGICAL_ASSIGNER = "LOGICAL_ASSIGNER"
     AGENTIC_ASSIGNER = "AGENTIC_ASSIGNER"

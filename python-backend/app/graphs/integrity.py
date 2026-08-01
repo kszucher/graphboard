@@ -80,9 +80,9 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     if "start" in adj:
         dfs("start")
 
-    # START and DEFINER nodes are excluded from reachability checks
+    # START node is excluded from reachability checks
     for n in flow_data.nodes:
-        if n.node_type in (NodeType.START, NodeType.DEFINER):
+        if n.node_type == NodeType.START:
             continue
         if n.id not in visited:
             raise ValidationError(f"Node '{n.id}' is unreachable from the START node.")
@@ -91,13 +91,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
 
     for n in flow_data.nodes:
-        if n.node_type == NodeType.STEP:
-            for slot in n.slots:
-                if slot.target_var_key and slot.target_var_key not in valid_keys:
-                    raise ValidationError(
-                        f"Invalid mutation target: variable '{slot.target_var_key}' is missing or deleted."
-                    )
-        elif n.node_type == NodeType.LOGICAL_ASSIGNER:
+        if n.node_type == NodeType.LOGICAL_ASSIGNER:
             for asgn in n.assignments or []:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
                     raise ValidationError(

@@ -47,16 +47,16 @@ async def test_add_node(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Action: add a node of type STEP
-    result = await graphs_service.add_node(uow=real_uow, graph_id=dummy_graph.id, node_type=NodeType.STEP)
+    # Action: add a node of type LOGICAL_ASSIGNER
+    result = await graphs_service.add_node(uow=real_uow, graph_id=dummy_graph.id, node_type=NodeType.LOGICAL_ASSIGNER)
 
     await real_uow.commit()
 
     # Assert response
     assert "nodes" in result
-    # Check that a STEP node was created
+    # Check that a LOGICAL_ASSIGNER node was created
     assert len(result["nodes"]) == 1
-    assert result["nodes"][0]["node_type"] == "STEP"
+    assert result["nodes"][0]["node_type"] == "LOGICAL_ASSIGNER"
 
     # Check database records
     await real_uow.session.refresh(dummy_graph)
@@ -69,7 +69,7 @@ async def test_add_node(
     )
     snapshot = res_snap.scalar_one_or_none()
     assert snapshot is not None
-    assert snapshot.flow_json["nodes"][0]["node_type"] == "STEP"
+    assert snapshot.flow_json["nodes"][0]["node_type"] == "LOGICAL_ASSIGNER"
 
 
 @pytest.mark.asyncio
@@ -85,9 +85,9 @@ async def test_undo_redo_graph_flow(
     initial_count = len(dummy_graph.flow_json["nodes"])
 
     # Mutation 1 -> Sequence 1 (Add node)
-    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.STEP)
+    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
     # Mutation 2 -> Sequence 2 (Add another node)
-    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.STEP)
+    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
 
     await real_uow.session.refresh(dummy_graph)
     assert dummy_graph.current_history_sequence == 2
@@ -117,19 +117,19 @@ async def test_run_graph_flow_success(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Setup workflow: START -> STEP (sets x to 42) -> END
+    # Setup workflow: START -> LOGICAL_ASSIGNER (sets x to 42) -> END
     # Declares state variable x: number
     flow_payload: dict[str, Any] = {
         "nodes": [
             {
-                "id": "step_1",
-                "node_type": "STEP",
-                "slots": [{"target_var_key": "x", "expression": {"kind": "literal", "value": 42}}],
+                "id": "assigner_1",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"id": "asgn_1", "target_var_key": "x", "value_type": "number", "expression": {"kind": "literal", "value": 42}}],
             },
         ],
         "edges": [
-            {"source_id": "start", "target_id": "step_1"},
-            {"source_id": "step_1", "source_type": "node", "target_id": "end"},
+            {"source_id": "start", "target_id": "assigner_1"},
+            {"source_id": "assigner_1", "source_type": "node", "target_id": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
@@ -155,7 +155,7 @@ async def test_run_graph_flow_switch_routing(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Test Scenario 1: x = 5 (default_value) -> routes to step_a -> y = 100
+    # Test Scenario 1: x = 5 (default_value) -> routes to assigner_a -> y = 100
     flow_payload_a: dict[str, Any] = {
         "nodes": [
             {
@@ -176,22 +176,22 @@ async def test_run_graph_flow_switch_routing(
                 ],
             },
             {
-                "id": "step_a",
-                "node_type": "STEP",
-                "slots": [{"target_var_key": "y", "expression": {"kind": "literal", "value": 100}}],
+                "id": "assigner_a",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"id": "asgn_a", "target_var_key": "y", "value_type": "number", "expression": {"kind": "literal", "value": 100}}],
             },
             {
-                "id": "step_b",
-                "node_type": "STEP",
-                "slots": [{"target_var_key": "y", "expression": {"kind": "literal", "value": 200}}],
+                "id": "assigner_b",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"id": "asgn_b", "target_var_key": "y", "value_type": "number", "expression": {"kind": "literal", "value": 200}}],
             },
         ],
         "edges": [
             {"source_id": "start", "target_id": "switch_1"},
-            {"source_id": "slot_a", "source_type": "slot", "target_id": "step_a"},
-            {"source_id": "slot_b", "source_type": "slot", "target_id": "step_b"},
-            {"source_id": "step_a", "source_type": "node", "target_id": "end"},
-            {"source_id": "step_b", "source_type": "node", "target_id": "end"},
+            {"source_id": "slot_a", "source_type": "slot", "target_id": "assigner_a"},
+            {"source_id": "slot_b", "source_type": "slot", "target_id": "assigner_b"},
+            {"source_id": "assigner_a", "source_type": "node", "target_id": "end"},
+            {"source_id": "assigner_b", "source_type": "node", "target_id": "end"},
         ],
         "state": [
             {"id": "v1", "key": "x", "type": "number", "default_value": 5},
@@ -208,7 +208,7 @@ async def test_run_graph_flow_switch_routing(
     vars_dict_a = {v["key"]: v["value"] for v in exec_result_a["variables"]}
     assert vars_dict_a.get("y") == 100
 
-    # Test Scenario 2: x = -5 (default_value) -> routes to step_b -> y = 200
+    # Test Scenario 2: x = -5 (default_value) -> routes to assigner_b -> y = 200
     flow_payload_b = dict(flow_payload_a)
     flow_payload_b["state"] = [
         {"id": "v1", "key": "x", "type": "number", "default_value": -5},
@@ -230,18 +230,18 @@ async def test_run_graph_flow_invalid_state_ref(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Step node attempts to mutate target "non_existent" not registered in state
+    # Assigner node attempts to mutate target "non_existent" not registered in state
     flow_payload: dict[str, Any] = {
         "nodes": [
             {
-                "id": "step_1",
-                "node_type": "STEP",
-                "slots": [{"target_var_key": "non_existent", "expression": {"kind": "literal", "value": 42}}],
+                "id": "assigner_1",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"id": "asgn_1", "target_var_key": "non_existent", "value_type": "number", "expression": {"kind": "literal", "value": 42}}],
             },
         ],
         "edges": [
-            {"source_id": "start", "target_id": "step_1"},
-            {"source_id": "step_1", "source_type": "node", "target_id": "end"},
+            {"source_id": "start", "target_id": "assigner_1"},
+            {"source_id": "assigner_1", "source_type": "node", "target_id": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
@@ -263,16 +263,16 @@ async def test_run_graph_flow_cycle_limit(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Cyclic loop: START -> step_1 -> step_2 -> step_1 -> ...
+    # Cyclic loop: START -> assigner_1 -> assigner_2 -> assigner_1 -> ...
     flow_payload: dict[str, Any] = {
         "nodes": [
-            {"id": "step_1", "node_type": "STEP", "slots": []},
-            {"id": "step_2", "node_type": "STEP", "slots": []},
+            {"id": "assigner_1", "node_type": "LOGICAL_ASSIGNER", "assignments": []},
+            {"id": "assigner_2", "node_type": "LOGICAL_ASSIGNER", "assignments": []},
         ],
         "edges": [
-            {"source_id": "start", "target_id": "step_1"},
-            {"source_id": "step_1", "source_type": "node", "target_id": "step_2"},
-            {"source_id": "step_2", "source_type": "node", "target_id": "step_1"},
+            {"source_id": "start", "target_id": "assigner_1"},
+            {"source_id": "assigner_1", "source_type": "node", "target_id": "assigner_2"},
+            {"source_id": "assigner_2", "source_type": "node", "target_id": "assigner_1"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }

@@ -4,6 +4,7 @@ from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
+    LogicalAssignmentSchema,
     NodeRead,
     SlotRead,
 )
@@ -33,31 +34,35 @@ async def test_generate_graph_code_with_variables() -> None:
     assert '"username": "guest"' in code
 
 
-async def test_generate_graph_code_with_step_node() -> None:
+async def test_generate_graph_code_with_logical_assigner() -> None:
     flow_data = GraphFlowData(
         nodes=[
             NodeRead(
-                id="step_1",
-                node_type=NodeType.STEP,
-                slots=[
-                    SlotRead(target_var_key="status", expression={"kind": "literal", "value": "processed"}),
+                id="assigner_1",
+                node_type=NodeType.LOGICAL_ASSIGNER,
+                assignments=[
+                    LogicalAssignmentSchema(
+                        id="asgn_1",
+                        target_var_key="status",
+                        expression={"kind": "literal", "value": "processed"},
+                    ),
                 ],
             ),
         ],
         edges=[
-            EdgeRead(source_id="start", target_id="step_1"),
-            EdgeRead(source_id="step_1", source_type="node", target_id="end"),
+            EdgeRead(source_id="start", target_id="assigner_1"),
+            EdgeRead(source_id="assigner_1", source_type="node", target_id="end"),
         ],
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
         ],
     )
     code = await generate_graph_code(flow_data)
-    assert "def step_1(state: State) -> dict:" in code
+    assert "def assigner_1(state: State) -> dict:" in code
     assert '"status": "processed"' in code
-    assert 'workflow.add_node("step_1", step_1)' in code
-    assert 'workflow.add_edge(START, "step_1")' in code
-    assert 'workflow.add_edge("step_1", END)' in code
+    assert 'workflow.add_node("assigner_1", assigner_1)' in code
+    assert 'workflow.add_edge(START, "assigner_1")' in code
+    assert 'workflow.add_edge("assigner_1", END)' in code
 
 
 async def test_generate_graph_code_with_switch_node() -> None:

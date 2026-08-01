@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from app.constants import NodeType
 from app.graphs.schemas import (
-    DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
     LogicalAssignmentSchema,
@@ -13,8 +12,8 @@ from app.graphs.schemas import (
     SlotRead,
 )
 
-SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END, NodeType.DEFINER}
-SEQUENTIAL_STEP_TYPES = {NodeType.STEP, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER}
+SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
+SEQUENTIAL_STEP_TYPES = {NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER}
 
 _UNSET: Any = object()
 
@@ -41,7 +40,6 @@ def add_node(
     node_id = generate_node_id(node_type, nodes)
 
     slots: list[SlotRead] = []
-    variables: list[DefinerVariableSchema] | None = None
     assignments: list[LogicalAssignmentSchema] | None = None
     prompt: str | None = None
     agentic_inputs: list[str] | None = None
@@ -51,8 +49,6 @@ def add_node(
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
             SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
         ]
-    elif node_type == NodeType.DEFINER:
-        variables = []
     elif node_type == NodeType.LOGICAL_ASSIGNER:
         assignments = []
     elif node_type == NodeType.AGENTIC_ASSIGNER:
@@ -64,7 +60,6 @@ def add_node(
         id=node_id,
         node_type=node_type,
         slots=slots,
-        variables=variables,
         assignments=assignments,
         prompt=prompt,
         agentic_inputs=agentic_inputs,
@@ -137,7 +132,7 @@ def delete_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
     if not target_node:
         return flow_data
 
-    # Sentinel protection: START, END, DEFINER nodes cannot be deleted
+    # Sentinel protection: START and END nodes cannot be deleted
     if target_node.node_type in SENTINEL_NODE_TYPES:
         return flow_data
 
@@ -161,7 +156,7 @@ def shortcircuit_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
 
     target_node = next((n for n in nodes if n.id == node_id), None)
     if not target_node or target_node.node_type not in SEQUENTIAL_STEP_TYPES:
-        return flow_data  # START, END, DEFINER, SWITCH nodes cannot be shortcircuited
+        return flow_data  # START, END, SWITCH nodes cannot be shortcircuited
 
     incoming = [e for e in edges if e.target_id == node_id]
     outgoing = [e for e in edges if e.source_id == node_id]

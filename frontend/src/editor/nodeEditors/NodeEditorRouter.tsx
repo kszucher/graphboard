@@ -44,7 +44,7 @@ export const NodeEditorRouter = ({
       }}
     >
       <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-        Select a <Text weight="bold">STEP</Text>, <Text weight="bold">LOGICAL ASSIGNER</Text>, or <Text
+        Select a <Text weight="bold">LOGICAL ASSIGNER</Text>, <Text weight="bold">AGENTIC ASSIGNER</Text>, or <Text
         weight="bold">SWITCH</Text> node on the canvas to edit operation settings.
       </Text>
     </Box>

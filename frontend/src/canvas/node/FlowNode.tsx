@@ -10,9 +10,7 @@ import { FlowNodeActions } from './FlowNodeActions.tsx';
 const NODE_COLORS: Record<NodeType, BadgeProps['color']> = {
   START: 'gray',
   END: 'gray',
-  STEP: 'purple',
   SWITCH: 'amber',
-  DEFINER: 'blue',
   LOGICAL_ASSIGNER: 'teal',
   AGENTIC_ASSIGNER: 'pink',
 };

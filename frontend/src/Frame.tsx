@@ -9,7 +9,6 @@ import type { NodeType } from './canvas/types';
 import { Sidebar } from './editor/Sidebar.tsx';
 
 const NODE_TYPES: NodeType[] = [
-  'STEP',
   'SWITCH',
   'LOGICAL_ASSIGNER',
   'AGENTIC_ASSIGNER',

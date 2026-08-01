@@ -191,14 +191,7 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
         # Apply rename cascading
         target_var.key = new_key
 
-        # 1. Update target_var_key in STEP slots
-        for node in flow_data.nodes:
-            if node.node_type == NodeType.STEP:
-                for slot in node.slots:
-                    if slot.target_var_key == old_key:
-                        slot.target_var_key = new_key
-
-        # 2. Update target_var_key and expression in LOGICAL_ASSIGNER assignments
+        # 1. Update target_var_key and expression in LOGICAL_ASSIGNER assignments
         for node in flow_data.nodes:
             if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
                 for asgn in node.assignments:
@@ -243,16 +236,7 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
     var_key = target_var.key
 
     # Check dependencies to block delete
-    # 1. Check STEP slots target_var_key
-    for node in flow_data.nodes:
-        if node.node_type == NodeType.STEP:
-            for slot in node.slots:
-                if slot.target_var_key == var_key:
-                    raise ValidationError(
-                        f"Cannot delete variable '{var_key}' because it is referenced by Step node '{node.id}'."
-                    )
-
-    # 2. Check LOGICAL_ASSIGNER assignments target_var_key & expression
+    # 1. Check LOGICAL_ASSIGNER assignments target_var_key & expression
     for node in flow_data.nodes:
         if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
             for asgn in node.assignments:

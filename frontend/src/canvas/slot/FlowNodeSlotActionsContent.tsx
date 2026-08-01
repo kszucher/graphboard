@@ -9,8 +9,9 @@ import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { ApiSlot, InsertableNodeType } from '../types';
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
-  { type: 'STEP', label: 'Step' },
   { type: 'SWITCH', label: 'Switch' },
+  { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
+  { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
 ];
 
 interface SlotActionsContentProps {

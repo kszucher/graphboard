@@ -5,6 +5,8 @@ import { useCallback } from 'react';
 import { useDeleteEdge, useInsertNodeOnEdge } from '../../api/mutations';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 
+import type { InsertableNodeType } from '../types';
+
 interface FlowEdgeActionsProps {
   edgeId: string;
   labelX: number;
@@ -25,7 +27,7 @@ export const FlowEdgeActions = ({
   const { mutateAsync: deleteEdge } = useDeleteEdge(graphId);
 
   const handleInsert = useCallback(
-    (nodeType: 'STEP' | 'SWITCH') => {
+    (nodeType: InsertableNodeType) => {
       const handle = sourceHandleId || source;
       if (handle) {
         void insertNodeOnEdge({ sourceHandle: handle, nodeType });
@@ -67,8 +69,11 @@ export const FlowEdgeActions = ({
                 Insert Node
               </DropdownMenu.SubTrigger>
               <DropdownMenu.SubContent>
-                <DropdownMenu.Item onClick={() => handleInsert('STEP')}>
-                  Step
+                <DropdownMenu.Item onClick={() => handleInsert('LOGICAL_ASSIGNER')}>
+                  Logical Assigner
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => handleInsert('AGENTIC_ASSIGNER')}>
+                  Agentic Assigner
                 </DropdownMenu.Item>
                 <DropdownMenu.Item onClick={() => handleInsert('SWITCH')}>
                   Switch

@@ -57,9 +57,16 @@ def base_flow() -> GraphFlowData:
             ],
         ),
         NodeRead(
-            id="step_1",
-            node_type=NodeType.STEP,
-            slots=[SlotRead(id="step_1_slot", raw_string="success", target_var_key="y")],
+            id="assigner_2",
+            node_type=NodeType.LOGICAL_ASSIGNER,
+            assignments=[
+                LogicalAssignmentSchema(
+                    id="asgn_y",
+                    target_var_key="y",
+                    value_type="boolean",
+                    value=True,
+                )
+            ],
         ),
         NodeRead(id="end", node_type=NodeType.END),
     ]
@@ -67,9 +74,9 @@ def base_flow() -> GraphFlowData:
     edges = [
         EdgeRead(source_id="start", target_id="switch_1"),
         EdgeRead(source_id="switch_1_option_a", target_id="assigner_1"),
-        EdgeRead(source_id="switch_1_option_b", target_id="step_1"),
+        EdgeRead(source_id="switch_1_option_b", target_id="assigner_2"),
         EdgeRead(source_id="assigner_1", target_id="end"),
-        EdgeRead(source_id="step_1", target_id="end"),
+        EdgeRead(source_id="assigner_2", target_id="end"),
     ]
 
     state = [
@@ -124,7 +131,7 @@ def test_blocked_variable_delete_when_referenced(base_flow: GraphFlowData) -> No
     with pytest.raises(ValidationError, match="referenced"):
         graph_operations.delete_definer_variable(base_flow, "var_x")
 
-    # 2. Variable 'y' is referenced in step_1 slots
+    # 2. Variable 'y' is referenced in assigner_2
     with pytest.raises(ValidationError, match="referenced"):
         graph_operations.delete_definer_variable(base_flow, "var_y")
 
@@ -177,8 +184,8 @@ def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> None:
-    # Add an unconnected step node
-    base_flow.nodes.append(NodeRead(id="unconnected_step", node_type=NodeType.STEP))
+    # Add an unconnected assigner node
+    base_flow.nodes.append(NodeRead(id="unconnected_assigner", node_type=NodeType.LOGICAL_ASSIGNER))
 
     with pytest.raises(ValidationError, match="unreachable from the START node"):
         assert_flow_is_complete(base_flow)
@@ -195,11 +202,11 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
             agentic_outputs=["y"],
         )
     )
-    # Reroute step_1 to agentic_1 instead of end, and agentic_1 to end
-    base_flow.edges = [e for e in base_flow.edges if e.source_id != "step_1"]
+    # Reroute assigner_2 to agentic_1 instead of end, and agentic_1 to end
+    base_flow.edges = [e for e in base_flow.edges if e.source_id != "assigner_2"]
     base_flow.edges.extend(
         [
-            EdgeRead(source_id="step_1", target_id="agentic_1"),
+            EdgeRead(source_id="assigner_2", target_id="agentic_1"),
             EdgeRead(source_id="agentic_1", target_id="end"),
         ]
     )
