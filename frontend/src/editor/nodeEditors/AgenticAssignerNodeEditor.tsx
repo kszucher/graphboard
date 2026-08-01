@@ -2,11 +2,7 @@ import { Cross2Icon, PlusIcon } from '@radix-ui/react-icons';
 import { Badge, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUpdateNode } from '../../api/mutations';
-import {
-  NodeEditorCard,
-  TargetVariableChip,
-  useNodeEditorData,
-} from './NodeEditorShared';
+import { NodeEditorCard, TargetVariableChip, useNodeEditorData, } from './NodeEditorShared';
 
 interface AgenticAssignerNodeEditorProps {
   graphId: string;
@@ -114,7 +110,7 @@ export const AgenticAssignerNodeEditor = ({
           {(node?.agentic_inputs || []).map((inputKey) => {
             const isMissing = !stateVariables.some((v) => v.key === inputKey);
             return (
-              <TargetVariableChip key={inputKey} varKey={inputKey} isMissing={isMissing} />
+              <TargetVariableChip key={inputKey} varKey={inputKey} isMissing={isMissing}/>
             );
           })}
         </Flex>
@@ -136,7 +132,7 @@ export const AgenticAssignerNodeEditor = ({
             const type = stateVariables.find((v) => v.key === outputKey)?.type;
             return (
               <Flex key={outputKey} align="center" gap="1">
-                <TargetVariableChip varKey={outputKey} isMissing={isMissing} />
+                <TargetVariableChip varKey={outputKey} isMissing={isMissing}/>
                 {type && (
                   <Badge color="blue" size="1" variant="soft" style={{ fontFamily: 'monospace' }}>
                     {type}
@@ -204,7 +200,7 @@ export const AgenticAssignerNodeEditor = ({
                 onClick={() => handleRemoveInput(key)}
                 style={{ cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}
               >
-                <Cross2Icon width="10" height="10" />
+                <Cross2Icon width="10" height="10"/>
               </Box>
             </Badge>
           ))}
@@ -253,7 +249,7 @@ export const AgenticAssignerNodeEditor = ({
                 onClick={() => handleRemoveOutput(key)}
                 style={{ cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}
               >
-                <Cross2Icon width="10" height="10" />
+                <Cross2Icon width="10" height="10"/>
               </Box>
             </Badge>
           ))}
@@ -340,7 +336,7 @@ export const AgenticAssignerNodeEditor = ({
         disabled={disabled || isSaving || !prompt.trim() || outputs.length === 0}
         style={{ cursor: disabled ? 'default' : 'pointer', width: '100%', marginTop: '4px' }}
       >
-        <PlusIcon width="14" height="14" /> {isSaving ? 'Saving...' : 'Save Agentic Statement'}
+        <PlusIcon width="14" height="14"/> {isSaving ? 'Saving...' : 'Save Agentic Statement'}
       </Button>
     </Flex>
   );

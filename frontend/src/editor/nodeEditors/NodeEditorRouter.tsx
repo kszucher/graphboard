@@ -1,8 +1,8 @@
 import { Box, Text } from '@radix-ui/themes';
 import type { AppFlowNode, NodeType } from '../../canvas/types';
+import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
-import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
 
 interface NodeEditorRouterProps {
   graphId: string;

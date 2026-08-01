@@ -1,8 +1,8 @@
 import { QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ASTExpression, NodeType } from '../../canvas/types';
 import { apiClient, getClientId } from '../client';
-import { queryKeys } from '../queryKeys';
 import type { components } from '../generated/schema';
+import { queryKeys } from '../queryKeys';
 
 const handleMutationSuccess = (
   queryClient: QueryClient,

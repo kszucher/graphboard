@@ -39,7 +39,13 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
         }}
       >
         {/* Top Panel: Workflow Code Viewer (50% height) */}
-        <Box style={{ height: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '16px 16px 8px 16px' }}>
+        <Box style={{
+          height: '50%',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '16px 16px 8px 16px'
+        }}>
           <FullCodeEditor graphId={graphId}/>
         </Box>
 

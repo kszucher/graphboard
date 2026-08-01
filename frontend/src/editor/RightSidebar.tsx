@@ -19,7 +19,7 @@ export const RightSidebar = ({ graphId }: RightSidebarProps) => {
         overflow: 'hidden',
       }}
     >
-      <FullCodeEditor graphId={graphId} />
+      <FullCodeEditor graphId={graphId}/>
     </Box>
   );
 };

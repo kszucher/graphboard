@@ -5,13 +5,7 @@ import { useCreateDefinerVariable, useDeleteDefinerVariable } from '../../api/mu
 import { useGraphQuery } from '../../api/queries';
 import type { DefinerVariable } from '../../canvas/types';
 import { coerceTypedValue, validateVariableName } from './ExpressionEngine';
-import {
-  ExpressionChip,
-  NodeEditorCard,
-  StaticRow,
-  TargetVariableChip,
-  TypedValueInput,
-} from './NodeEditorShared';
+import { ExpressionChip, NodeEditorCard, StaticRow, TargetVariableChip, TypedValueInput, } from './NodeEditorShared';
 
 interface StateEditorProps {
   graphId: string;

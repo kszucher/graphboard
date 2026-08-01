@@ -41,10 +41,10 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
       <Flex direction="column" gap="4" style={{ minHeight: 0 }}>
         {/* 1. Graph State Schema */}
         <Box style={{ flexShrink: 0 }}>
-          <StateEditor graphId={graphId} disabled={!isGraphSelected} />
+          <StateEditor graphId={graphId} disabled={!isGraphSelected}/>
         </Box>
 
-        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }} />
+        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
 
         {/* 2. Switch Editor (Only active if Switch node is selected) */}
         <Box
@@ -55,7 +55,7 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
           }}
         >
           {isSwitchActive ? (
-            <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
+            <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected}/>
           ) : (
             <Box
               style={{
@@ -75,7 +75,7 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
           )}
         </Box>
 
-        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }} />
+        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
 
         {/* 3. Logical Assigner Editor (Only active if Logical Assigner node is selected) */}
         <Box
@@ -86,7 +86,7 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
           }}
         >
           {isLogicalActive ? (
-            <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
+            <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected}/>
           ) : (
             <Box
               style={{
@@ -106,7 +106,7 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
           )}
         </Box>
 
-        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }} />
+        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
 
         {/* 4. Agentic Assigner Editor (Only active if Agentic Assigner node is selected) */}
         <Box
@@ -117,7 +117,7 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
           }}
         >
           {isAgenticActive ? (
-            <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected} />
+            <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={!isGraphSelected}/>
           ) : (
             <Box
               style={{
