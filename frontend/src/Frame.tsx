@@ -1,12 +1,13 @@
-import { CaretDownIcon, CheckIcon, MixIcon, PlayIcon, ReaderIcon, ResetIcon } from '@radix-ui/react-icons';
+import { CaretDownIcon, CheckIcon, MixIcon, PlayIcon, ResetIcon } from '@radix-ui/react-icons';
 import { Box, Button, DropdownMenu, Flex, IconButton, Text } from '@radix-ui/themes';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAddNode, useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
 import type { NodeType } from './canvas/types';
-import { Sidebar } from './editor/Sidebar.tsx';
+import { LeftSidebar } from './editor/LeftSidebar.tsx';
+import { RightSidebar } from './editor/RightSidebar.tsx';
 
 const NODE_TYPES: NodeType[] = [
   'SWITCH',
@@ -19,7 +20,6 @@ export const Frame = () => {
   const { data: selectedGraphId } = useActiveGraphId(userId ?? null);
   const { data: graphFlow } = useGraphQuery(selectedGraphId || '');
   const { data: graphs } = useUserGraphs(userId ?? null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { mutate: undo } = useUndo(selectedGraphId || '');
   const { mutate: redo } = useRedo(selectedGraphId || '');
@@ -70,22 +70,12 @@ export const Frame = () => {
         style={{
           zIndex: 9999,
           backgroundColor: 'rgba(32, 32, 36, 0.9)',
-          // backdropFilter: 'blur(6px)',
           borderBottom: '1px solid var(--gray-4)',
         }}
       >
         <Flex direction="row" align="center" justify="between" height="100%">
           {/* Left */}
           <Flex align="center" gap="2" width={'192px'}>
-            <IconButton
-              variant="ghost"
-              color="gray"
-              radius="full"
-              onClick={() => setIsSidebarOpen(prev => !prev)}
-              aria-label="Toggle Sidebar"
-            >
-              <ReaderIcon width="18" height="18"/>
-            </IconButton>
             <Text size="2" weight="bold" color="gray">
               graphboard
             </Text>
@@ -120,7 +110,7 @@ export const Frame = () => {
 
             {/* New Graph Button */}
             <IconButton variant="soft" color="gray" radius="full" onClick={handleCreateGraph}>
-              +{/* or any icon you like */}
+              +
             </IconButton>
           </Flex>
 
@@ -171,7 +161,7 @@ export const Frame = () => {
         </Flex>
       </Box>
 
-      {/* Main Workspace (Sidebar + Canvas) */}
+      {/* Main Workspace (Left Sidebar + Canvas + Right Sidebar) */}
       <ReactFlowProvider key={selectedGraphId || 'no-graph'}>
         <Flex
           style={{
@@ -183,8 +173,8 @@ export const Frame = () => {
             backgroundColor: 'var(--gray-1)',
           }}
         >
-          {/* Sidebar Component */}
-          <Sidebar isSidebarOpen={isSidebarOpen} isGraphSelected={isGraphSelected} graphId={selectedGraphId || ''}/>
+          {/* Left Sidebar Component */}
+          <LeftSidebar isGraphSelected={isGraphSelected} graphId={selectedGraphId || ''}/>
 
           {/* Flow Canvas Container */}
           <Box
@@ -199,6 +189,9 @@ export const Frame = () => {
               <Flow selectedGraphId={selectedGraphId}/>
             )}
           </Box>
+
+          {/* Right Sidebar Component */}
+          <RightSidebar graphId={selectedGraphId || ''}/>
         </Flex>
       </ReactFlowProvider>
     </>

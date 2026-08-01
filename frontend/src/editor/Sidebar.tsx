@@ -18,8 +18,8 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
   return (
     <Box
       style={{
-        width: isSidebarOpen ? '580px' : '0px',
-        minWidth: isSidebarOpen ? '580px' : '0px',
+        width: isSidebarOpen ? '500px' : '0px',
+        minWidth: isSidebarOpen ? '500px' : '0px',
         height: '100%',
         borderRight: isSidebarOpen ? '1px solid var(--gray-4)' : 'none',
         backgroundColor: 'var(--gray-2)',
@@ -32,7 +32,7 @@ export const Sidebar = ({ isSidebarOpen, isGraphSelected, graphId }: SidebarProp
       <Flex
         direction="column"
         style={{
-          width: '580px',
+          width: '500px',
           height: '100%',
           minHeight: 0,
           boxSizing: 'border-box',
