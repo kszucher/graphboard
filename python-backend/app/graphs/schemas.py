@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Literal, TypeAlias, TypedDict
+from typing import Annotated, Any, Literal, TypeAlias, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -60,14 +60,96 @@ class SlotRead(BaseModel):
     target_var_key: str | None = None
 
 
-class NodeRead(BaseModel):
+class BaseNode(BaseModel):
     id: str
-    node_type: NodeType
+
+
+class StartNode(BaseNode):
+    node_type: Literal[NodeType.START] = NodeType.START
+
+
+class EndNode(BaseNode):
+    node_type: Literal[NodeType.END] = NodeType.END
+
+
+class LogicalAssignerNode(BaseNode):
+    node_type: Literal[NodeType.LOGICAL_ASSIGNER] = NodeType.LOGICAL_ASSIGNER
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+
+class AgenticAssignerNode(BaseNode):
+    node_type: Literal[NodeType.AGENTIC_ASSIGNER] = NodeType.AGENTIC_ASSIGNER
+    prompt: str = ""
+    agentic_inputs: list[str] = Field(default_factory=list)
+    agentic_outputs: list[str] = Field(default_factory=list)
+
+
+class SwitchNode(BaseNode):
+    node_type: Literal[NodeType.SWITCH] = NodeType.SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
-    assignments: list[LogicalAssignmentSchema] | None = None
-    prompt: str | None = None
-    agentic_inputs: list[str] | None = None
-    agentic_outputs: list[str] | None = None
+
+
+# ── Sequential (no slots) ────────────────────────────────────────
+
+
+class InterruptNode(BaseNode):
+    node_type: Literal[NodeType.INTERRUPT] = NodeType.INTERRUPT
+    payload_vars: list[str] = Field(default_factory=list)
+    resume_var: str = ""
+
+
+class ExtractNode(BaseNode):
+    node_type: Literal[NodeType.EXTRACT] = NodeType.EXTRACT
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+
+class ValidateNode(BaseNode):
+    node_type: Literal[NodeType.VALIDATE] = NodeType.VALIDATE
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+
+class ReviewNode(BaseNode):
+    node_type: Literal[NodeType.REVIEW] = NodeType.REVIEW
+
+
+# ── Routing (have slots) ─────────────────────────────────────────
+
+
+class AgenticSwitchNode(BaseNode):
+    node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
+    slots: list[SlotRead] = Field(default_factory=list)
+    prompt: str = ""
+    agentic_inputs: list[str] = Field(default_factory=list)
+
+
+class RetryNode(BaseNode):
+    node_type: Literal[NodeType.RETRY] = NodeType.RETRY
+    slots: list[SlotRead] = Field(default_factory=list)
+    max_attempts: int = 3
+    valid_expression: dict[str, Any] | None = None
+
+
+class ConfirmNode(BaseNode):
+    node_type: Literal[NodeType.CONFIRM] = NodeType.CONFIRM
+    slots: list[SlotRead] = Field(default_factory=list)
+    payload_vars: list[str] = Field(default_factory=list)
+
+
+NodeRead: TypeAlias = Annotated[
+    StartNode
+    | EndNode
+    | LogicalAssignerNode
+    | AgenticAssignerNode
+    | InterruptNode
+    | ExtractNode
+    | ValidateNode
+    | ReviewNode
+    | SwitchNode
+    | AgenticSwitchNode
+    | RetryNode
+    | ConfirmNode,
+    Field(discriminator="node_type"),
+]
 
 
 class EdgeRead(BaseModel):
@@ -107,6 +189,10 @@ class NodeUpdateRequest(BaseModel):
     prompt: str | None = None
     agentic_inputs: list[str] | None = None
     agentic_outputs: list[str] | None = None
+    payload_vars: list[str] | None = None
+    resume_var: str | None = None
+    max_attempts: int | None = None
+    valid_expression: dict[str, Any] | None = None
 
 
 class DefinerVariableCreateRequest(BaseModel):

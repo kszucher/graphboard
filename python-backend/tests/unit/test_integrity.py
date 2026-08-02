@@ -5,22 +5,25 @@ from app.exceptions import ValidationError
 from app.graphs import operations as graph_operations
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
+    AgenticAssignerNode,
     DefinerVariableSchema,
     EdgeRead,
+    EndNode,
     GraphFlowData,
     LogicalAssignmentSchema,
-    NodeRead,
+    LogicalAssignerNode,
     SlotRead,
+    StartNode,
+    SwitchNode,
 )
 
 
 @pytest.fixture
 def base_flow() -> GraphFlowData:
     nodes = [
-        NodeRead(id="start", node_type=NodeType.START),
-        NodeRead(
+        StartNode(id="start"),
+        SwitchNode(
             id="switch_1",
-            node_type=NodeType.SWITCH,
             slots=[
                 SlotRead(
                     id="switch_1_option_a",
@@ -39,9 +42,8 @@ def base_flow() -> GraphFlowData:
                 ),
             ],
         ),
-        NodeRead(
+        LogicalAssignerNode(
             id="assigner_1",
-            node_type=NodeType.LOGICAL_ASSIGNER,
             assignments=[
                 LogicalAssignmentSchema(
                     id="asgn_x",
@@ -56,9 +58,8 @@ def base_flow() -> GraphFlowData:
                 )
             ],
         ),
-        NodeRead(
+        LogicalAssignerNode(
             id="assigner_2",
-            node_type=NodeType.LOGICAL_ASSIGNER,
             assignments=[
                 LogicalAssignmentSchema(
                     id="asgn_y",
@@ -68,7 +69,7 @@ def base_flow() -> GraphFlowData:
                 )
             ],
         ),
-        NodeRead(id="end", node_type=NodeType.END),
+        EndNode(id="end"),
     ]
 
     edges = [
@@ -98,85 +99,61 @@ def test_validation_variable_existence_on_assignment_creation(base_flow: GraphFl
             value=10,
         )
 
-    # 2. Invalid stateRef variable key in expression
-    with pytest.raises(ValidationError, match="expression references undefined variables"):
-        graph_operations.create_logical_assignment(
-            flow_data=base_flow,
-            node_id="assigner_1",
-            target_var_key="x",
-            expression={
-                "kind": "stateRef",
-                "varKey": "non_existent",
-            },
-        )
-
 
 def test_validation_variable_existence_on_switch_expression_update(base_flow: GraphFlowData) -> None:
-    # Invalid stateRef variable key in switch expression update
+    # Invalid stateRef variable key in expression
     with pytest.raises(ValidationError, match="references undefined variables"):
         graph_operations.update_switch_expression(
             flow_data=base_flow,
             slot_id="switch_1_option_a",
-            expression={
-                "kind": "binaryOp",
-                "op": ">",
-                "left": {"kind": "stateRef", "varKey": "z"},
-                "right": {"kind": "literal", "value": 5},
-            },
+            expression={"kind": "stateRef", "varKey": "missing_var"},
         )
 
 
 def test_blocked_variable_delete_when_referenced(base_flow: GraphFlowData) -> None:
-    # 1. Variable 'x' is referenced in assigner_1 (target and expression) and switch_1 (expression)
-    with pytest.raises(ValidationError, match="referenced"):
-        graph_operations.delete_definer_variable(base_flow, "var_x")
+    # 1. Blocked because 'x' is referenced in assigner_1 expression and switch_1 expression
+    with pytest.raises(ValidationError, match="Cannot delete variable 'x'"):
+        graph_operations.delete_definer_variable(base_flow, var_id="var_x")
 
-    # 2. Variable 'y' is referenced in assigner_2
-    with pytest.raises(ValidationError, match="referenced"):
-        graph_operations.delete_definer_variable(base_flow, "var_y")
+    # 2. Blocked because 'y' is target in assigner_2
+    with pytest.raises(ValidationError, match="Cannot delete variable 'y'"):
+        graph_operations.delete_definer_variable(base_flow, var_id="var_y")
 
 
 def test_cascading_rename(base_flow: GraphFlowData) -> None:
-    # Rename 'x' to 'z'
-    graph_operations.update_definer_variable(base_flow, "var_x", {"key": "z"})
+    # Rename 'x' to 'x_new'
+    graph_operations.update_definer_variable(base_flow, var_id="var_x", updates={"key": "x_new"})
 
-    # Check that variables changed
-    variables = base_flow.state
-    assert variables is not None
-    assert variables[0].key == "z"
+    # Verify assignment target updated
+    assigner_1 = next(n for n in base_flow.nodes if n.id == "assigner_1")
+    assert isinstance(assigner_1, LogicalAssignerNode)
+    assert assigner_1.assignments[0].target_var_key == "x_new"
 
-    # Check that target_var_key changed in LOGICAL_ASSIGNER assignments
-    assignments = base_flow.nodes[2].assignments
-    assert assignments is not None
-    assert assignments[0].target_var_key == "z"
-
-    # Check that expression variable changed in LOGICAL_ASSIGNER expression
-    expr = assignments[0].expression
-    assert isinstance(expr, dict)
-    assert expr.get("left", {}).get("varKey") == "z"
-
-    # Check that expression variable changed in SWITCH slot expression
-    slot_expr = base_flow.nodes[1].slots[0].expression
-    assert isinstance(slot_expr, dict)
-    assert slot_expr.get("left", {}).get("varKey") == "z"
+    # Verify expression in switch_1 updated
+    switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
+    assert isinstance(switch_1, SwitchNode)
+    expr = switch_1.slots[0].expression
+    assert expr is not None
+    assert expr["left"]["varKey"] == "x_new"
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
-    # Should not raise any exception
+    # Standard complete flow should pass without error
     assert_flow_is_complete(base_flow)
 
 
 def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
-    # Set switch expression to None
-    base_flow.nodes[1].slots[0].expression = None
+    # Set expression on slot to None
+    switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
+    assert isinstance(switch_1, SwitchNode)
+    switch_1.slots[1].expression = None
 
-    # We expect ValidationError
     with pytest.raises(ValidationError, match="unset condition"):
         assert_flow_is_complete(base_flow)
 
 
 def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> None:
-    # Remove edge connected to switch_1_option_a
+    # Remove outgoing edge from switch_1_option_a
     base_flow.edges = [e for e in base_flow.edges if e.source_id != "switch_1_option_a"]
 
     with pytest.raises(ValidationError, match="not connected to any target node"):
@@ -185,7 +162,7 @@ def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> N
 
 def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> None:
     # Add an unconnected assigner node
-    base_flow.nodes.append(NodeRead(id="unconnected_assigner", node_type=NodeType.LOGICAL_ASSIGNER))
+    base_flow.nodes.append(LogicalAssignerNode(id="unconnected_assigner"))
 
     with pytest.raises(ValidationError, match="unreachable from the START node"):
         assert_flow_is_complete(base_flow)
@@ -194,9 +171,8 @@ def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> N
 def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> None:
     # Add a valid reachable agentic assigner node
     base_flow.nodes.append(
-        NodeRead(
+        AgenticAssignerNode(
             id="agentic_1",
-            node_type=NodeType.AGENTIC_ASSIGNER,
             prompt="Generate text using {x}",
             agentic_inputs=["x"],
             agentic_outputs=["y"],

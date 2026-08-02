@@ -1,12 +1,13 @@
-from app.constants import NodeType
 from app.graphs.compiler import generate_graph_code
 from app.graphs.schemas import (
+    AgenticAssignerNode,
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
     LogicalAssignmentSchema,
-    NodeRead,
+    LogicalAssignerNode,
     SlotRead,
+    SwitchNode,
 )
 
 
@@ -37,9 +38,8 @@ async def test_generate_graph_code_with_variables() -> None:
 async def test_generate_graph_code_with_logical_assigner() -> None:
     flow_data = GraphFlowData(
         nodes=[
-            NodeRead(
+            LogicalAssignerNode(
                 id="assigner_1",
-                node_type=NodeType.LOGICAL_ASSIGNER,
                 assignments=[
                     LogicalAssignmentSchema(
                         id="asgn_1",
@@ -68,9 +68,8 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
 async def test_generate_graph_code_with_switch_node() -> None:
     flow_data = GraphFlowData(
         nodes=[
-            NodeRead(
+            SwitchNode(
                 id="switch_1",
-                node_type=NodeType.SWITCH,
                 slots=[
                     SlotRead(
                         id="slot_a",
@@ -100,9 +99,8 @@ async def test_generate_graph_code_with_switch_node() -> None:
 async def test_generate_graph_code_with_agentic_assigner() -> None:
     flow_data = GraphFlowData(
         nodes=[
-            NodeRead(
+            AgenticAssignerNode(
                 id="agentic_1",
-                node_type=NodeType.AGENTIC_ASSIGNER,
                 prompt="Generate a question about {category}.",
                 agentic_inputs=["category"],
                 agentic_outputs=["question"],
@@ -118,6 +116,12 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
         ],
     )
     code = await generate_graph_code(flow_data)
+    assert "class agentic_1Output(BaseModel):" in code
+    assert "question: str" in code
+    assert "def agentic_1(state: State) -> dict:" in code
+    assert 'workflow.add_node("agentic_1", agentic_1)' in code
+    assert 'workflow.add_edge(START, "agentic_1")' in code
+    assert 'workflow.add_edge("agentic_1", END)' in code
     assert "class agentic_1Output(BaseModel):" in code
     assert "question: str" in code
     assert "def agentic_1(state: State) -> dict:" in code

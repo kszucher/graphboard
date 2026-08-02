@@ -4,10 +4,12 @@ from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.schemas import (
+    AgenticAssignerNode,
     DefinerVariableSchema,
     GraphFlowData,
     LogicalAssignmentSchema,
-    NodeRead,
+    LogicalAssignerNode,
+    SwitchNode,
 )
 
 
@@ -135,7 +137,7 @@ def test_delete_definer_variable() -> None:
 def test_create_logical_assignment_success() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
+            LogicalAssignerNode(id="assigner_1", assignments=[]),
         ],
         edges=[],
         state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0)],
@@ -165,7 +167,7 @@ def test_create_logical_assignment_success() -> None:
 def test_create_logical_assignment_invalid_variable() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(id="assigner_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[]),
+            LogicalAssignerNode(id="assigner_1", assignments=[]),
         ],
         edges=[],
         state=[],
@@ -179,9 +181,8 @@ def test_create_logical_assignment_invalid_variable() -> None:
 def test_update_logical_assignment() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(
+            LogicalAssignerNode(
                 id="assigner_1",
-                node_type=NodeType.LOGICAL_ASSIGNER,
                 assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value_type="number", value=10)],
             ),
         ],
@@ -217,9 +218,8 @@ def test_update_logical_assignment() -> None:
 def test_delete_logical_assignment() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(
+            LogicalAssignerNode(
                 id="assigner_1",
-                node_type=NodeType.LOGICAL_ASSIGNER,
                 assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="x", value=10)],
             )
         ],
@@ -236,9 +236,8 @@ def test_delete_logical_assignment() -> None:
 def test_agentic_assigner_cascade_rename_and_blocked_delete() -> None:
     flow = GraphFlowData(
         nodes=[
-            NodeRead(
+            AgenticAssignerNode(
                 id="agentic_1",
-                node_type=NodeType.AGENTIC_ASSIGNER,
                 prompt="Prompt with {x}",
                 agentic_inputs=["x"],
                 agentic_outputs=["x"],

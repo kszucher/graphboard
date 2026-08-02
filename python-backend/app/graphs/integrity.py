@@ -4,7 +4,20 @@ from typing import Any
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
-from app.graphs.schemas import GraphFlowData
+from app.graphs.schemas import (
+    AgenticAssignerNode,
+    AgenticSwitchNode,
+    ConfirmNode,
+    ExtractNode,
+    GraphFlowData,
+    InterruptNode,
+    LogicalAssignerNode,
+    RetryNode,
+    ReviewNode,
+    StartNode,
+    SwitchNode,
+    ValidateNode,
+)
 
 
 def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[str]) -> set[str]:
@@ -27,35 +40,54 @@ def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[s
 
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
-    """Verifies that the graph is topologically complete and has valid references before execution.
-
-    Raises ValidationError if there are:
-      1. Unset expressions in SWITCH node slots.
-      2. Unconnected switch slots (no outgoing edge).
-      3. Unreachable nodes (no path from START node).
-      4. Invalid variable reference targets or expression state references.
-    """
-    # 1. Check Unset Expressions and Unconnected Slots on SWITCH nodes
-    switch_nodes = [n for n in flow_data.nodes if n.node_type == NodeType.SWITCH]
+    """Verifies that the graph is topologically complete and has valid references before execution."""
     edge_sources = {e.source_id for e in flow_data.edges}
 
-    for n in switch_nodes:
-        for slot in n.slots:
-            if slot.expression is None:
-                raise ValidationError(f"Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'.")
-            if slot.id not in edge_sources:
-                raise ValidationError(
-                    f"Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
-                )
+    # Filter out synthetic nodes (starting with __)
+    user_nodes = [n for n in flow_data.nodes if not n.id.startswith("__")]
+
+    # 1. Check Unset Expressions and Unconnected Slots on routing nodes
+    for n in user_nodes:
+        if isinstance(n, SwitchNode):
+            for slot in n.slots:
+                if slot.expression is None:
+                    raise ValidationError(f"Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'.")
+                if slot.id not in edge_sources:
+                    raise ValidationError(
+                        f"Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                    )
+        elif isinstance(n, AgenticSwitchNode):
+            for slot in n.slots:
+                if slot.id not in edge_sources:
+                    raise ValidationError(
+                        f"Agentic Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                    )
+        elif isinstance(n, RetryNode):
+            if n.valid_expression is None:
+                raise ValidationError(f"Retry node '{n.id}' must have a valid condition expression configured.")
+            if n.max_attempts <= 0:
+                raise ValidationError(f"Retry node '{n.id}' max_attempts must be greater than 0.")
+            for slot in n.slots:
+                if slot.id not in edge_sources:
+                    raise ValidationError(
+                        f"Retry option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                    )
+        elif isinstance(n, ConfirmNode):
+            for slot in n.slots:
+                if slot.id not in edge_sources:
+                    raise ValidationError(
+                        f"Confirm option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                    )
 
     # 2. Check reachability of nodes from "start"
     slot_to_node: dict[str, str] = {}
-    for n in flow_data.nodes:
-        for s in n.slots:
-            slot_to_node[s.id] = n.id
+    for node_item in user_nodes:
+        if hasattr(node_item, "slots"):
+            for s in getattr(node_item, "slots", []):
+                slot_to_node[s.id] = node_item.id
 
     # Build adjacency list: node_id -> set of target node_ids
-    adj: dict[str, set[str]] = {n.id: set() for n in flow_data.nodes}
+    adj: dict[str, set[str]] = {n.id: set() for n in user_nodes}
     if "start" not in adj:
         adj["start"] = set()
     if "end" not in adj:
@@ -81,18 +113,24 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
         dfs("start")
 
     # START node is excluded from reachability checks
-    for n in flow_data.nodes:
-        if n.node_type == NodeType.START:
+    for node_item in user_nodes:
+        if isinstance(node_item, StartNode):
             continue
-        if n.id not in visited:
-            raise ValidationError(f"Node '{n.id}' is unreachable from the START node.")
+        if node_item.id not in visited:
+            raise ValidationError(f"Node '{node_item.id}' is unreachable from the START node.")
 
     # 3. Check for invalid variable references
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
 
-    for n in flow_data.nodes:
-        if n.node_type == NodeType.LOGICAL_ASSIGNER:
-            for asgn in n.assignments or []:
+    for node_item in user_nodes:
+        if isinstance(node_item, (LogicalAssignerNode, ExtractNode, ValidateNode)):
+            if isinstance(node_item, (ExtractNode, ValidateNode)) and len(node_item.assignments) != 1:
+                raise ValidationError(f"Node '{node_item.id}' must have exactly 1 assignment.")
+            if isinstance(node_item, ValidateNode) and node_item.assignments:
+                if node_item.assignments[0].value_type != "boolean":
+                    raise ValidationError(f"Validate node '{node_item.id}' assignment target must be boolean.")
+
+            for asgn in node_item.assignments:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
                     raise ValidationError(
                         f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted."
@@ -103,24 +141,41 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
                         )
-        elif n.node_type == NodeType.SWITCH:
-            for slot in n.slots:
+        elif isinstance(node_item, SwitchNode):
+            for slot in node_item.slots:
                 if slot.expression:
                     invalid_refs = _find_invalid_state_refs(slot.expression, valid_keys)
                     if invalid_refs:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
                         )
-        elif n.node_type == NodeType.AGENTIC_ASSIGNER:
-            if not n.prompt or not n.prompt.strip():
-                raise ValidationError(f"Agentic Assigner node '{n.id}' has an empty prompt.")
-            if not n.agentic_outputs:
-                raise ValidationError(f"Agentic Assigner node '{n.id}' must have at least one output variable.")
-            if n.agentic_inputs:
-                for k in n.agentic_inputs:
+        elif isinstance(node_item, (AgenticAssignerNode, AgenticSwitchNode)):
+            if not node_item.prompt or not node_item.prompt.strip():
+                raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
+            if isinstance(node_item, AgenticAssignerNode) and not node_item.agentic_outputs:
+                raise ValidationError(f"Agentic Assigner node '{node_item.id}' must have at least one output variable.")
+            if node_item.agentic_inputs:
+                for k in node_item.agentic_inputs:
                     if k not in valid_keys:
                         raise ValidationError(f"Invalid input reference: variable '{k}' is missing or deleted.")
-            if n.agentic_outputs:
-                for k in n.agentic_outputs:
+            if isinstance(node_item, AgenticAssignerNode) and node_item.agentic_outputs:
+                for k in node_item.agentic_outputs:
                     if k not in valid_keys:
                         raise ValidationError(f"Invalid output target: variable '{k}' is missing or deleted.")
+        elif isinstance(node_item, InterruptNode):
+            if not node_item.resume_var or node_item.resume_var not in valid_keys:
+                raise ValidationError(f"Interrupt node '{node_item.id}' must have a valid resume_var.")
+            for k in node_item.payload_vars:
+                if k not in valid_keys:
+                    raise ValidationError(f"Interrupt node '{node_item.id}' payload variable '{k}' is missing.")
+        elif isinstance(node_item, ConfirmNode):
+            for k in node_item.payload_vars:
+                if k not in valid_keys:
+                    raise ValidationError(f"Confirm node '{node_item.id}' payload variable '{k}' is missing.")
+        elif isinstance(node_item, RetryNode):
+            if node_item.valid_expression:
+                invalid_refs = _find_invalid_state_refs(node_item.valid_expression, valid_keys)
+                if invalid_refs:
+                    raise ValidationError(
+                        f"Invalid state reference in Retry node '{node_item.id}': variable '{next(iter(invalid_refs))}' is missing."
+                    )

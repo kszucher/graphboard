@@ -13,7 +13,15 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any, cast
 
 from app.constants import NodeType
-from app.graphs.schemas import DefinerVariableSchema, GraphFlowData, NodeRead, SlotRead
+from app.graphs.schemas import (
+    AgenticAssignerNode,
+    DefinerVariableSchema,
+    GraphFlowData,
+    LogicalAssignerNode,
+    NodeRead,
+    SlotRead,
+    SwitchNode,
+)
 
 try:
     import black
@@ -128,7 +136,7 @@ def compile_ast_dict_returning_node(node_id: str, items: list[Any], valid_keys: 
 
 
 def compile_ast_agentic_node(
-    node: NodeRead,
+    node: AgenticAssignerNode,
     valid_keys: set[str],
     all_variables: list[DefinerVariableSchema],
 ) -> list[ast.stmt]:
@@ -335,9 +343,9 @@ class PureAstLangGraphCompiler:
         self.executable_nodes = [
             n
             for n in flow_data.nodes
-            if n.node_type in (NodeType.SWITCH, NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER)
+            if isinstance(n, (SwitchNode, LogicalAssignerNode, AgenticAssignerNode))
         ]
-        self.switch_nodes = {n.id: n for n in self.executable_nodes if n.node_type == NodeType.SWITCH}
+        self.switch_nodes = {n.id: n for n in self.executable_nodes if isinstance(n, SwitchNode)}
 
     def resolve_target_id(self, target_id: str, visited: set[str] | None = None) -> str:
         visited = visited or set()
@@ -418,7 +426,7 @@ class PureAstLangGraphCompiler:
 
         # Add Nodes
         for n in self.executable_nodes:
-            if n.node_type == NodeType.SWITCH and not switch_sources[n.id]:
+            if isinstance(n, SwitchNode) and not switch_sources[n.id]:
                 dummy_lambda = ast.Lambda(
                     args=ast.arguments(
                         posonlyargs=[], args=[ast.arg(arg="state")], kwonlyargs=[], kw_defaults=[], defaults=[]
@@ -426,7 +434,7 @@ class PureAstLangGraphCompiler:
                     body=ast.Constant(value=None),
                 )
                 stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), dummy_lambda))
-            elif n.node_type != NodeType.SWITCH:
+            elif not isinstance(n, SwitchNode):
                 stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), ast.Name(id=n.id, ctx=ast.Load())))
 
         # Add Edges
@@ -480,7 +488,7 @@ class PureAstLangGraphCompiler:
         return stmts
 
     def compile(self) -> str:
-        has_agentic = any(n.node_type == NodeType.AGENTIC_ASSIGNER for n in self.executable_nodes)
+        has_agentic = any(isinstance(n, AgenticAssignerNode) for n in self.executable_nodes)
         import_lines = [
             "from typing import TypedDict, Literal, Any",
             "from langgraph.graph import StateGraph, START, END",
@@ -490,11 +498,11 @@ class PureAstLangGraphCompiler:
         imports = ast.parse("\n".join(import_lines)).body
         nodes: list[ast.stmt] = []
         for n in self.executable_nodes:
-            if n.node_type == NodeType.SWITCH:
+            if isinstance(n, SwitchNode):
                 nodes.append(compile_ast_switch_node(n.id, n.slots))
-            elif n.node_type == NodeType.LOGICAL_ASSIGNER:
-                nodes.append(compile_ast_dict_returning_node(n.id, n.assignments or [], self.valid_keys))
-            elif n.node_type == NodeType.AGENTIC_ASSIGNER:
+            elif isinstance(n, LogicalAssignerNode):
+                nodes.append(compile_ast_dict_returning_node(n.id, n.assignments, self.valid_keys))
+            elif isinstance(n, AgenticAssignerNode):
                 nodes.extend(compile_ast_agentic_node(n, self.valid_keys, self.all_variables))
 
         mod = ast.Module(body=imports + self.build_state_ast() + nodes + self.build_workflow_ast(), type_ignores=[])

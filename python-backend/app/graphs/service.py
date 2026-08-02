@@ -11,13 +11,18 @@ from app.graphs import topology as graph_topology
 from app.graphs.compiler import generate_graph_code
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
+    AgenticAssignerNode,
     DefinerVariableSchema,
     DefinerVariableUpdates,
     EdgeRead,
+    EndNode,
     GraphFlowData,
     LogicalAssignmentUpdates,
+    LogicalAssignerNode,
     NodeRead,
     SlotRead,
+    StartNode,
+    SwitchNode,
     VariableType,
 )
 
@@ -35,11 +40,10 @@ async def create_graph(
 
     import uuid as py_uuid
 
-    default_nodes = [
-        NodeRead(id="start", node_type=NodeType.START, slots=[]),
-        NodeRead(
+    default_nodes: list[NodeRead] = [
+        StartNode(id="start"),
+        SwitchNode(
             id="switch_step",
-            node_type=NodeType.SWITCH,
             slots=[
                 SlotRead(
                     id="switch_step_option_a",
@@ -58,21 +62,17 @@ async def create_graph(
                 ),
             ],
         ),
-        NodeRead(
+        LogicalAssignerNode(
             id="logical_assigner",
-            node_type=NodeType.LOGICAL_ASSIGNER,
-            slots=[],
             assignments=[],
         ),
-        NodeRead(
+        AgenticAssignerNode(
             id="agentic_assigner",
-            node_type=NodeType.AGENTIC_ASSIGNER,
-            slots=[],
             prompt="",
             agentic_inputs=[],
             agentic_outputs=[],
         ),
-        NodeRead(id="end", node_type=NodeType.END, slots=[]),
+        EndNode(id="end"),
     ]
     default_edges = [
         EdgeRead(
@@ -321,6 +321,10 @@ async def update_node(
     prompt: str | None = None,
     agentic_inputs: list[str] | None = None,
     agentic_outputs: list[str] | None = None,
+    payload_vars: list[str] | None = None,
+    resume_var: str | None = None,
+    max_attempts: int | None = None,
+    valid_expression: dict[str, Any] | None = None,
 ) -> dict:
     kwargs: dict[str, Any] = {}
     if new_id is not None:
@@ -331,6 +335,14 @@ async def update_node(
         kwargs["agentic_inputs"] = agentic_inputs
     if agentic_outputs is not None:
         kwargs["agentic_outputs"] = agentic_outputs
+    if payload_vars is not None:
+        kwargs["payload_vars"] = payload_vars
+    if resume_var is not None:
+        kwargs["resume_var"] = resume_var
+    if max_attempts is not None:
+        kwargs["max_attempts"] = max_attempts
+    if valid_expression is not None:
+        kwargs["valid_expression"] = valid_expression
 
     return await _mutate_flow(
         uow,

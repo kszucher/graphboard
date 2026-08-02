@@ -5,11 +5,14 @@ from typing import Any
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs.schemas import (
+    AgenticAssignerNode,
     DefinerVariableSchema,
     DefinerVariableUpdates,
     GraphFlowData,
     LogicalAssignmentSchema,
     LogicalAssignmentUpdates,
+    LogicalAssignerNode,
+    SwitchNode,
     VariableType,
 )
 
@@ -193,7 +196,7 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
 
         # 1. Update target_var_key and expression in LOGICAL_ASSIGNER assignments
         for node in flow_data.nodes:
-            if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+            if isinstance(node, LogicalAssignerNode):
                 for asgn in node.assignments:
                     if asgn.target_var_key == old_key:
                         asgn.target_var_key = new_key
@@ -202,14 +205,14 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
 
         # 3. Update expression in SWITCH slots
         for node in flow_data.nodes:
-            if node.node_type == NodeType.SWITCH:
+            if isinstance(node, SwitchNode):
                 for slot in node.slots:
                     if slot.expression:
                         rename_expression_variables(slot.expression, old_key, new_key)
 
         # 4. Update agentic_inputs, agentic_outputs, and prompt in AGENTIC_ASSIGNER nodes
         for node in flow_data.nodes:
-            if node.node_type == NodeType.AGENTIC_ASSIGNER:
+            if isinstance(node, AgenticAssignerNode):
                 if node.agentic_inputs:
                     node.agentic_inputs = [new_key if k == old_key else k for k in node.agentic_inputs]
                 if node.agentic_outputs:
@@ -238,7 +241,7 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
     # Check dependencies to block delete
     # 1. Check LOGICAL_ASSIGNER assignments target_var_key & expression
     for node in flow_data.nodes:
-        if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+        if isinstance(node, LogicalAssignerNode):
             for asgn in node.assignments:
                 if asgn.target_var_key == var_key:
                     raise ValidationError(
@@ -251,7 +254,7 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
 
     # 3. Check SWITCH slot expressions
     for node in flow_data.nodes:
-        if node.node_type == NodeType.SWITCH:
+        if isinstance(node, SwitchNode):
             for slot in node.slots:
                 if slot.expression and is_variable_referenced_in_expression(slot.expression, var_key):
                     raise ValidationError(
@@ -260,7 +263,7 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
 
     # 4. Check AGENTIC_ASSIGNER inputs and outputs
     for node in flow_data.nodes:
-        if node.node_type == NodeType.AGENTIC_ASSIGNER:
+        if isinstance(node, AgenticAssignerNode):
             if node.agentic_inputs and var_key in node.agentic_inputs:
                 raise ValidationError(
                     f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic Assigner node '{node.id}'."
@@ -298,11 +301,8 @@ def create_logical_assignment(
 
     nodes = flow_data.nodes
     target_node = next((n for n in nodes if n.id == node_id), None)
-    if not target_node:
+    if not target_node or not isinstance(target_node, LogicalAssignerNode):
         raise ValidationError(f"Node '{node_id}' not found.")
-
-    if target_node.assignments is None:
-        target_node.assignments = []
 
     existing_asgn = next((a for a in target_node.assignments if a.target_var_key == target_var_key), None)
     if existing_asgn:
@@ -327,7 +327,7 @@ def update_logical_assignment(
     flow_data: GraphFlowData, assignment_id: str, updates: LogicalAssignmentUpdates
 ) -> GraphFlowData:
     for node in flow_data.nodes:
-        if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+        if isinstance(node, LogicalAssignerNode):
             for asgn in node.assignments:
                 if asgn.id == assignment_id:
                     existing_vars = get_all_definer_variables(flow_data)
@@ -356,7 +356,7 @@ def update_logical_assignment(
 
 def delete_logical_assignment(flow_data: GraphFlowData, assignment_id: str) -> GraphFlowData:
     for node in flow_data.nodes:
-        if node.node_type == NodeType.LOGICAL_ASSIGNER and node.assignments is not None:
+        if isinstance(node, LogicalAssignerNode):
             if any(a.id == assignment_id for a in node.assignments):
                 node.assignments = [a for a in node.assignments if a.id != assignment_id]
                 return flow_data

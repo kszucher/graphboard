@@ -5,15 +5,35 @@ from typing import Any, Literal
 
 from app.constants import NodeType
 from app.graphs.schemas import (
+    AgenticAssignerNode,
+    AgenticSwitchNode,
+    ConfirmNode,
     EdgeRead,
+    EndNode,
+    ExtractNode,
     GraphFlowData,
+    InterruptNode,
     LogicalAssignmentSchema,
+    LogicalAssignerNode,
     NodeRead,
+    RetryNode,
+    ReviewNode,
     SlotRead,
+    StartNode,
+    SwitchNode,
+    ValidateNode,
 )
 
 SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
-SEQUENTIAL_STEP_TYPES = {NodeType.LOGICAL_ASSIGNER, NodeType.AGENTIC_ASSIGNER}
+SEQUENTIAL_STEP_TYPES = {
+    NodeType.LOGICAL_ASSIGNER,
+    NodeType.AGENTIC_ASSIGNER,
+    NodeType.INTERRUPT,
+    NodeType.EXTRACT,
+    NodeType.VALIDATE,
+    NodeType.REVIEW,
+    NodeType.CONFIRM,
+}
 
 _UNSET: Any = object()
 
@@ -40,31 +60,57 @@ def add_node(
     node_id = generate_node_id(node_type, nodes)
 
     slots: list[SlotRead] = []
-    assignments: list[LogicalAssignmentSchema] | None = None
-    prompt: str | None = None
-    agentic_inputs: list[str] | None = None
-    agentic_outputs: list[str] | None = None
     if node_type == NodeType.SWITCH:
         slots = [
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
             SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
         ]
-    elif node_type == NodeType.LOGICAL_ASSIGNER:
-        assignments = []
-    elif node_type == NodeType.AGENTIC_ASSIGNER:
-        prompt = ""
-        agentic_inputs = []
-        agentic_outputs = []
+    elif node_type == NodeType.AGENTIC_SWITCH:
+        slots = [
+            SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
+            SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
+        ]
+    elif node_type == NodeType.RETRY:
+        slots = [
+            SlotRead(id=f"{node_id}_valid", raw_string="valid"),
+            SlotRead(id=f"{node_id}_retry", raw_string="retry"),
+            SlotRead(id=f"{node_id}_exhausted", raw_string="exhausted"),
+        ]
+    elif node_type == NodeType.CONFIRM:
+        slots = [
+            SlotRead(id=f"{node_id}_confirmed", raw_string="confirmed"),
+            SlotRead(id=f"{node_id}_rejected", raw_string="rejected"),
+            SlotRead(id=f"{node_id}_unclear", raw_string="unclear"),
+        ]
 
-    new_node = NodeRead(
-        id=node_id,
-        node_type=node_type,
-        slots=slots,
-        assignments=assignments,
-        prompt=prompt,
-        agentic_inputs=agentic_inputs,
-        agentic_outputs=agentic_outputs,
-    )
+    new_node: NodeRead
+    if node_type == NodeType.START:
+        new_node = StartNode(id=node_id)
+    elif node_type == NodeType.END:
+        new_node = EndNode(id=node_id)
+    elif node_type == NodeType.LOGICAL_ASSIGNER:
+        new_node = LogicalAssignerNode(id=node_id, assignments=[])
+    elif node_type == NodeType.AGENTIC_ASSIGNER:
+        new_node = AgenticAssignerNode(id=node_id, prompt="", agentic_inputs=[], agentic_outputs=[])
+    elif node_type == NodeType.SWITCH:
+        new_node = SwitchNode(id=node_id, slots=slots)
+    elif node_type == NodeType.INTERRUPT:
+        new_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
+    elif node_type == NodeType.EXTRACT:
+        new_node = ExtractNode(id=node_id, assignments=[])
+    elif node_type == NodeType.VALIDATE:
+        new_node = ValidateNode(id=node_id, assignments=[])
+    elif node_type == NodeType.REVIEW:
+        new_node = ReviewNode(id=node_id)
+    elif node_type == NodeType.AGENTIC_SWITCH:
+        new_node = AgenticSwitchNode(id=node_id, slots=slots, prompt="", agentic_inputs=[])
+    elif node_type == NodeType.RETRY:
+        new_node = RetryNode(id=node_id, slots=slots, max_attempts=3, valid_expression=None)
+    elif node_type == NodeType.CONFIRM:
+        new_node = ConfirmNode(id=node_id, slots=slots, payload_vars=[])
+    else:
+        raise ValueError(f"Unsupported node_type: {node_type}")
+
     nodes.append(new_node)
 
     if connector_id and direction:
@@ -85,15 +131,17 @@ def add_node(
 
         target_or_source_node = next((n for n in nodes if n.id == connector_id), None)
         if not target_or_source_node:
-            target_or_source_node = next((n for n in nodes if any(s.id == connector_id for s in n.slots)), None)
+            target_or_source_node = next(
+                (n for n in nodes if hasattr(n, "slots") and any(s.id == connector_id for s in getattr(n, "slots", []))), None
+            )
 
         source_type: Literal["node", "slot"] = "node"
         if is_after and target_or_source_node and target_or_source_node.node_type == NodeType.SWITCH:
             source_type = "slot"
 
         target_type: Literal["node", "slot"] = "node"
-        if not is_after and target_or_source_node:
-            if any(s.id == connector_id for s in target_or_source_node.slots):
+        if not is_after and target_or_source_node and hasattr(target_or_source_node, "slots"):
+            if any(s.id == connector_id for s in getattr(target_or_source_node, "slots", [])):
                 target_type = "slot"
 
         new_edge = EdgeRead(
@@ -136,7 +184,7 @@ def delete_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
     if target_node.node_type in SENTINEL_NODE_TYPES:
         return flow_data
 
-    slot_ids = {s.id for s in target_node.slots}
+    slot_ids = {s.id for s in target_node.slots} if isinstance(target_node, SwitchNode) else set()
 
     flow_data.nodes = [n for n in nodes if n.id != node_id]
     flow_data.edges = [
@@ -188,6 +236,10 @@ def update_node(
     prompt: str | None = _UNSET,
     agentic_inputs: list[str] | None = _UNSET,
     agentic_outputs: list[str] | None = _UNSET,
+    payload_vars: list[str] | None = _UNSET,
+    resume_var: str | None = _UNSET,
+    max_attempts: int | None = _UNSET,
+    valid_expression: dict[str, Any] | None = _UNSET,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -198,9 +250,10 @@ def update_node(
 
     if new_id and new_id != node_id:
         target_node.id = new_id
-        for slot in target_node.slots:
-            if slot.id.startswith(f"{node_id}_"):
-                slot.id = slot.id.replace(f"{node_id}_", f"{new_id}_", 1)
+        if hasattr(target_node, "slots"):
+            for slot in getattr(target_node, "slots", []):
+                if slot.id.startswith(f"{node_id}_"):
+                    slot.id = slot.id.replace(f"{node_id}_", f"{new_id}_", 1)
 
         for edge in edges:
             if edge.source_id == node_id:
@@ -213,12 +266,25 @@ def update_node(
             elif edge.target_id.startswith(f"{node_id}_"):
                 edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
 
-    if prompt is not _UNSET:
-        target_node.prompt = prompt
-    if agentic_inputs is not _UNSET:
-        target_node.agentic_inputs = agentic_inputs
-    if agentic_outputs is not _UNSET:
-        target_node.agentic_outputs = agentic_outputs
+    if isinstance(target_node, (AgenticAssignerNode, AgenticSwitchNode)):
+        if prompt is not _UNSET and prompt is not None:
+            target_node.prompt = prompt
+        if agentic_inputs is not _UNSET and agentic_inputs is not None:
+            target_node.agentic_inputs = agentic_inputs
+    if isinstance(target_node, AgenticAssignerNode):
+        if agentic_outputs is not _UNSET and agentic_outputs is not None:
+            target_node.agentic_outputs = agentic_outputs
+    if isinstance(target_node, (InterruptNode, ConfirmNode)):
+        if payload_vars is not _UNSET and payload_vars is not None:
+            target_node.payload_vars = payload_vars
+    if isinstance(target_node, InterruptNode):
+        if resume_var is not _UNSET and resume_var is not None:
+            target_node.resume_var = resume_var
+    if isinstance(target_node, RetryNode):
+        if max_attempts is not _UNSET and max_attempts is not None:
+            target_node.max_attempts = max_attempts
+        if valid_expression is not _UNSET:
+            target_node.valid_expression = valid_expression
 
     return flow_data
 
@@ -226,7 +292,7 @@ def update_node(
 def create_slot(flow_data: GraphFlowData, node_id: str, index: int) -> GraphFlowData:
     nodes = flow_data.nodes
     target_node = next((n for n in nodes if n.id == node_id), None)
-    if not target_node:
+    if not target_node or not isinstance(target_node, (SwitchNode, AgenticSwitchNode)):
         return flow_data
 
     slots = target_node.slots
@@ -250,13 +316,14 @@ def update_slot(
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     for node in nodes:
-        for slot in node.slots:
-            if slot.id == slot_id:
-                if raw_string is not None:
-                    slot.raw_string = raw_string
-                if expression is not _UNSET:
-                    slot.expression = expression
-                return flow_data
+        if hasattr(node, "slots"):
+            for slot in getattr(node, "slots", []):
+                if slot.id == slot_id:
+                    if raw_string is not None:
+                        slot.raw_string = raw_string
+                    if expression is not _UNSET:
+                        slot.expression = expression
+                    return flow_data
     return flow_data
 
 
@@ -265,10 +332,11 @@ def delete_slot(flow_data: GraphFlowData, slot_id: str) -> GraphFlowData:
     edges = flow_data.edges
 
     for node in nodes:
-        slots = node.slots
-        if any(s.id == slot_id for s in slots):
-            node.slots = [s for s in slots if s.id != slot_id]
-            break
+        if isinstance(node, (SwitchNode, AgenticSwitchNode)):
+            slots = node.slots
+            if any(s.id == slot_id for s in slots):
+                node.slots = [s for s in slots if s.id != slot_id]
+                break
 
     flow_data.edges = [e for e in edges if e.source_id != slot_id and e.target_id != slot_id]
     return flow_data
@@ -277,23 +345,24 @@ def delete_slot(flow_data: GraphFlowData, slot_id: str) -> GraphFlowData:
 def move_slot(flow_data: GraphFlowData, slot_id: str, direction: str) -> GraphFlowData:
     nodes = flow_data.nodes
     for node in nodes:
-        slots = node.slots
-        idx = next((i for i, s in enumerate(slots) if s.id == slot_id), -1)
-        if idx != -1:
-            target_idx = idx
-            if direction == "up":
-                target_idx = max(0, idx - 1)
-            elif direction == "down":
-                target_idx = min(len(slots) - 1, idx + 1)
-            elif direction == "top":
-                target_idx = 0
-            elif direction == "bottom":
-                target_idx = len(slots) - 1
+        if hasattr(node, "slots"):
+            slots = getattr(node, "slots", [])
+            idx = next((i for i, s in enumerate(slots) if s.id == slot_id), -1)
+            if idx != -1:
+                target_idx = idx
+                if direction == "up":
+                    target_idx = max(0, idx - 1)
+                elif direction == "down":
+                    target_idx = min(len(slots) - 1, idx + 1)
+                elif direction == "top":
+                    target_idx = 0
+                elif direction == "bottom":
+                    target_idx = len(slots) - 1
 
-            if target_idx != idx:
-                slot = slots.pop(idx)
-                slots.insert(target_idx, slot)
-            break
+                if target_idx != idx:
+                    slot = slots.pop(idx)
+                    slots.insert(target_idx, slot)
+                break
     return flow_data
 
 
@@ -321,7 +390,7 @@ def create_edge(
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if target_node:
+    if isinstance(target_node, SwitchNode):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"
@@ -360,7 +429,7 @@ def reconnect_edge(
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if target_node:
+    if isinstance(target_node, SwitchNode):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"
