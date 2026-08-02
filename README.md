@@ -28,13 +28,20 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ## 🧩 Visual Node Roles & Code Mapping
 
-| Node Type | Role | Generated Python Representation |
-| :--- | :--- | :--- |
-| **START** | Entry point of execution flow | Mapped to `START` sentinel: `workflow.add_edge(START, "first_step")` |
-| **END** | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
-| **LOGICAL_ASSIGNER** | Performs deterministic inline variable assignments | Generated Python function mutating `state` dict values |
-| **AGENTIC_ASSIGNER** | Invokes LLM agents for state mutations | Generated Python function calling agentic runner |
-| **SWITCH** | Evaluates conditional branching logic | Router function evaluating AST expressions in `if/elif` order, registered via `workflow.add_conditional_edges(...)` |
+| Node Type | Category | Role | Generated Python Representation |
+| :--- | :--- | :--- | :--- |
+| **START** | Sentinel | Entry point of execution flow | Mapped to `START` sentinel: `workflow.add_edge(START, "first_step")` |
+| **END** | Sentinel | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
+| **LOGICAL_ASSIGNER** | Computation | Performs deterministic inline variable assignments | Generated Python function returning updated state dictionary |
+| **AGENTIC_ASSIGNER** | Computation | Invokes LLM agents for structured state mutations | Generated Python function calling Groq LLM with Pydantic response format |
+| **EXTRACT** | Computation | Single-variable extraction step | Generated Python function returning assigned state dict |
+| **VALIDATE** | Computation | Single-variable boolean validation step | Generated Python function evaluating boolean assignment |
+| **SWITCH** | Routing | Evaluates deterministic expression branching logic | Router function evaluating AST expressions, registered via `workflow.add_conditional_edges(...)` |
+| **AGENTIC_SWITCH** | Routing | LLM-driven decision routing across slot options | Router function parsing LLM choice output to select outgoing branch |
+| **RETRY** | Routing | Conditional retry loop execution with attempt limits | Synthesizes counter state `__retry_{id}_count` and routes to `valid`, `retry`, or `exhausted` |
+| **INTERRUPT** | Human & Control | Pauses workflow execution for user payload | Generated Python function calling `langgraph.types.interrupt(...)` |
+| **CONFIRM** | Human & Control | User confirmation checkpoint with decision branching | Expanded into Interrupt node + Router (`confirmed`, `rejected`, `unclear`) |
+| **REVIEW** | Human & Control | Passthrough inspection checkpoint | Generated Python function returning empty dict (passthrough) |
 
 ---
 
@@ -63,6 +70,12 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 * **Strict State Integrity**: Implemented cascading variable renames and blocked deletes of variables referenced in expressions, slots, and assignments.
 * **Pre-Execution Completeness Guard**: Refactored the validation system to verify topological completeness (unconnected slots/nodes and unset expressions) only right before running the graph.
 * **Read-Only Editor lock**: Secured generated code viewer in CodeMirror to be read-only while keeping AST-based folding and navigation fully interactive.
+
+### Phase 6: Extended 12-Primitive System & Two-Layer AST Compiler
+* **Pydantic Discriminated Union Schema**: Refactored `NodeRead` into per-type models discriminated by `node_type`, eliminating sparse fields on sequential nodes.
+* **Decoupled Two-Layer Compiler**: Created `SemanticResolver` (Layer 1) mapping 12 user primitives into canonical execution nodes (`CanonicalComputation`, `CanonicalRouter`, `CanonicalRetry`, `CanonicalSentinel`), and `PureAstLangGraphCompiler` (Layer 2) emitting clean Python AST.
+* **Comprehensive Visual & Sidebar Editors**: Added Radix color schemes, fixed slot handle protections (`RETRY`, `CONFIRM`), and sidebar configuration panels (`InterruptNodeEditor`, `AgenticSwitchNodeEditor`, `RetryNodeEditor`, `ConfirmNodeEditor`) driven by a dynamic `NodeEditorRouter`.
+* **Offline Spec Generator**: Automated `npm run generate:api` to extract OpenAPI JSON in-memory via `uv` without requiring a live server process.
 
 ---
 
