@@ -10,9 +10,16 @@ import type { InsertableNodeType, NodeType } from '../types';
 
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
-  { type: 'SWITCH', label: 'Switch' },
   { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
   { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
+  { type: 'SWITCH', label: 'Logical Switch' },
+  { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
+  { type: 'INTERRUPT', label: 'Interrupt' },
+  { type: 'EXTRACT', label: 'Extract' },
+  { type: 'VALIDATE', label: 'Validate' },
+  { type: 'REVIEW', label: 'Review' },
+  { type: 'RETRY', label: 'Retry' },
+  { type: 'CONFIRM', label: 'Confirm' },
 ];
 
 interface FlowNodeActionsContentProps {
@@ -79,7 +86,15 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
   const isSentinel = nodeData.node_type === 'START' || nodeData.node_type === 'END';
 
   const canShortcircuit = nodeData
-    ? (['LOGICAL_ASSIGNER', 'AGENTIC_ASSIGNER'] as NodeType[]).includes(nodeData.node_type)
+    ? ([
+        'LOGICAL_ASSIGNER',
+        'AGENTIC_ASSIGNER',
+        'INTERRUPT',
+        'EXTRACT',
+        'VALIDATE',
+        'REVIEW',
+        'CONFIRM',
+      ] as NodeType[]).includes(nodeData.node_type)
     : false;
 
   const renderAddConnectedSubmenu = (direction: 'before' | 'after') => {

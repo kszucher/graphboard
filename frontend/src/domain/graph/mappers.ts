@@ -2,7 +2,7 @@ import type { components } from '../../api/generated/schema';
 import type { ApiNode, ApiSlot, AppFlowEdge, AppFlowNode } from '../../canvas/types';
 
 type ApiEdge = components['schemas']['EdgeRead'];
-type RawNode = components['schemas']['NodeRead'];
+type RawNode = components['schemas']['GraphFlowRead']['nodes'][number];
 
 export const fromApiPayload = (
   nodes: RawNode[],
@@ -13,7 +13,7 @@ export const fromApiPayload = (
 ): { nodes: AppFlowNode[]; edges: AppFlowEdge[] } => {
   const slotToNodeId: Record<string, string> = {};
   nodes.forEach(n => {
-    (n.slots || []).forEach(s => {
+    ('slots' in n && Array.isArray(n.slots) ? n.slots : []).forEach((s: components['schemas']['SlotRead']) => {
       slotToNodeId[s.id] = n.id;
     });
   });
@@ -32,11 +32,11 @@ export const fromApiPayload = (
   const rfNodes: AppFlowNode[] = nodes.map(n => {
     const prevNode = getPrevNode(n.id);
     const is_input = n.node_type !== 'START';
-    const is_output = n.node_type !== 'END' && n.node_type !== 'SWITCH';
+    const is_output = n.node_type !== 'END' && !['SWITCH', 'AGENTIC_SWITCH', 'RETRY', 'CONFIRM'].includes(n.node_type);
     // Cast the raw node to ApiNode — slots/expressions are cast here at the boundary
     const apiNode: ApiNode = {
       ...(n as ApiNode),
-      slots: (n.slots || []) as ApiSlot[],
+      slots: ('slots' in n && Array.isArray(n.slots) ? n.slots : []) as ApiSlot[],
       is_input,
       is_output,
     };

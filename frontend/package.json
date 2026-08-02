@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:api": "openapi-typescript http://localhost:8000/openapi.json -o src/api/generated/schema.ts"
+    "generate:api": "uv run --directory ../python-backend python -c \"import json; from app.main import app; open('openapi.json', 'w').write(json.dumps(app.openapi()))\" && openapi-typescript ../python-backend/openapi.json -o src/api/generated/schema.ts"
   },
   "dependencies": {
     "@codemirror/commands": "6.10.3",

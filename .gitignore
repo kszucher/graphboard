@@ -11,3 +11,5 @@ python-backend/app/services/__pycache__/
 python-backend/app/api/__pycache__/
 python-backend/graphboard_backend.egg-info/
 /python-backend/alembic/script.py.mako
+openapi.json
+python-backend/openapi.json

@@ -79,6 +79,9 @@ export const FlowNodeSlot = memo(({
     return slot.raw_string;
   })();
 
+  const isFixedSlot = node ? ['RETRY', 'CONFIRM'].includes(node.data.node.node_type) : false;
+  const isSlotDisabled = disabled || isFixedSlot;
+
   return (
     <Flex align="center" width="100%" height="24px" style={{ position: 'relative', gap: '6px' }}>
       {leftHandle && (
@@ -98,7 +101,7 @@ export const FlowNodeSlot = memo(({
         <Editor
           initialValue={initialValue}
           onSave={handleUpdateItem}
-          disabled={disabled}
+          disabled={isSlotDisabled}
           parentNodeSelected={parentNodeSelected}
         />
       </Flex>

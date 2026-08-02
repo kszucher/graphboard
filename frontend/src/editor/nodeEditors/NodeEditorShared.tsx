@@ -166,12 +166,15 @@ export function NodeEditorCard({
   errorMsg,
   listContent,
   workbenchContent,
+  children,
 }: {
   nodeId?: string;
   title: string;
   errorMsg?: string | null;
-  listContent: ReactNode;
-  workbenchContent: ReactNode;
+  listContent?: ReactNode;
+  workbenchContent?: ReactNode;
+  children?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <Card
@@ -200,22 +203,28 @@ export function NodeEditorCard({
           </Text>
         )}
 
+        {children}
+
         {/* Static List Content */}
-        <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
-          {listContent}
-        </Box>
+        {listContent && (
+          <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
+            {listContent}
+          </Box>
+        )}
 
         {/* Draft Workbench Content */}
-        <Box
-          style={{
-            flexShrink: 0,
-            backgroundColor: 'var(--gray-3)',
-            borderRadius: 'var(--radius-2)',
-            padding: '8px 10px',
-          }}
-        >
-          {workbenchContent}
-        </Box>
+        {workbenchContent && (
+          <Box
+            style={{
+              flexShrink: 0,
+              backgroundColor: 'var(--gray-3)',
+              borderRadius: 'var(--radius-2)',
+              padding: '8px 10px',
+            }}
+          >
+            {workbenchContent}
+          </Box>
+        )}
       </Flex>
     </Card>
   );

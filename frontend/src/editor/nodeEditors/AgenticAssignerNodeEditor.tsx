@@ -107,7 +107,7 @@ export const AgenticAssignerNodeEditor = ({
               No input variables defined.
             </Text>
           )}
-          {(node?.agentic_inputs || []).map((inputKey) => {
+          {(node?.agentic_inputs || []).map((inputKey: string) => {
             const isMissing = !stateVariables.some((v) => v.key === inputKey);
             return (
               <TargetVariableChip key={inputKey} varKey={inputKey} isMissing={isMissing}/>
@@ -127,7 +127,7 @@ export const AgenticAssignerNodeEditor = ({
               No output variables defined.
             </Text>
           )}
-          {(node?.agentic_outputs || []).map((outputKey) => {
+          {(node?.agentic_outputs || []).map((outputKey: string) => {
             const isMissing = !stateVariables.some((v) => v.key === outputKey);
             const type = stateVariables.find((v) => v.key === outputKey)?.type;
             return (

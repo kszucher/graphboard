@@ -9,9 +9,16 @@ import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { ApiSlot, InsertableNodeType } from '../types';
 
 const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
-  { type: 'SWITCH', label: 'Switch' },
   { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
   { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
+  { type: 'SWITCH', label: 'Logical Switch' },
+  { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
+  { type: 'INTERRUPT', label: 'Interrupt' },
+  { type: 'EXTRACT', label: 'Extract' },
+  { type: 'VALIDATE', label: 'Validate' },
+  { type: 'REVIEW', label: 'Review' },
+  { type: 'RETRY', label: 'Retry' },
+  { type: 'CONFIRM', label: 'Confirm' },
 ];
 
 interface SlotActionsContentProps {
@@ -164,40 +171,54 @@ export const FlowNodeSlotActionsContent = ({
     );
   };
 
+  const isFixedSlot = node ? ['RETRY', 'CONFIRM'].includes(node.data.node.node_type) : false;
+
   return (
     <>
-      <DropdownMenu.Item onClick={handleAddAbove}>
-        <PlusIcon style={{ marginRight: 8 }}/> Add Slot Above
-      </DropdownMenu.Item>
-      <DropdownMenu.Item onClick={handleAddBelow}>
-        <PlusIcon style={{ marginRight: 8 }}/> Add Slot Below
-      </DropdownMenu.Item>
-      <DropdownMenu.Separator/>
+      {!isFixedSlot && (
+        <>
+          <DropdownMenu.Item onClick={handleAddAbove}>
+            <PlusIcon style={{ marginRight: 8 }}/> Add Slot Above
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={handleAddBelow}>
+            <PlusIcon style={{ marginRight: 8 }}/> Add Slot Below
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator/>
+        </>
+      )}
 
       {showAddConnected && renderAddConnectedSubmenu()}
       {showAddConnected && <DropdownMenu.Separator/>}
 
-      <DropdownMenu.Item onClick={handleMoveTop} disabled={!canMoveUp}>
-        <ArrowUpIcon style={{ marginRight: 8 }}/> Move to Top
-      </DropdownMenu.Item>
-      <DropdownMenu.Item onClick={handleMoveUp} disabled={!canMoveUp}>
-        <ArrowUpIcon style={{ marginRight: 8 }}/> Move Up
-      </DropdownMenu.Item>
-      <DropdownMenu.Item onClick={handleMoveDown} disabled={!canMoveDown}>
-        <ArrowDownIcon style={{ marginRight: 8 }}/> Move Down
-      </DropdownMenu.Item>
-      <DropdownMenu.Item onClick={handleMoveBottom} disabled={!canMoveDown}>
-        <ArrowDownIcon style={{ marginRight: 8 }}/> Move to Bottom
-      </DropdownMenu.Item>
+      {!isFixedSlot && (
+        <>
+          <DropdownMenu.Item onClick={handleMoveTop} disabled={!canMoveUp}>
+            <ArrowUpIcon style={{ marginRight: 8 }}/> Move to Top
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={handleMoveUp} disabled={!canMoveUp}>
+            <ArrowUpIcon style={{ marginRight: 8 }}/> Move Up
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={handleMoveDown} disabled={!canMoveDown}>
+            <ArrowDownIcon style={{ marginRight: 8 }}/> Move Down
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={handleMoveBottom} disabled={!canMoveDown}>
+            <ArrowDownIcon style={{ marginRight: 8 }}/> Move to Bottom
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator/>
+        </>
+      )}
 
-      <DropdownMenu.Separator/>
       {renderDeleteSubmenu('outgoing')}
       {renderDeleteSubmenu('incoming')}
 
-      <DropdownMenu.Separator/>
-      <DropdownMenu.Item onClick={handleDeleteItem} color="red" disabled={!canDelete}>
-        <TrashIcon style={{ marginRight: 8 }}/> Delete Slot
-      </DropdownMenu.Item>
+      {!isFixedSlot && (
+        <>
+          <DropdownMenu.Separator/>
+          <DropdownMenu.Item onClick={handleDeleteItem} color="red" disabled={!canDelete}>
+            <TrashIcon style={{ marginRight: 8 }}/> Delete Slot
+          </DropdownMenu.Item>
+        </>
+      )}
     </>
   );
 };
