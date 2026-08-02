@@ -1,6 +1,5 @@
 import pytest
 
-from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import operations as graph_operations
 from app.graphs.integrity import assert_flow_is_complete
@@ -10,8 +9,8 @@ from app.graphs.schemas import (
     EdgeRead,
     EndNode,
     GraphFlowData,
-    LogicalAssignmentSchema,
     LogicalAssignerNode,
+    LogicalAssignmentSchema,
     SlotRead,
     StartNode,
     SwitchNode,

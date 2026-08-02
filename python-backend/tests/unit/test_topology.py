@@ -4,7 +4,6 @@ from app.constants import NodeType
 from app.graphs import topology
 from app.graphs.schemas import (
     EdgeRead,
-    EndNode,
     GraphFlowData,
     LogicalAssignerNode,
     SlotRead,
@@ -58,7 +57,13 @@ def test_add_node_with_connector_after() -> None:
             LogicalAssignerNode(id="logical_assigner_2"),
         ],
         edges=[
-            EdgeRead(id=uuid.uuid4(), source_id="logical_assigner_1", target_id="logical_assigner_2", source_type="node", target_type="node")
+            EdgeRead(
+                id=uuid.uuid4(),
+                source_id="logical_assigner_1",
+                target_id="logical_assigner_2",
+                source_type="node",
+                target_type="node",
+            )
         ],
     )
     # Add logical_assigner_3 after logical_assigner_1
@@ -73,11 +78,15 @@ def test_add_node_with_connector_after() -> None:
     assert len(edges) == 2
 
     # One edge from logical_assigner_1 to logical_assigner_3
-    edge_1_to_3 = next((e for e in edges if e.source_id == "logical_assigner_1" and e.target_id == "logical_assigner_3"), None)
+    edge_1_to_3 = next(
+        (e for e in edges if e.source_id == "logical_assigner_1" and e.target_id == "logical_assigner_3"), None
+    )
     assert edge_1_to_3 is not None
 
     # One edge from logical_assigner_3 to logical_assigner_2
-    edge_3_to_2 = next((e for e in edges if e.source_id == "logical_assigner_3" and e.target_id == "logical_assigner_2"), None)
+    edge_3_to_2 = next(
+        (e for e in edges if e.source_id == "logical_assigner_3" and e.target_id == "logical_assigner_2"), None
+    )
     assert edge_3_to_2 is not None
 
 
@@ -166,9 +175,7 @@ def test_update_node_id_cascades() -> None:
 
 def test_slot_crud_operations() -> None:
     flow = GraphFlowData(
-        nodes=[
-            SwitchNode(id="switch_1", slots=[SlotRead(id="switch_1_option_a", raw_string="a")])
-        ],
+        nodes=[SwitchNode(id="switch_1", slots=[SlotRead(id="switch_1_option_a", raw_string="a")])],
         edges=[EdgeRead(id=uuid.uuid4(), source_id="switch_1_option_a", target_id="end")],
     )
 
@@ -212,7 +219,11 @@ def test_edge_crud_operations() -> None:
 
     # Create edge logical_assigner_1 -> logical_assigner_2
     updated = topology.create_edge(
-        flow, source="logical_assigner_1", target="logical_assigner_2", source_handle="logical_assigner_1", target_handle="logical_assigner_2"
+        flow,
+        source="logical_assigner_1",
+        target="logical_assigner_2",
+        source_handle="logical_assigner_1",
+        target_handle="logical_assigner_2",
     )
     assert len(updated.edges) == 1
     edge = updated.edges[0]
@@ -221,7 +232,11 @@ def test_edge_crud_operations() -> None:
 
     # Create edge from switch slot: switch_1_option_a -> logical_assigner_2
     updated = topology.create_edge(
-        updated, source="switch_1", target="logical_assigner_2", source_handle="switch_1_option_a", target_handle="logical_assigner_2"
+        updated,
+        source="switch_1",
+        target="logical_assigner_2",
+        source_handle="switch_1_option_a",
+        target_handle="logical_assigner_2",
     )
     assert len(updated.edges) == 2
     edge2 = updated.edges[1]
@@ -231,7 +246,12 @@ def test_edge_crud_operations() -> None:
     # Reconnect edge
     edge_id = edge.id
     updated = topology.reconnect_edge(
-        updated, edge_id, source="logical_assigner_1", target="switch_1", source_handle="logical_assigner_1", target_handle="switch_1"
+        updated,
+        edge_id,
+        source="logical_assigner_1",
+        target="switch_1",
+        source_handle="logical_assigner_1",
+        target_handle="switch_1",
     )
     assert edge.target_id == "switch_1"
     assert edge.target_type == "node"

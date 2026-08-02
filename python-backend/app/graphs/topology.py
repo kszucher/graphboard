@@ -13,7 +13,6 @@ from app.graphs.schemas import (
     ExtractNode,
     GraphFlowData,
     InterruptNode,
-    LogicalAssignmentSchema,
     LogicalAssignerNode,
     NodeRead,
     RetryNode,
@@ -132,7 +131,12 @@ def add_node(
         target_or_source_node = next((n for n in nodes if n.id == connector_id), None)
         if not target_or_source_node:
             target_or_source_node = next(
-                (n for n in nodes if hasattr(n, "slots") and any(s.id == connector_id for s in getattr(n, "slots", []))), None
+                (
+                    n
+                    for n in nodes
+                    if hasattr(n, "slots") and any(s.id == connector_id for s in getattr(n, "slots", []))
+                ),
+                None,
             )
 
         source_type: Literal["node", "slot"] = "node"

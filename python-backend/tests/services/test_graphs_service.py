@@ -124,7 +124,14 @@ async def test_run_graph_flow_success(
             {
                 "id": "assigner_1",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"id": "asgn_1", "target_var_key": "x", "value_type": "number", "expression": {"kind": "literal", "value": 42}}],
+                "assignments": [
+                    {
+                        "id": "asgn_1",
+                        "target_var_key": "x",
+                        "value_type": "number",
+                        "expression": {"kind": "literal", "value": 42},
+                    }
+                ],
             },
         ],
         "edges": [
@@ -178,12 +185,26 @@ async def test_run_graph_flow_switch_routing(
             {
                 "id": "assigner_a",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"id": "asgn_a", "target_var_key": "y", "value_type": "number", "expression": {"kind": "literal", "value": 100}}],
+                "assignments": [
+                    {
+                        "id": "asgn_a",
+                        "target_var_key": "y",
+                        "value_type": "number",
+                        "expression": {"kind": "literal", "value": 100},
+                    }
+                ],
             },
             {
                 "id": "assigner_b",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"id": "asgn_b", "target_var_key": "y", "value_type": "number", "expression": {"kind": "literal", "value": 200}}],
+                "assignments": [
+                    {
+                        "id": "asgn_b",
+                        "target_var_key": "y",
+                        "value_type": "number",
+                        "expression": {"kind": "literal", "value": 200},
+                    }
+                ],
             },
         ],
         "edges": [
@@ -236,7 +257,14 @@ async def test_run_graph_flow_invalid_state_ref(
             {
                 "id": "assigner_1",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"id": "asgn_1", "target_var_key": "non_existent", "value_type": "number", "expression": {"kind": "literal", "value": 42}}],
+                "assignments": [
+                    {
+                        "id": "asgn_1",
+                        "target_var_key": "non_existent",
+                        "value_type": "number",
+                        "expression": {"kind": "literal", "value": 42},
+                    }
+                ],
             },
         ],
         "edges": [

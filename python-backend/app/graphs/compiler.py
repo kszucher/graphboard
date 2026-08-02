@@ -1,8 +1,8 @@
 """=============================================================================
-PURE AST COMPILER (Layer 2)
+PURE CODE GENERATOR COMPILER (Layer 2)
 =============================================================================
-Translates ResolvedGraph (canonical nodes) directly to executable Python AST.
-Zero imports from app.constants or app.graphs.schemas.NodeType.
+Translates ResolvedGraph (canonical nodes and pre-assembled edges) directly to
+executable Python LangGraph code strings with single-pass AST validation.
 ============================================================================="""
 
 from __future__ import annotations
@@ -10,27 +10,19 @@ from __future__ import annotations
 import ast
 import asyncio
 import multiprocessing
-import uuid
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, cast
+from typing import Any
 
 from app.graphs.canonical import (
     CanonicalComputation,
-    CanonicalNode,
     CanonicalRetry,
     CanonicalRouter,
     CanonicalSentinel,
     ComputationKind,
     ResolvedGraph,
     RouterKind,
-    SentinelKind,
 )
-from app.graphs.schemas import (
-    DefinerVariableSchema,
-    GraphFlowData,
-    LogicalAssignmentSchema,
-    SlotRead,
-)
+from app.graphs.schemas import DefinerVariableSchema, GraphFlowData
 
 try:
     import black
@@ -41,33 +33,7 @@ except ImportError:
 _execution_executor: ProcessPoolExecutor | None = None
 
 TYPE_MAP = {"number": "int", "float": "float", "boolean": "bool", "string": "str"}
-DEFAULT_VALUES = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
-COMPARE_OPS = {
-    "==": ast.Eq(),
-    "!=": ast.NotEq(),
-    "<": ast.Lt(),
-    "<=": ast.LtE(),
-    ">": ast.Gt(),
-    ">=": ast.GtE(),
-    "in": ast.In(),
-    "not in": ast.NotIn(),
-    "is": ast.Is(),
-    "is not": ast.IsNot(),
-}
-BIN_OPS = {
-    "+": ast.Add(),
-    "-": ast.Sub(),
-    "*": ast.Mult(),
-    "/": ast.Div(),
-    "//": ast.FloorDiv(),
-    "%": ast.Mod(),
-    "**": ast.Pow(),
-}
-UNARY_OPS = {
-    "not": ast.Not(),
-    "-": ast.USub(),
-    "+": ast.UAdd(),
-}
+DEFAULT_VALUES: dict[str, Any] = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
 
 
 def get_executor() -> ProcessPoolExecutor:
@@ -77,776 +43,286 @@ def get_executor() -> ProcessPoolExecutor:
     return _execution_executor
 
 
-def _ref(node_id: str) -> ast.expr:
-    return ast.Name(id=node_id, ctx=ast.Load()) if node_id in ("START", "END") else ast.Constant(value=node_id)
-
-
-def _call(func_expr: str, *args: ast.expr) -> ast.Expr:
-    parts = func_expr.split(".")
-    obj = ast.Name(id=parts[0], ctx=ast.Load())
-    func = ast.Attribute(value=obj, attr=parts[1], ctx=ast.Load()) if len(parts) > 1 else obj
-    return ast.Expr(value=ast.Call(func=func, args=list(args), keywords=[]))
-
-
-def ast_expr_to_node(node: dict[str, Any] | None, fallback: str = "True") -> ast.expr:
+def ast_expr_to_code(node: dict[str, Any] | None, fallback: str = "True") -> str:
+    """Converts a visual AST expression dict to Python code string."""
     if not node:
-        return ast.parse(fallback, mode="eval").body
+        return fallback
 
     kind = node.get("kind")
     if kind == "literal":
-        return ast.Constant(value=node.get("value"))
+        return repr(node.get("value"))
     if kind == "stateRef":
-        return ast.Call(
-            func=ast.Attribute(value=ast.Name(id="state", ctx=ast.Load()), attr="get", ctx=ast.Load()),
-            args=[ast.Constant(value=node.get("varKey", ""))],
-            keywords=[],
-        )
+        return f"state.get({repr(node.get('varKey', ''))})"
     if kind == "binaryOp":
         op = node.get("op", "==")
-        left, right = ast_expr_to_node(node.get("left"), fallback), ast_expr_to_node(node.get("right"), fallback)
-        return (
-            ast.Compare(left=left, ops=[COMPARE_OPS[op]], comparators=[right])
-            if op in COMPARE_OPS
-            else ast.BinOp(left=left, op=BIN_OPS.get(op, ast.Add()), right=right)
-        )
+        left = ast_expr_to_code(node.get("left"), fallback)
+        right = ast_expr_to_code(node.get("right"), fallback)
+        return f"({left} {op} {right})"
     if kind == "unaryOp":
         op_str = node.get("op", "not")
-        return ast.UnaryOp(
-            op=UNARY_OPS.get(op_str, ast.Not()),
-            operand=ast_expr_to_node(node.get("expr"), fallback),
-        )
+        expr_str = ast_expr_to_code(node.get("expr"), fallback)
+        return f"({op_str} {expr_str})"
 
-    return ast.parse(fallback, mode="eval").body
+    return fallback
 
 
-def compile_ast_dict_returning_node(
-    node_id: str, items: list[LogicalAssignmentSchema], valid_keys: set[str]
-) -> ast.FunctionDef:
-    valid_items = [i for i in items if getattr(i, "target_var_key", None) in valid_keys]
-    keys: list[ast.expr | None] = [ast.Constant(value=i.target_var_key) for i in valid_items]
-    values = [
-        ast_expr_to_node(getattr(i, "expression", None))
-        if getattr(i, "expression", None) is not None
-        else ast.Constant(value=getattr(i, "value", None))
-        for i in valid_items
-    ]
-    func = ast.FunctionDef(
-        name=node_id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=[ast.Return(value=ast.Dict(keys=keys, values=values))],
-        decorator_list=[],
-        returns=ast.Name(id="dict", ctx=ast.Load()),
-    )
-    return ast.fix_missing_locations(func)
-
-
-def compile_ast_passthrough_node(node_id: str) -> ast.FunctionDef:
-    func = ast.FunctionDef(
-        name=node_id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=[ast.Return(value=ast.Dict(keys=[], values=[]))],
-        decorator_list=[],
-        returns=ast.Name(id="dict", ctx=ast.Load()),
-    )
-    return ast.fix_missing_locations(func)
-
-
-def compile_ast_interrupt_node(node: CanonicalComputation, valid_keys: set[str]) -> ast.FunctionDef:
-    payload_keys = [k for k in node.payload_vars if k in valid_keys]
-    payload_dict = ast.Dict(
-        keys=[ast.Constant(value=k) for k in payload_keys],
-        values=[
-            ast.Call(
-                func=ast.Attribute(value=ast.Name(id="state", ctx=ast.Load()), attr="get", ctx=ast.Load()),
-                args=[ast.Constant(value=k)],
-                keywords=[],
-            )
-            for k in payload_keys
-        ],
-    )
-    interrupt_call = ast.Call(
-        func=ast.Name(id="interrupt", ctx=ast.Load()),
-        args=[payload_dict],
-        keywords=[],
-    )
-    body: list[ast.stmt] = [
-        ast.Assign(targets=[ast.Name(id="value", ctx=ast.Store())], value=interrupt_call)
-    ]
-    if node.resume_var and node.resume_var in valid_keys:
-        body.append(
-            ast.Return(
-                value=ast.Dict(
-                    keys=[ast.Constant(value=node.resume_var)],
-                    values=[ast.Name(id="value", ctx=ast.Load())],
-                )
-            )
-        )
-    else:
-        body.append(ast.Return(value=ast.Dict(keys=[], values=[])))
-
-    func = ast.FunctionDef(
-        name=node.id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=body,
-        decorator_list=[],
-        returns=ast.Name(id="dict", ctx=ast.Load()),
-    )
-    return ast.fix_missing_locations(func)
-
-
-def compile_ast_agentic_node(
-    node: CanonicalComputation,
-    valid_keys: set[str],
-    all_variables: list[DefinerVariableSchema],
-) -> list[ast.stmt]:
-    inputs = [k for k in node.agentic_inputs if k in valid_keys]
-    outputs = [k for k in node.agentic_outputs if k in valid_keys]
-
-    anns: list[ast.stmt] = []
-    for var_key in outputs:
-        var_type = "string"
-        var_desc = None
-        for v in all_variables:
-            if v.key == var_key:
-                var_type = v.type
-                var_desc = v.description
-                break
-
-        py_type = TYPE_MAP.get(var_type, "str")
-        val = None
-        if var_desc:
-            val = ast.Call(
-                func=ast.Name(id="Field", ctx=ast.Load()),
-                args=[],
-                keywords=[ast.keyword(arg="description", value=ast.Constant(value=var_desc))],
-            )
-
-        anns.append(
-            ast.AnnAssign(
-                target=ast.Name(id=var_key, ctx=ast.Store()),
-                annotation=ast.Name(id=py_type, ctx=ast.Load()),
-                value=val,
-                simple=1,
-            )
-        )
-
-    class_def = ast.ClassDef(
-        name=f"{node.id}Output",
-        bases=[ast.Name(id="BaseModel", ctx=ast.Load())],
-        keywords=[],
-        body=anns or [ast.Pass()],
-        decorator_list=[],
-    )
-
-    body_stmts: list[ast.stmt] = [
-        ast.Assign(
-            targets=[ast.Name(id="client", ctx=ast.Store())],
-            value=ast.Call(func=ast.Name(id="Groq", ctx=ast.Load()), args=[], keywords=[]),
-        ),
-        ast.Assign(
-            targets=[ast.Name(id="prompt_text", ctx=ast.Store())],
-            value=ast.Constant(value=node.prompt or ""),
-        ),
-    ]
-
-    for k in inputs:
-        replace_call = ast.Call(
-            func=ast.Attribute(value=ast.Name(id="prompt_text", ctx=ast.Load()), attr="replace", ctx=ast.Load()),
-            args=[
-                ast.Constant(value=f"{{{k}}}"),
-                ast.Call(
-                    func=ast.Name(id="str", ctx=ast.Load()),
-                    args=[
-                        ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id="state", ctx=ast.Load()),
-                                attr="get",
-                                ctx=ast.Load(),
-                            ),
-                            args=[ast.Constant(value=k)],
-                            keywords=[],
-                        )
-                    ],
-                    keywords=[],
-                ),
-            ],
-            keywords=[],
-        )
-        body_stmts.append(ast.Assign(targets=[ast.Name(id="prompt_text", ctx=ast.Store())], value=replace_call))
-
-    parse_call = ast.Attribute(
-        value=ast.Attribute(
-            value=ast.Attribute(
-                value=ast.Attribute(
-                    value=ast.Name(id="client", ctx=ast.Load()),
-                    attr="beta",
-                    ctx=ast.Load(),
-                ),
-                attr="chat",
-                ctx=ast.Load(),
-            ),
-            attr="completions",
-            ctx=ast.Load(),
-        ),
-        attr="parse",
-        ctx=ast.Load(),
-    )
-
-    chat_completion_val = ast.Call(
-        func=parse_call,
-        args=[],
-        keywords=[
-            ast.keyword(
-                arg="messages",
-                value=ast.List(
-                    elts=[
-                        ast.Dict(
-                            keys=[ast.Constant(value="role"), ast.Constant(value="content")],
-                            values=[ast.Constant(value="user"), ast.Name(id="prompt_text", ctx=ast.Load())],
-                        )
-                    ],
-                    ctx=ast.Load(),
-                ),
-            ),
-            ast.keyword(arg="model", value=ast.Constant(value="llama3-8b-8192")),
-            ast.keyword(arg="response_format", value=ast.Name(id=f"{node.id}Output", ctx=ast.Load())),
-        ],
-    )
-
-    body_stmts.append(
-        ast.Assign(
-            targets=[ast.Name(id="chat_completion", ctx=ast.Store())],
-            value=chat_completion_val,
-        )
-    )
-
-    res_val = ast.Attribute(
-        value=ast.Attribute(
-            value=ast.Subscript(
-                value=ast.Attribute(
-                    value=ast.Name(id="chat_completion", ctx=ast.Load()),
-                    attr="choices",
-                    ctx=ast.Load(),
-                ),
-                slice=ast.Constant(value=0),
-                ctx=ast.Load(),
-            ),
-            attr="message",
-            ctx=ast.Load(),
-        ),
-        attr="parsed",
-        ctx=ast.Load(),
-    )
-    body_stmts.append(ast.Assign(targets=[ast.Name(id="res", ctx=ast.Store())], value=res_val))
-
-    keys: list[ast.expr | None] = [ast.Constant(value=k) for k in outputs]
-    values: list[ast.expr] = [
-        ast.Attribute(value=ast.Name(id="res", ctx=ast.Load()), attr=k, ctx=ast.Load()) for k in outputs
-    ]
-    body_stmts.append(ast.Return(value=ast.Dict(keys=keys, values=values)))
-
-    func_def = ast.FunctionDef(
-        name=node.id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=body_stmts,
-        decorator_list=[],
-        returns=ast.Name(id="dict", ctx=ast.Load()),
-    )
-
-    return [class_def, ast.fix_missing_locations(func_def)]
-
-
-def compile_ast_switch_node(node_id: str, slots: list[SlotRead]) -> ast.FunctionDef:
-    def build_if(idx: int) -> list[ast.stmt]:
-        if idx >= len(slots):
-            return [ast.Return(value=ast.Constant(value=""))]
-        return [
-            ast.If(
-                test=ast_expr_to_node(slots[idx].expression, "False"),
-                body=[ast.Return(value=ast.Constant(value=slots[idx].raw_string or f"Slot {idx + 1}"))],
-                orelse=build_if(idx + 1),
-            )
-        ]
-
-    func = ast.FunctionDef(
-        name=node_id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=build_if(0),
-        decorator_list=[],
-        returns=ast.Name(id="str", ctx=ast.Load()),
-    )
-    return ast.fix_missing_locations(func)
-
-
-def compile_ast_agentic_router_node(node: CanonicalRouter, valid_keys: set[str]) -> list[ast.stmt]:
-    slot_labels = [s.raw_string for s in node.slots if s.raw_string]
-    literal_types: list[ast.expr] = [ast.Constant(value=label) for label in slot_labels]
-
-    anns: list[ast.stmt] = [
-        ast.AnnAssign(
-            target=ast.Name(id="decision", ctx=ast.Store()),
-            annotation=ast.Subscript(
-                value=ast.Name(id="Literal", ctx=ast.Load()),
-                slice=ast.Tuple(elts=literal_types, ctx=ast.Load()) if len(literal_types) > 1 else literal_types[0],
-                ctx=ast.Load(),
-            ),
-            value=None,
-            simple=1,
-        )
-    ]
-    class_def = ast.ClassDef(
-        name=f"{node.id}Choice",
-        bases=[ast.Name(id="BaseModel", ctx=ast.Load())],
-        keywords=[],
-        body=anns,
-        decorator_list=[],
-    )
-
-    inputs = [k for k in node.agentic_inputs if k in valid_keys]
-    body_stmts: list[ast.stmt] = [
-        ast.Assign(
-            targets=[ast.Name(id="client", ctx=ast.Store())],
-            value=ast.Call(func=ast.Name(id="Groq", ctx=ast.Load()), args=[], keywords=[]),
-        ),
-        ast.Assign(
-            targets=[ast.Name(id="prompt_text", ctx=ast.Store())],
-            value=ast.Constant(value=node.prompt or ""),
-        ),
-    ]
-
-    for k in inputs:
-        replace_call = ast.Call(
-            func=ast.Attribute(value=ast.Name(id="prompt_text", ctx=ast.Load()), attr="replace", ctx=ast.Load()),
-            args=[
-                ast.Constant(value=f"{{{k}}}"),
-                ast.Call(
-                    func=ast.Name(id="str", ctx=ast.Load()),
-                    args=[
-                        ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id="state", ctx=ast.Load()),
-                                attr="get",
-                                ctx=ast.Load(),
-                            ),
-                            args=[ast.Constant(value=k)],
-                            keywords=[],
-                        )
-                    ],
-                    keywords=[],
-                ),
-            ],
-            keywords=[],
-        )
-        body_stmts.append(ast.Assign(targets=[ast.Name(id="prompt_text", ctx=ast.Store())], value=replace_call))
-
-    parse_call = ast.Attribute(
-        value=ast.Attribute(
-            value=ast.Attribute(
-                value=ast.Attribute(
-                    value=ast.Name(id="client", ctx=ast.Load()),
-                    attr="beta",
-                    ctx=ast.Load(),
-                ),
-                attr="chat",
-                ctx=ast.Load(),
-            ),
-            attr="completions",
-            ctx=ast.Load(),
-        ),
-        attr="parse",
-        ctx=ast.Load(),
-    )
-
-    chat_completion_val = ast.Call(
-        func=parse_call,
-        args=[],
-        keywords=[
-            ast.keyword(
-                arg="messages",
-                value=ast.List(
-                    elts=[
-                        ast.Dict(
-                            keys=[ast.Constant(value="role"), ast.Constant(value="content")],
-                            values=[ast.Constant(value="user"), ast.Name(id="prompt_text", ctx=ast.Load())],
-                        )
-                    ],
-                    ctx=ast.Load(),
-                ),
-            ),
-            ast.keyword(arg="model", value=ast.Constant(value="llama3-8b-8192")),
-            ast.keyword(arg="response_format", value=ast.Name(id=f"{node.id}Choice", ctx=ast.Load())),
-        ],
-    )
-
-    body_stmts.append(
-        ast.Assign(
-            targets=[ast.Name(id="chat_completion", ctx=ast.Store())],
-            value=chat_completion_val,
-        )
-    )
-
-    res_val = ast.Attribute(
-        value=ast.Attribute(
-            value=ast.Attribute(
-                value=ast.Subscript(
-                    value=ast.Attribute(
-                        value=ast.Name(id="chat_completion", ctx=ast.Load()),
-                        attr="choices",
-                        ctx=ast.Load(),
-                    ),
-                    slice=ast.Constant(value=0),
-                    ctx=ast.Load(),
-                ),
-                attr="message",
-                ctx=ast.Load(),
-            ),
-            attr="parsed",
-            ctx=ast.Load(),
-        ),
-        attr="decision",
-        ctx=ast.Load(),
-    )
-    body_stmts.append(ast.Return(value=res_val))
-
-    func_def = ast.FunctionDef(
-        name=node.id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=body_stmts,
-        decorator_list=[],
-        returns=ast.Name(id="str", ctx=ast.Load()),
-    )
-    return [class_def, ast.fix_missing_locations(func_def)]
-
-
-def compile_ast_retry_nodes(node: CanonicalRetry) -> list[ast.stmt]:
-    counter_var = f"__retry_{node.id}_count"
-    # 1. Counter increment node
-    count_inc = ast.Assign(
-        targets=[ast.Name(id="cur", ctx=ast.Store())],
-        value=ast.BinOp(
-            left=ast.Call(
-                func=ast.Attribute(value=ast.Name(id="state", ctx=ast.Load()), attr="get", ctx=ast.Load()),
-                args=[ast.Constant(value=counter_var)],
-                keywords=[],
-            ),
-            op=ast.Add(),
-            right=ast.Constant(value=1),
-        ),
-    )
-    count_func = ast.FunctionDef(
-        name=f"__{node.id}_inc",
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=[
-            count_inc,
-            ast.Return(
-                value=ast.Dict(
-                    keys=[ast.Constant(value=counter_var)],
-                    values=[ast.Name(id="cur", ctx=ast.Load())],
-                )
-            ),
-        ],
-        decorator_list=[],
-        returns=ast.Name(id="dict", ctx=ast.Load()),
-    )
-
-    # 2. Router node: checks (valid_expression) -> "valid", else if count < max_attempts -> "retry", else -> "exhausted"
-    valid_test = ast_expr_to_node(node.valid_expression, "True")
-    count_check = ast.Compare(
-        left=ast.Call(
-            func=ast.Attribute(value=ast.Name(id="state", ctx=ast.Load()), attr="get", ctx=ast.Load()),
-            args=[ast.Constant(value=counter_var)],
-            keywords=[],
-        ),
-        ops=[ast.Lt()],
-        comparators=[ast.Constant(value=node.max_attempts)],
-    )
-
-    router_body: list[ast.stmt] = [
-        ast.If(
-            test=valid_test,
-            body=[ast.Return(value=ast.Constant(value="valid"))],
-            orelse=[
-                ast.If(
-                    test=count_check,
-                    body=[ast.Return(value=ast.Constant(value="retry"))],
-                    orelse=[ast.Return(value=ast.Constant(value="exhausted"))],
-                )
-            ],
-        )
-    ]
-    router_func = ast.FunctionDef(
-        name=node.id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg="state", annotation=ast.Name(id="State", ctx=ast.Load()))],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-        ),
-        body=router_body,
-        decorator_list=[],
-        returns=ast.Name(id="str", ctx=ast.Load()),
-    )
-
-    return [ast.fix_missing_locations(count_func), ast.fix_missing_locations(router_func)]
-
-
-# ----------------------------------------------------
-# Pure AST Compiler (Layer 2)
-# ----------------------------------------------------
 class PureAstLangGraphCompiler:
+    """Layer 2 Compiler: High-level code-string generator for LangGraph Python scripts."""
+
     def __init__(self, resolved_graph: ResolvedGraph):
         self.resolved_graph = resolved_graph
         self.all_variables = [v for v in resolved_graph.state if v.key]
         self.valid_keys = {v.key for v in self.all_variables}
-        self.definer_ids: set[str] = set()
+        self.executable_nodes = [n for n in resolved_graph.nodes if not isinstance(n, CanonicalSentinel)]
 
-        self.executable_nodes = [
-            n for n in resolved_graph.nodes if not isinstance(n, CanonicalSentinel)
-        ]
-        self.router_nodes = {n.id: n for n in self.executable_nodes if isinstance(n, (CanonicalRouter, CanonicalRetry))}
-
-    def resolve_target_id(self, target_id: str, visited: set[str] | None = None) -> str:
-        visited = visited or set()
-        if target_id in visited or target_id == "end":
-            return "END"
-        visited.add(target_id)
-        if target_id in self.definer_ids:
-            out_edge = next((e for e in self.resolved_graph.edges if e.source_id == target_id), None)
-            return self.resolve_target_id(out_edge.target_id, visited) if out_edge else "END"
-        return target_id
-
-    def resolve_source_id(self, source_id: str, visited: set[str] | None = None) -> str:
-        visited = visited or set()
-        if source_id in visited or source_id == "start":
-            return "START"
-        visited.add(source_id)
-        if source_id in self.definer_ids:
-            in_edge = next((e for e in self.resolved_graph.edges if e.target_id == source_id), None)
-            return self.resolve_source_id(in_edge.source_id, visited) if in_edge else "START"
-        return source_id
-
-    def build_state_ast(self) -> list[ast.stmt]:
-        if not self.all_variables:
-            return ast.parse("class State(TypedDict):\n    pass\ninitial_state: State = {}").body
-
-        anns: list[ast.stmt] = [
-            ast.AnnAssign(
-                target=ast.Name(id=v.key, ctx=ast.Store()),
-                annotation=ast.Name(id=TYPE_MAP.get(v.type, "str"), ctx=ast.Load()),
-                value=None,
-                simple=1,
-            )
-            for v in self.all_variables
-        ]
-        cls_def = ast.ClassDef(
-            name="State", bases=[ast.Name(id="TypedDict", ctx=ast.Load())], keywords=[], body=anns, decorator_list=[]
-        )
-
-        dict_values: list[ast.expr] = [
-            ast.Constant(
-                value=cast(
-                    Any,
-                    v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""),
-                )
-            )
-            for v in self.all_variables
-        ]
-
-        init_state = ast.Assign(
-            targets=[ast.Name(id="initial_state", ctx=ast.Store())],
-            value=ast.Dict(
-                keys=[ast.Constant(value=v.key) for v in self.all_variables],
-                values=dict_values,
-            ),
-        )
-        return [cls_def, init_state]
-
-    def build_workflow_ast(self) -> list[ast.stmt]:
-        stmts: list[ast.stmt] = [
-            ast.Assign(
-                targets=[ast.Name(id="workflow", ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Name(id="StateGraph", ctx=ast.Load()),
-                    args=[ast.Name(id="State", ctx=ast.Load())],
-                    keywords=[],
-                ),
-            )
-        ]
-
-        router_sources: dict[str, list[str]] = {sid: [] for sid in self.router_nodes}
-        edges_to_routers: set[uuid.UUID] = set()
-        for e in self.resolved_graph.edges:
-            tid = self.resolve_target_id(e.target_id)
-            if tid in self.router_nodes:
-                edges_to_routers.add(e.id)
-                resolved_src = self.resolve_source_id(e.source_id)
-                router_sources[tid].append(resolved_src)
-
-        # Add Nodes
-        for n in self.executable_nodes:
-            if isinstance(n, CanonicalRetry):
-                # Retry adds its counter node first
-                inc_node_id = f"__{n.id}_inc"
-                stmts.append(_call("workflow.add_node", ast.Constant(value=inc_node_id), ast.Name(id=inc_node_id, ctx=ast.Load())))
-            elif isinstance(n, CanonicalRouter) and not router_sources[n.id]:
-                dummy_lambda = ast.Lambda(
-                    args=ast.arguments(
-                        posonlyargs=[], args=[ast.arg(arg="state")], kwonlyargs=[], kw_defaults=[], defaults=[]
-                    ),
-                    body=ast.Constant(value=None),
-                )
-                stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), dummy_lambda))
-            elif isinstance(n, CanonicalComputation):
-                stmts.append(_call("workflow.add_node", ast.Constant(value=n.id), ast.Name(id=n.id, ctx=ast.Load())))
-
-        # Add Edges
-        for e in self.resolved_graph.edges:
-            if e.id in edges_to_routers or e.target_id == "start":
-                continue
-            if e.source_id == "start":
-                stmts.append(
-                    _call(
-                        "workflow.add_edge",
-                        ast.Name(id="START", ctx=ast.Load()),
-                        _ref(self.resolve_target_id(e.target_id)),
-                    )
-                )
-            elif e.source_id not in self.definer_ids and e.source_type == "node":
-                target_ref = self.resolve_target_id(e.target_id)
-                # If target is a Retry node, edge goes to its counter node first
-                target_node = next((rn for rn in self.executable_nodes if rn.id == target_ref), None)
-                if isinstance(target_node, CanonicalRetry):
-                    target_ref = f"__{target_ref}_inc"
-
-                stmts.append(
-                    _call(
-                        "workflow.add_edge", ast.Constant(value=e.source_id), _ref(target_ref)
-                    )
-                )
-
-        # Conditional Router Edges
-        for router in self.router_nodes.values():
-            slots = router.slots
-            routing_edges = [e for e in self.resolved_graph.edges if e.source_id in {s.id for s in slots}]
-            if not routing_edges:
-                continue
-            slot_map = {
-                s.raw_string: _ref(self.resolve_target_id(e.target_id))
-                for s in slots
-                for e in routing_edges
-                if e.source_id == s.id
-            }
-            keys: list[ast.expr | None] = [ast.Constant(value=k) for k in slot_map.keys()]
-            vals = list(slot_map.values())
-            sources = router_sources[router.id] or [router.id]
-            if isinstance(router, CanonicalRetry):
-                sources = [f"__{router.id}_inc"]
-
-            for source in sources:
-                stmts.append(
-                    _call(
-                        "workflow.add_conditional_edges",
-                        _ref(source),
-                        ast.Name(id=router.id, ctx=ast.Load()),
-                        ast.Dict(keys=keys, values=vals),
-                    )
-                )
-
-        compile_call = ast.Call(
-            func=ast.Attribute(value=ast.Name(id="workflow", ctx=ast.Load()), attr="compile", ctx=ast.Load()),
-            args=[],
-            keywords=[],
-        )
-        stmts.append(ast.Assign(targets=[ast.Name(id="app", ctx=ast.Store())], value=compile_call))
-        return stmts
-
-    def compile(self) -> str:
+    def emit_imports(self) -> str:
         has_agentic = any(
             (isinstance(n, CanonicalComputation) and n.body == ComputationKind.AGENTIC)
             or (isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH)
             for n in self.executable_nodes
         )
         has_interrupt = any(
-            isinstance(n, CanonicalComputation) and n.body == ComputationKind.INTERRUPT
-            for n in self.executable_nodes
+            isinstance(n, CanonicalComputation) and n.body == ComputationKind.INTERRUPT for n in self.executable_nodes
         )
 
-        import_lines = [
+        lines = [
             "from typing import TypedDict, Literal, Any",
             "from langgraph.graph import StateGraph, START, END",
         ]
         if has_agentic:
-            import_lines.extend(["from pydantic import BaseModel, Field", "from groq import Groq"])
+            lines.extend(["from pydantic import BaseModel, Field", "from groq import Groq"])
         if has_interrupt:
-            import_lines.append("from langgraph.types import interrupt")
+            lines.append("from langgraph.types import interrupt")
 
-        imports = ast.parse("\n".join(import_lines)).body
-        nodes: list[ast.stmt] = []
+        return "\n".join(lines)
+
+    def emit_state_typeddict(self) -> str:
+        known_keys = {v.key for v in self.all_variables}
+        synthetic_vars: list[tuple[str, str, Any]] = []
+
+        for n in self.executable_nodes:
+            if isinstance(n, CanonicalRetry):
+                ckey = f"__retry_{n.id}_count"
+                if ckey not in known_keys and not any(k == ckey for k, _, _ in synthetic_vars):
+                    synthetic_vars.append((ckey, "int", 0))
+            elif isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH:
+                skey = f"__sys_choice_{n.id}"
+                if skey not in known_keys and not any(k == skey for k, _, _ in synthetic_vars):
+                    synthetic_vars.append((skey, "str", ""))
+
+        for v in self.resolved_graph.state:
+            if v.key and v.key not in known_keys and not any(k == v.key for k, _, _ in synthetic_vars):
+                py_type = TYPE_MAP.get(v.type, "str")
+                def_val = v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, "")
+                synthetic_vars.append((v.key, py_type, def_val))
+
+        all_keys: list[tuple[str, str, Any]] = [
+            (
+                v.key,
+                TYPE_MAP.get(v.type, "str"),
+                v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""),
+            )
+            for v in self.all_variables
+        ] + synthetic_vars
+
+        if not all_keys:
+            return "class State(TypedDict):\n    pass\n\ninitial_state: State = {}"
+
+        fields = "\n".join(f"    {k}: {t}" for k, t, _ in all_keys)
+        init_values = ", ".join(f"{repr(k)}: {repr(v)}" for k, _, v in all_keys)
+        return f"class State(TypedDict):\n{fields}\n\ninitial_state = {{{init_values}}}"
+
+    def emit_computation_node(self, node: CanonicalComputation, all_variables: list[DefinerVariableSchema]) -> str:
+        if node.body == ComputationKind.LOGICAL:
+            valid_items = [i for i in node.assignments if getattr(i, "target_var_key", None) in self.valid_keys]
+            pairs = []
+            for i in valid_items:
+                expr = getattr(i, "expression", None)
+                val_code = ast_expr_to_code(expr) if expr is not None else repr(getattr(i, "value", None))
+                pairs.append(f"{repr(i.target_var_key)}: {val_code}")
+            return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
+
+        if node.body == ComputationKind.PASSTHROUGH:
+            return f"def {node.id}(state: State) -> dict:\n    return {{}}"
+
+        if node.body == ComputationKind.INTERRUPT:
+            payload_keys = [k for k in node.payload_vars if k in self.valid_keys]
+            payload_items = ", ".join(f"{repr(k)}: state.get({repr(k)})" for k in payload_keys)
+            ret_dict = (
+                f"{{{repr(node.resume_var)}: value}}"
+                if (node.resume_var and node.resume_var in self.valid_keys)
+                else "{}"
+            )
+            return (
+                f"def {node.id}(state: State) -> dict:\n"
+                f"    value = interrupt({{{payload_items}}})\n"
+                f"    return {ret_dict}"
+            )
+
+        if node.body == ComputationKind.AGENTIC:
+            inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
+            outputs = [k for k in node.agentic_outputs if k in self.valid_keys]
+
+            pydantic_fields = []
+            for var_key in outputs:
+                var_type = "string"
+                var_desc = None
+                for v in all_variables:
+                    if v.key == var_key:
+                        var_type = v.type
+                        var_desc = v.description
+                        break
+                py_type = TYPE_MAP.get(var_type, "str")
+                field_val = f" = Field(description={repr(var_desc)})" if var_desc else ""
+                pydantic_fields.append(f"    {var_key}: {py_type}{field_val}")
+
+            fields_code = "\n".join(pydantic_fields) if pydantic_fields else "    pass"
+            pydantic_cls = f"class {node.id}Output(BaseModel):\n{fields_code}"
+
+            replacements = "\n".join(
+                f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
+            )
+            ret_items = ", ".join(f"{repr(k)}: res.{k}" for k in outputs)
+
+            repl_block = f"{replacements}\n" if replacements else ""
+            fn_code = (
+                f"def {node.id}(state: State) -> dict:\n"
+                f"    client = Groq()\n"
+                f"    prompt_text = {repr(node.prompt or '')}\n"
+                f"{repl_block}"
+                f"    chat_completion = client.beta.chat.completions.parse(\n"
+                f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
+                f"        model='llama3-8b-8192',\n"
+                f"        response_format={node.id}Output,\n"
+                f"    )\n"
+                f"    res = chat_completion.choices[0].message.parsed\n"
+                f"    if res is None:\n"
+                f"        return {{}}\n"
+                f"    return {{{ret_items}}}"
+            )
+            return f"{pydantic_cls}\n\n{fn_code}"
+
+        return ""
+
+    def emit_router_node(self, node: CanonicalRouter) -> str:
+        if node.body == RouterKind.LOGICAL_SWITCH:
+            if_branches = []
+            for idx, slot in enumerate(node.slots):
+                raw = slot.raw_string or f"Slot {idx + 1}"
+                expr = slot.expression
+                if idx == len(node.slots) - 1 and expr and expr.get("kind") == "literal" and expr.get("value") is True:
+                    if_branches.append(f"    else:\n        return {repr(raw)}")
+                else:
+                    cond_code = ast_expr_to_code(expr, fallback="False")
+                    keyword = "if" if idx == 0 else "elif"
+                    if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
+
+            if not any(b.strip().startswith("else:") for b in if_branches):
+                if_branches.append("    else:\n        return ''")
+
+            branches_code = "\n".join(if_branches)
+            return f"def {node.id}(state: State) -> str:\n{branches_code}"
+
+        if node.body == RouterKind.AGENTIC_SWITCH:
+            slot_labels = [s.raw_string for s in node.slots if s.raw_string]
+            literal_union = ", ".join(repr(label) for label in slot_labels)
+            choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: Literal[{literal_union}]"
+
+            inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
+            replacements = "\n".join(
+                f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
+            )
+            fallback = slot_labels[0] if slot_labels else ""
+
+            repl_block = f"{replacements}\n" if replacements else ""
+            fn_code = (
+                f"def {node.id}(state: State) -> dict:\n"
+                f"    client = Groq()\n"
+                f"    prompt_text = {repr(node.prompt or '')}\n"
+                f"{repl_block}"
+                f"    chat_completion = client.beta.chat.completions.parse(\n"
+                f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
+                f"        model='llama3-8b-8192',\n"
+                f"        response_format={node.id}Choice,\n"
+                f"    )\n"
+                f"    parsed_msg = chat_completion.choices[0].message\n"
+                f"    decision = parsed_msg.parsed.decision if parsed_msg.parsed is not None else {repr(fallback)}\n"
+                f"    return {{'__sys_choice_{node.id}': decision}}\n\n"
+                f"def __{node.id}_route(state: State) -> str:\n"
+                f"    return state.get('__sys_choice_{node.id}')"
+            )
+            return f"{choice_cls}\n\n{fn_code}"
+
+        return ""
+
+    def emit_retry_node(self, node: CanonicalRetry) -> str:
+        counter_var = f"__retry_{node.id}_count"
+        count_check = f"state.get({repr(counter_var)}, 0) < {node.max_attempts}"
+
+        retry_branch = f"    elif {count_check}:\n        return 'retry'\n    else:\n        return 'exhausted'"
+
+        if node.valid_expression is not None:
+            valid_code = ast_expr_to_code(node.valid_expression, fallback="True")
+            body_code = f"    if {valid_code}:\n        return 'valid'\n{retry_branch}"
+        else:
+            body_code = f"    if {count_check}:\n        return 'retry'\n    else:\n        return 'exhausted'"
+
+        return f"def {node.id}(state: State) -> str:\n{body_code}"
+
+    def emit_workflow(self) -> str:
+        lines = [
+            "workflow = StateGraph(State)",
+        ]
+
+        # 1. Add Executable Nodes
+        for n in self.executable_nodes:
+            if isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH:
+                lines.append(f"workflow.add_node('{n.id}', {n.id})")
+            elif isinstance(n, CanonicalComputation):
+                lines.append(f"workflow.add_node('{n.id}', {n.id})")
+
+        # 2. Add Direct Edges
+        for src, tgt in self.resolved_graph.direct_edges:
+            src_ref = "START" if src == "START" else repr(src)
+            tgt_ref = "END" if tgt == "END" else repr(tgt)
+            lines.append(f"workflow.add_edge({src_ref}, {tgt_ref})")
+
+        # 3. Add Conditional Router Edges
+        for cedge in self.resolved_graph.conditional_edges:
+            src_ref = "START" if cedge.source_node_id == "START" else repr(cedge.source_node_id)
+            slot_map_code = (
+                "{"
+                + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in cedge.slot_mapping.items())
+                + "}"
+            )
+            lines.append(f"workflow.add_conditional_edges({src_ref}, {cedge.router_fn_name}, {slot_map_code})")
+
+        lines.append("app = workflow.compile()")
+        return "\n".join(lines)
+
+    def compile(self) -> str:
+        sections = [
+            self.emit_imports(),
+            self.emit_state_typeddict(),
+        ]
+
         for n in self.executable_nodes:
             if isinstance(n, CanonicalComputation):
-                match n.body:
-                    case ComputationKind.LOGICAL:
-                        nodes.append(compile_ast_dict_returning_node(n.id, n.assignments, self.valid_keys))
-                    case ComputationKind.PASSTHROUGH:
-                        nodes.append(compile_ast_passthrough_node(n.id))
-                    case ComputationKind.AGENTIC:
-                        nodes.extend(compile_ast_agentic_node(n, self.valid_keys, self.all_variables))
-                    case ComputationKind.INTERRUPT:
-                        nodes.append(compile_ast_interrupt_node(n, self.valid_keys))
+                sections.append(self.emit_computation_node(n, self.resolved_graph.state))
             elif isinstance(n, CanonicalRouter):
-                match n.body:
-                    case RouterKind.LOGICAL_SWITCH:
-                        nodes.append(compile_ast_switch_node(n.id, n.slots))
-                    case RouterKind.AGENTIC_SWITCH:
-                        nodes.extend(compile_ast_agentic_router_node(n, self.valid_keys))
+                sections.append(self.emit_router_node(n))
             elif isinstance(n, CanonicalRetry):
-                nodes.extend(compile_ast_retry_nodes(n))
+                sections.append(self.emit_retry_node(n))
 
-        mod = ast.Module(body=imports + self.build_state_ast() + nodes + self.build_workflow_ast(), type_ignores=[])
-        return ast.unparse(ast.fix_missing_locations(mod))
+        sections.append(self.emit_workflow())
+
+        raw_code = "\n\n".join(sections)
+
+        # Validate syntax in single pass
+        tree = ast.parse(raw_code)
+        assert tree is not None
+
+        return raw_code
 
 
 async def generate_graph_code(flow_data: GraphFlowData) -> str:

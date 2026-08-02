@@ -1,15 +1,13 @@
 import pytest
 
-from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.schemas import (
     AgenticAssignerNode,
     DefinerVariableSchema,
     GraphFlowData,
-    LogicalAssignmentSchema,
     LogicalAssignerNode,
-    SwitchNode,
+    LogicalAssignmentSchema,
 )
 
 

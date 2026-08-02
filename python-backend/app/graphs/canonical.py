@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.graphs.schemas import DefinerVariableSchema, EdgeRead, LogicalAssignmentSchema, SlotRead
@@ -55,7 +56,15 @@ class CanonicalRetry(CanonicalNode):
     slots: list[SlotRead] = Field(default_factory=list)
 
 
+class ConditionalEdgeAssembly(BaseModel):
+    source_node_id: str
+    router_fn_name: str
+    slot_mapping: dict[str, str]
+
+
 class ResolvedGraph(BaseModel):
     nodes: list[CanonicalNode] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
     state: list[DefinerVariableSchema] = Field(default_factory=list)
+    direct_edges: list[tuple[str, str]] = Field(default_factory=list)
+    conditional_edges: list[ConditionalEdgeAssembly] = Field(default_factory=list)
