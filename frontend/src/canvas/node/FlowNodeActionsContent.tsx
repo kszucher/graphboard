@@ -6,21 +6,7 @@ import { useGraphQuery } from '../../api/queries';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/graph/traversal';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import type { InsertableNodeType, NodeType } from '../types';
-
-
-const INSERTABLE_NODE_TYPES: { type: InsertableNodeType; label: string }[] = [
-  { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
-  { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
-  { type: 'SWITCH', label: 'Logical Switch' },
-  { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
-  { type: 'INTERRUPT', label: 'Interrupt' },
-  { type: 'EXTRACT', label: 'Extract' },
-  { type: 'VALIDATE', label: 'Validate' },
-  { type: 'REVIEW', label: 'Review' },
-  { type: 'RETRY', label: 'Retry' },
-  { type: 'CONFIRM', label: 'Confirm' },
-];
+import { INSERTABLE_NODE_ITEMS, type InsertableNodeType, type NodeType } from '../types';
 
 interface FlowNodeActionsContentProps {
   nodeId: string;
@@ -106,7 +92,7 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
           <PlusIcon style={{ marginRight: 8 }}/> {label}
         </DropdownMenu.SubTrigger>
         <DropdownMenu.SubContent>
-          {INSERTABLE_NODE_TYPES.map(item => (
+          {INSERTABLE_NODE_ITEMS.map(item => (
             <DropdownMenu.Item key={item.type} onClick={() => handleInsert(item.type, direction)}>
               {item.label}
             </DropdownMenu.Item>

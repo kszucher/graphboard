@@ -5,15 +5,9 @@ import { useCallback, useMemo } from 'react';
 import { useAddNode, useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
-import type { NodeType } from './canvas/types';
+import { INSERTABLE_NODE_ITEMS, type NodeType } from './canvas/types';
 import { LeftSidebar } from './editor/LeftSidebar.tsx';
 import { RightSidebar } from './editor/RightSidebar.tsx';
-
-const NODE_TYPES: NodeType[] = [
-  'SWITCH',
-  'LOGICAL_ASSIGNER',
-  'AGENTIC_ASSIGNER',
-];
 
 export const Frame = () => {
   const { data: userId } = useUserId();
@@ -138,15 +132,16 @@ export const Frame = () => {
 
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <IconButton variant="solid" color="gray" radius="full" disabled={!isGraphSelected}>
+                <IconButton variant="solid" color="gray" radius="full" disabled={!isGraphSelected} title="Add Node">
                   <MixIcon width="20" height="20"/>
                 </IconButton>
               </DropdownMenu.Trigger>
               {isGraphSelected && (
                 <DropdownMenu.Content onCloseAutoFocus={e => e.preventDefault()}>
-                  {NODE_TYPES.map((nodeType) => (
-                    <DropdownMenu.Item onClick={() => handleCreateNode(nodeType)} key={nodeType}>
-                      {nodeType}
+                  <DropdownMenu.Label>Add Primitive Node</DropdownMenu.Label>
+                  {INSERTABLE_NODE_ITEMS.map((item) => (
+                    <DropdownMenu.Item onClick={() => handleCreateNode(item.type)} key={item.type}>
+                      {item.label}
                     </DropdownMenu.Item>
                   ))}
                 </DropdownMenu.Content>

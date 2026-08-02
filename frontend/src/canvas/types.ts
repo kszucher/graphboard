@@ -38,6 +38,19 @@ export const SEQUENTIAL_NODE_TYPES: NodeType[] = [
   'REVIEW',
 ];
 
+export const INSERTABLE_NODE_ITEMS: { type: InsertableNodeType; label: string }[] = [
+  { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
+  { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
+  { type: 'SWITCH', label: 'Logical Switch' },
+  { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
+  { type: 'INTERRUPT', label: 'Interrupt' },
+  { type: 'EXTRACT', label: 'Extract' },
+  { type: 'VALIDATE', label: 'Validate' },
+  { type: 'REVIEW', label: 'Review' },
+  { type: 'RETRY', label: 'Retry' },
+  { type: 'CONFIRM', label: 'Confirm' },
+];
+
 export interface DefinerVariable {
   id: string;
   key: string;
