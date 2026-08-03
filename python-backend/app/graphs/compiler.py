@@ -129,20 +129,6 @@ class DirectLangGraphCompiler:
                 pairs.append(f"{repr(i.target_var_key)}: {val_code}")
             return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
-        if isinstance(node, InterruptNode):
-            payload_keys = [k for k in node.payload_vars if k in self.valid_keys]
-            payload_items = ", ".join(f"{repr(k)}: state.get({repr(k)})" for k in payload_keys)
-            ret_dict = (
-                f"{{{repr(node.resume_var)}: value}}"
-                if (node.resume_var and node.resume_var in self.valid_keys)
-                else "{}"
-            )
-            return (
-                f"def {node.id}(state: State) -> dict:\n"
-                f"    value = interrupt({{{payload_items}}})\n"
-                f"    return {ret_dict}"
-            )
-
         if isinstance(node, AgenticAssignerNode):
             inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
             outputs = [k for k in node.agentic_outputs if k in self.valid_keys]
@@ -233,6 +219,20 @@ class DirectLangGraphCompiler:
                 f"    return state.get('__sys_choice_{node.id}')"
             )
             return f"{choice_cls}\n\n{fn_code}"
+
+        if isinstance(node, InterruptNode):
+            payload_keys = [k for k in node.payload_vars if k in self.valid_keys]
+            payload_items = ", ".join(f"{repr(k)}: state.get({repr(k)})" for k in payload_keys)
+            ret_dict = (
+                f"{{{repr(node.resume_var)}: value}}"
+                if (node.resume_var and node.resume_var in self.valid_keys)
+                else "{}"
+            )
+            return (
+                f"def {node.id}(state: State) -> dict:\n"
+                f"    value = interrupt({{{payload_items}}})\n"
+                f"    return {ret_dict}"
+            )
 
         return ""
 
