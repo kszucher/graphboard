@@ -6,7 +6,7 @@ import { useGraphQuery } from '../../api/queries';
 import { fromApiPayload } from '../../domain/graph/mappers';
 import { getIncomingEdgeOptions, getOutgoingEdgeOptions } from '../../domain/graph/traversal';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import { INSERTABLE_NODE_ITEMS, type ApiSlot, type InsertableNodeType } from '../types';
+import { type ApiSlot, INSERTABLE_NODE_ITEMS, type InsertableNodeType } from '../types';
 
 interface SlotActionsContentProps {
   slotId: string;

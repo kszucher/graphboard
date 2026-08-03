@@ -167,7 +167,7 @@ async def test_run_graph_flow_switch_routing(
         "nodes": [
             {
                 "id": "switch_1",
-                "node_type": "SWITCH",
+                "node_type": "LOGICAL_SWITCH",
                 "slots": [
                     {
                         "id": "slot_a",

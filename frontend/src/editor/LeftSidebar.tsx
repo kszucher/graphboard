@@ -32,10 +32,10 @@ export const LeftSidebar = ({ isGraphSelected, graphId }: LeftSidebarProps) => {
       <Flex direction="column" gap="4" style={{ minHeight: 0 }}>
         {/* 1. Graph State Schema Editor */}
         <Box style={{ flexShrink: 0 }}>
-          <StateEditor graphId={graphId} disabled={!isGraphSelected} />
+          <StateEditor graphId={graphId} disabled={!isGraphSelected}/>
         </Box>
 
-        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }} />
+        <Separator size="4" style={{ backgroundColor: 'var(--gray-4)' }}/>
 
         {/* 2. Dynamic Node Editor Router */}
         <Box style={{ flexShrink: 0 }}>

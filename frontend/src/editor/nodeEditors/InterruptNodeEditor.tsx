@@ -44,7 +44,7 @@ export const InterruptNodeEditor = ({ graphId, nodeId, disabled = false }: Inter
             Resume Target Variable (Store User Payload):
           </Text>
           <Select.Root value={resumeVar} onValueChange={handleSelectResumeVar} disabled={disabled}>
-            <Select.Trigger placeholder="Select variable..." style={{ width: '100%' }} />
+            <Select.Trigger placeholder="Select variable..." style={{ width: '100%' }}/>
             <Select.Content>
               {stateVariables.map((v) => (
                 <Select.Item key={v.key} value={v.key}>

@@ -2,7 +2,9 @@ import type { Edge, Node } from '@xyflow/react';
 import type { ElkEdgeSection } from 'elkjs';
 import type { components } from '../api/generated/schema';
 
-export type ApiNode = Omit<components['schemas']['GraphFlowRead']['nodes'][number], 'variables' | 'assignments' | 'slots'> & {
+export type ApiNode =
+  Omit<components['schemas']['GraphFlowRead']['nodes'][number], 'variables' | 'assignments' | 'slots'>
+  & {
   is_input: boolean;
   is_output: boolean;
   slots?: ApiSlot[] | null;
@@ -26,29 +28,21 @@ export type ApiSlot = Omit<components['schemas']['SlotRead'], 'expression'> & {
 export type NodeType = components['schemas']['NodeType'];
 export type InsertableNodeType = Exclude<NodeType, 'START' | 'END'>;
 
-export const ROUTING_NODE_TYPES: NodeType[] = ['SWITCH', 'AGENTIC_SWITCH', 'RETRY', 'CONFIRM'];
-export const FIXED_SLOT_NODE_TYPES: NodeType[] = ['RETRY', 'CONFIRM'];
+export const ROUTING_NODE_TYPES: NodeType[] = ['LOGICAL_SWITCH', 'AGENTIC_SWITCH'];
+export const FIXED_SLOT_NODE_TYPES: NodeType[] = [];
 export const SEQUENTIAL_NODE_TYPES: NodeType[] = [
   'START',
   'LOGICAL_ASSIGNER',
   'AGENTIC_ASSIGNER',
   'INTERRUPT',
-  'EXTRACT',
-  'VALIDATE',
-  'REVIEW',
 ];
 
 export const INSERTABLE_NODE_ITEMS: { type: InsertableNodeType; label: string }[] = [
   { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
   { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
-  { type: 'SWITCH', label: 'Logical Switch' },
+  { type: 'LOGICAL_SWITCH', label: 'Logical Switch' },
   { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
   { type: 'INTERRUPT', label: 'Interrupt' },
-  { type: 'EXTRACT', label: 'Extract' },
-  { type: 'VALIDATE', label: 'Validate' },
-  { type: 'REVIEW', label: 'Review' },
-  { type: 'RETRY', label: 'Retry' },
-  { type: 'CONFIRM', label: 'Confirm' },
 ];
 
 export interface DefinerVariable {

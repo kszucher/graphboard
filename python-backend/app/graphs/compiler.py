@@ -1,7 +1,7 @@
 """=============================================================================
-PURE CODE GENERATOR COMPILER (Layer 2)
+1-LAYER DIRECT LANGGRAPH COMPILER
 =============================================================================
-Translates ResolvedGraph (canonical nodes and pre-assembled edges) directly to
+Translates GraphFlowData (visual nodes, edges, and state variables) directly into
 executable Python LangGraph code strings with single-pass AST validation.
 ============================================================================="""
 
@@ -13,16 +13,18 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
-from app.graphs.canonical import (
-    CanonicalComputation,
-    CanonicalRetry,
-    CanonicalRouter,
-    CanonicalSentinel,
-    ComputationKind,
-    ResolvedGraph,
-    RouterKind,
+from app.graphs.schemas import (
+    AgenticAssignerNode,
+    AgenticSwitchNode,
+    DefinerVariableSchema,
+    EndNode,
+    GraphFlowData,
+    InterruptNode,
+    LogicalAssignerNode,
+    LogicalSwitchNode,
+    NodeRead,
+    StartNode,
 )
-from app.graphs.schemas import DefinerVariableSchema, GraphFlowData
 
 try:
     import black
@@ -66,24 +68,19 @@ def ast_expr_to_code(node: dict[str, Any] | None, fallback: str = "True") -> str
     return fallback
 
 
-class PureAstLangGraphCompiler:
-    """Layer 2 Compiler: High-level code-string generator for LangGraph Python scripts."""
+class DirectLangGraphCompiler:
+    """Direct 1-Layer Compiler: Visual GraphFlowData to LangGraph Python Script."""
 
-    def __init__(self, resolved_graph: ResolvedGraph):
-        self.resolved_graph = resolved_graph
-        self.all_variables = [v for v in resolved_graph.state if v.key]
+    def __init__(self, flow_data: GraphFlowData):
+        self.flow_data = flow_data
+        self.all_variables = [v for v in flow_data.state if v.key]
         self.valid_keys = {v.key for v in self.all_variables}
-        self.executable_nodes = [n for n in resolved_graph.nodes if not isinstance(n, CanonicalSentinel)]
+        self.nodes_by_id: dict[str, NodeRead] = {n.id: n for n in flow_data.nodes}
+        self.executable_nodes = [n for n in flow_data.nodes if not isinstance(n, (StartNode, EndNode))]
 
     def emit_imports(self) -> str:
-        has_agentic = any(
-            (isinstance(n, CanonicalComputation) and n.body == ComputationKind.AGENTIC)
-            or (isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH)
-            for n in self.executable_nodes
-        )
-        has_interrupt = any(
-            isinstance(n, CanonicalComputation) and n.body == ComputationKind.INTERRUPT for n in self.executable_nodes
-        )
+        has_agentic = any(isinstance(n, (AgenticAssignerNode, AgenticSwitchNode)) for n in self.executable_nodes)
+        has_interrupt = any(isinstance(n, InterruptNode) for n in self.executable_nodes)
 
         lines = [
             "from typing import TypedDict, Literal, Any",
@@ -101,20 +98,10 @@ class PureAstLangGraphCompiler:
         synthetic_vars: list[tuple[str, str, Any]] = []
 
         for n in self.executable_nodes:
-            if isinstance(n, CanonicalRetry):
-                ckey = f"__retry_{n.id}_count"
-                if ckey not in known_keys and not any(k == ckey for k, _, _ in synthetic_vars):
-                    synthetic_vars.append((ckey, "int", 0))
-            elif isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH:
+            if isinstance(n, AgenticSwitchNode):
                 skey = f"__sys_choice_{n.id}"
                 if skey not in known_keys and not any(k == skey for k, _, _ in synthetic_vars):
                     synthetic_vars.append((skey, "str", ""))
-
-        for v in self.resolved_graph.state:
-            if v.key and v.key not in known_keys and not any(k == v.key for k, _, _ in synthetic_vars):
-                py_type = TYPE_MAP.get(v.type, "str")
-                def_val = v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, "")
-                synthetic_vars.append((v.key, py_type, def_val))
 
         all_keys: list[tuple[str, str, Any]] = [
             (
@@ -132,8 +119,8 @@ class PureAstLangGraphCompiler:
         init_values = ", ".join(f"{repr(k)}: {repr(v)}" for k, _, v in all_keys)
         return f"class State(TypedDict):\n{fields}\n\ninitial_state = {{{init_values}}}"
 
-    def emit_computation_node(self, node: CanonicalComputation, all_variables: list[DefinerVariableSchema]) -> str:
-        if node.body == ComputationKind.LOGICAL:
+    def emit_node_code(self, node: NodeRead, all_variables: list[DefinerVariableSchema]) -> str:
+        if isinstance(node, LogicalAssignerNode):
             valid_items = [i for i in node.assignments if getattr(i, "target_var_key", None) in self.valid_keys]
             pairs = []
             for i in valid_items:
@@ -142,10 +129,7 @@ class PureAstLangGraphCompiler:
                 pairs.append(f"{repr(i.target_var_key)}: {val_code}")
             return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
-        if node.body == ComputationKind.PASSTHROUGH:
-            return f"def {node.id}(state: State) -> dict:\n    return {{}}"
-
-        if node.body == ComputationKind.INTERRUPT:
+        if isinstance(node, InterruptNode):
             payload_keys = [k for k in node.payload_vars if k in self.valid_keys]
             payload_items = ", ".join(f"{repr(k)}: state.get({repr(k)})" for k in payload_keys)
             ret_dict = (
@@ -159,7 +143,7 @@ class PureAstLangGraphCompiler:
                 f"    return {ret_dict}"
             )
 
-        if node.body == ComputationKind.AGENTIC:
+        if isinstance(node, AgenticAssignerNode):
             inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
             outputs = [k for k in node.agentic_outputs if k in self.valid_keys]
 
@@ -183,8 +167,8 @@ class PureAstLangGraphCompiler:
                 f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
             )
             ret_items = ", ".join(f"{repr(k)}: res.{k}" for k in outputs)
-
             repl_block = f"{replacements}\n" if replacements else ""
+
             fn_code = (
                 f"def {node.id}(state: State) -> dict:\n"
                 f"    client = Groq()\n"
@@ -202,10 +186,7 @@ class PureAstLangGraphCompiler:
             )
             return f"{pydantic_cls}\n\n{fn_code}"
 
-        return ""
-
-    def emit_router_node(self, node: CanonicalRouter) -> str:
-        if node.body == RouterKind.LOGICAL_SWITCH:
+        if isinstance(node, LogicalSwitchNode):
             if_branches = []
             for idx, slot in enumerate(node.slots):
                 raw = slot.raw_string or f"Slot {idx + 1}"
@@ -223,7 +204,7 @@ class PureAstLangGraphCompiler:
             branches_code = "\n".join(if_branches)
             return f"def {node.id}(state: State) -> str:\n{branches_code}"
 
-        if node.body == RouterKind.AGENTIC_SWITCH:
+        if isinstance(node, AgenticSwitchNode):
             slot_labels = [s.raw_string for s in node.slots if s.raw_string]
             literal_union = ", ".join(repr(label) for label in slot_labels)
             choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: Literal[{literal_union}]"
@@ -233,8 +214,8 @@ class PureAstLangGraphCompiler:
                 f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
             )
             fallback = slot_labels[0] if slot_labels else ""
-
             repl_block = f"{replacements}\n" if replacements else ""
+
             fn_code = (
                 f"def {node.id}(state: State) -> dict:\n"
                 f"    client = Groq()\n"
@@ -255,47 +236,110 @@ class PureAstLangGraphCompiler:
 
         return ""
 
-    def emit_retry_node(self, node: CanonicalRetry) -> str:
-        counter_var = f"__retry_{node.id}_count"
-        count_check = f"state.get({repr(counter_var)}, 0) < {node.max_attempts}"
-
-        retry_branch = f"    elif {count_check}:\n        return 'retry'\n    else:\n        return 'exhausted'"
-
-        if node.valid_expression is not None:
-            valid_code = ast_expr_to_code(node.valid_expression, fallback="True")
-            body_code = f"    if {valid_code}:\n        return 'valid'\n{retry_branch}"
-        else:
-            body_code = f"    if {count_check}:\n        return 'retry'\n    else:\n        return 'exhausted'"
-
-        return f"def {node.id}(state: State) -> str:\n{body_code}"
-
     def emit_workflow(self) -> str:
         lines = [
             "workflow = StateGraph(State)",
         ]
 
-        # 1. Add Executable Nodes
+        # 1. Add Executable Nodes to Graph (Computation nodes and AgenticSwitchNode)
         for n in self.executable_nodes:
-            if isinstance(n, CanonicalRouter) and n.body == RouterKind.AGENTIC_SWITCH:
-                lines.append(f"workflow.add_node('{n.id}', {n.id})")
-            elif isinstance(n, CanonicalComputation):
+            if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode, AgenticSwitchNode)):
                 lines.append(f"workflow.add_node('{n.id}', {n.id})")
 
-        # 2. Add Direct Edges
-        for src, tgt in self.resolved_graph.direct_edges:
+        # 2. Build Slot Map & Route lookup
+        all_slots: dict[str, tuple[str, str]] = {}  # slot_id -> (router_node_id, raw_string)
+        for n in self.executable_nodes:
+            if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
+                for s in n.slots:
+                    if s.id:
+                        all_slots[s.id] = (n.id, s.raw_string)
+
+        def resolve_target(tgt_id: str) -> str:
+            if tgt_id in self.nodes_by_id:
+                target_node = self.nodes_by_id[tgt_id]
+                if isinstance(target_node, StartNode):
+                    return "START"
+                if isinstance(target_node, EndNode):
+                    return "END"
+            if tgt_id == "start":
+                return "START"
+            if tgt_id == "end":
+                return "END"
+            return tgt_id
+
+        # 3. Process Edges
+        router_incoming_sources: dict[str, list[str]] = {}
+        for edge in self.flow_data.edges:
+            target_id = edge.target_id
+            if target_id in self.nodes_by_id:
+                tnode = self.nodes_by_id[target_id]
+                if isinstance(tnode, LogicalSwitchNode):
+                    src_id = edge.source_id
+                    if src_id in all_slots:
+                        src_id = all_slots[src_id][0]
+                    elif src_id in self.nodes_by_id and isinstance(self.nodes_by_id[src_id], StartNode):
+                        src_id = "START"
+                    elif src_id == "start":
+                        src_id = "START"
+                    router_incoming_sources.setdefault(tnode.id, []).append(src_id)
+
+        # Emit conditional edges for LogicalSwitchNode
+        for n in self.executable_nodes:
+            if isinstance(n, LogicalSwitchNode):
+                slot_map: dict[str, str] = {}
+                for slot in n.slots:
+                    slot_edge = next((e for e in self.flow_data.edges if e.source_id == slot.id), None)
+                    if slot_edge is not None:
+                        tgt = resolve_target(slot_edge.target_id)
+                        slot_map[slot.raw_string] = tgt
+
+                if slot_map:
+                    sources = router_incoming_sources.get(n.id, [n.id])
+                    slot_map_code = (
+                        "{"
+                        + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in slot_map.items())
+                        + "}"
+                    )
+                    for src in sources:
+                        src_ref = "START" if src == "START" else repr(src)
+                        lines.append(f"workflow.add_conditional_edges({src_ref}, {n.id}, {slot_map_code})")
+
+            elif isinstance(n, AgenticSwitchNode):
+                slot_map = {}
+                for slot in n.slots:
+                    slot_edge = next((e for e in self.flow_data.edges if e.source_id == slot.id), None)
+                    if slot_edge is not None:
+                        tgt = resolve_target(slot_edge.target_id)
+                        slot_map[slot.raw_string] = tgt
+
+                if slot_map:
+                    slot_map_code = (
+                        "{"
+                        + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in slot_map.items())
+                        + "}"
+                    )
+                    lines.append(f"workflow.add_conditional_edges('{n.id}', __{n.id}_route, {slot_map_code})")
+
+        # Emit Direct Edges
+        for edge in self.flow_data.edges:
+            if edge.source_id in all_slots or edge.source_type == "slot":
+                continue
+            target_node = self.nodes_by_id.get(edge.target_id)
+            if isinstance(target_node, LogicalSwitchNode):
+                continue
+
+            src = (
+                "START"
+                if (
+                    edge.source_id == "start"
+                    or (edge.source_id in self.nodes_by_id and isinstance(self.nodes_by_id[edge.source_id], StartNode))
+                )
+                else edge.source_id
+            )
+            tgt = resolve_target(edge.target_id)
             src_ref = "START" if src == "START" else repr(src)
             tgt_ref = "END" if tgt == "END" else repr(tgt)
             lines.append(f"workflow.add_edge({src_ref}, {tgt_ref})")
-
-        # 3. Add Conditional Router Edges
-        for cedge in self.resolved_graph.conditional_edges:
-            src_ref = "START" if cedge.source_node_id == "START" else repr(cedge.source_node_id)
-            slot_map_code = (
-                "{"
-                + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in cedge.slot_mapping.items())
-                + "}"
-            )
-            lines.append(f"workflow.add_conditional_edges({src_ref}, {cedge.router_fn_name}, {slot_map_code})")
 
         lines.append("app = workflow.compile()")
         return "\n".join(lines)
@@ -307,12 +351,9 @@ class PureAstLangGraphCompiler:
         ]
 
         for n in self.executable_nodes:
-            if isinstance(n, CanonicalComputation):
-                sections.append(self.emit_computation_node(n, self.resolved_graph.state))
-            elif isinstance(n, CanonicalRouter):
-                sections.append(self.emit_router_node(n))
-            elif isinstance(n, CanonicalRetry):
-                sections.append(self.emit_retry_node(n))
+            node_code = self.emit_node_code(n, self.flow_data.state)
+            if node_code:
+                sections.append(node_code)
 
         sections.append(self.emit_workflow())
 
@@ -326,10 +367,7 @@ class PureAstLangGraphCompiler:
 
 
 async def generate_graph_code(flow_data: GraphFlowData) -> str:
-    from app.graphs.resolver import SemanticResolver
-
-    canonical = SemanticResolver().resolve(flow_data)  # Layer 1
-    raw_code = PureAstLangGraphCompiler(canonical).compile()  # Layer 2
+    raw_code = DirectLangGraphCompiler(flow_data).compile()
     if black is not None:
         try:
             return black.format_str(raw_code, mode=black.Mode(line_length=60))

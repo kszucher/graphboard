@@ -239,8 +239,6 @@ async def update_node(
     agentic_outputs: list[str] | None = None,
     payload_vars: list[str] | None = None,
     resume_var: str | None = None,
-    max_attempts: int | None = None,
-    valid_expression: dict[str, Any] | None = None,
 ) -> dict:
     kwargs: dict[str, Any] = {}
     if new_id is not None:
@@ -255,10 +253,6 @@ async def update_node(
         kwargs["payload_vars"] = payload_vars
     if resume_var is not None:
         kwargs["resume_var"] = resume_var
-    if max_attempts is not None:
-        kwargs["max_attempts"] = max_attempts
-    if valid_expression is not None:
-        kwargs["valid_expression"] = valid_expression
 
     return await _mutate_flow(
         uow,

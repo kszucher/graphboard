@@ -6,15 +6,11 @@ from app.exceptions import ValidationError
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    ConfirmNode,
-    ExtractNode,
     GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
-    RetryNode,
+    LogicalSwitchNode,
     StartNode,
-    SwitchNode,
-    ValidateNode,
 )
 
 
@@ -46,35 +42,21 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
 
     # 1. Check Unset Expressions and Unconnected Slots on routing nodes
     for n in user_nodes:
-        if isinstance(n, SwitchNode):
+        if isinstance(n, LogicalSwitchNode):
             for slot in n.slots:
                 if slot.expression is None:
-                    raise ValidationError(f"Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'.")
+                    raise ValidationError(
+                        f"Logical Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'."
+                    )
                 if slot.id not in edge_sources:
                     raise ValidationError(
-                        f"Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                        f"Logical Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
         elif isinstance(n, AgenticSwitchNode):
             for slot in n.slots:
                 if slot.id not in edge_sources:
                     raise ValidationError(
                         f"Agentic Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
-                    )
-        elif isinstance(n, RetryNode):
-            if n.valid_expression is None:
-                raise ValidationError(f"Retry node '{n.id}' must have a valid condition expression configured.")
-            if n.max_attempts <= 0:
-                raise ValidationError(f"Retry node '{n.id}' max_attempts must be greater than 0.")
-            for slot in n.slots:
-                if slot.id not in edge_sources:
-                    raise ValidationError(
-                        f"Retry option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
-                    )
-        elif isinstance(n, ConfirmNode):
-            for slot in n.slots:
-                if slot.id not in edge_sources:
-                    raise ValidationError(
-                        f"Confirm option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
 
     # 2. Check reachability of nodes from "start"
@@ -121,13 +103,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
 
     for node_item in user_nodes:
-        if isinstance(node_item, (LogicalAssignerNode, ExtractNode, ValidateNode)):
-            if isinstance(node_item, (ExtractNode, ValidateNode)) and len(node_item.assignments) != 1:
-                raise ValidationError(f"Node '{node_item.id}' must have exactly 1 assignment.")
-            if isinstance(node_item, ValidateNode) and node_item.assignments:
-                if node_item.assignments[0].value_type != "boolean":
-                    raise ValidationError(f"Validate node '{node_item.id}' assignment target must be boolean.")
-
+        if isinstance(node_item, LogicalAssignerNode):
             for asgn in node_item.assignments:
                 if asgn.target_var_key and asgn.target_var_key not in valid_keys:
                     raise ValidationError(
@@ -139,7 +115,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
                         )
-        elif isinstance(node_item, SwitchNode):
+        elif isinstance(node_item, LogicalSwitchNode):
             for slot in node_item.slots:
                 if slot.expression:
                     invalid_refs = _find_invalid_state_refs(slot.expression, valid_keys)
@@ -166,14 +142,3 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
             for k in node_item.payload_vars:
                 if k not in valid_keys:
                     raise ValidationError(f"Interrupt node '{node_item.id}' payload variable '{k}' is missing.")
-        elif isinstance(node_item, ConfirmNode):
-            for k in node_item.payload_vars:
-                if k not in valid_keys:
-                    raise ValidationError(f"Confirm node '{node_item.id}' payload variable '{k}' is missing.")
-        elif isinstance(node_item, RetryNode):
-            if node_item.valid_expression:
-                invalid_refs = _find_invalid_state_refs(node_item.valid_expression, valid_keys)
-                if invalid_refs:
-                    raise ValidationError(
-                        f"Invalid state reference in Retry node '{node_item.id}': variable '{next(iter(invalid_refs))}' is missing."
-                    )

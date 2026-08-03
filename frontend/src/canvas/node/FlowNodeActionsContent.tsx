@@ -73,14 +73,10 @@ export const FlowNodeActionsContent = ({ nodeId, onRenameClick }: FlowNodeAction
 
   const canShortcircuit = nodeData
     ? ([
-        'LOGICAL_ASSIGNER',
-        'AGENTIC_ASSIGNER',
-        'INTERRUPT',
-        'EXTRACT',
-        'VALIDATE',
-        'REVIEW',
-        'CONFIRM',
-      ] as NodeType[]).includes(nodeData.node_type)
+      'LOGICAL_ASSIGNER',
+      'AGENTIC_ASSIGNER',
+      'INTERRUPT',
+    ] as NodeType[]).includes(nodeData.node_type)
     : false;
 
   const renderAddConnectedSubmenu = (direction: 'before' | 'after') => {

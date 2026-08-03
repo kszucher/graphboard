@@ -482,20 +482,6 @@ export interface components {
       /** Agentic Inputs */
       agentic_inputs?: string[];
     };
-    /** ConfirmNode */
-    ConfirmNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "CONFIRM";
-      /** Slots */
-      slots?: components["schemas"]["SlotRead"][];
-      /** Payload Vars */
-      payload_vars?: string[];
-    };
     /** DefinerVariableCreateRequest */
     DefinerVariableCreateRequest: {
       /** Key */
@@ -597,18 +583,6 @@ export interface components {
        */
       node_type: "END";
     };
-    /** ExtractNode */
-    ExtractNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "EXTRACT";
-      /** Assignments */
-      assignments?: components["schemas"]["LogicalAssignmentSchema"][];
-    };
     /** GraphCodeRead */
     GraphCodeRead: {
       /** Code */
@@ -627,7 +601,7 @@ export interface components {
     /** GraphFlowRead */
     GraphFlowRead: {
       /** Nodes */
-      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["ExtractNode"] | components["schemas"]["ValidateNode"] | components["schemas"]["ReviewNode"] | components["schemas"]["SwitchNode"] | components["schemas"]["AgenticSwitchNode"] | components["schemas"]["RetryNode"] | components["schemas"]["ConfirmNode"])[];
+      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"])[];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
       /** State */
@@ -741,6 +715,18 @@ export interface components {
         [key: string]: unknown;
       } | null;
     };
+    /** LogicalSwitchNode */
+    LogicalSwitchNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "LOGICAL_SWITCH";
+      /** Slots */
+      slots?: components["schemas"]["SlotRead"][];
+    };
     /** NodeCreateRequest */
     NodeCreateRequest: {
       node_type: components["schemas"]["NodeType"];
@@ -753,7 +739,7 @@ export interface components {
      * NodeType
      * @enum {string}
      */
-    NodeType: "START" | "END" | "SWITCH" | "LOGICAL_ASSIGNER" | "AGENTIC_ASSIGNER" | "INTERRUPT" | "AGENTIC_SWITCH" | "RETRY" | "EXTRACT" | "VALIDATE" | "REVIEW" | "CONFIRM";
+    NodeType: "START" | "END" | "INTERRUPT" | "LOGICAL_ASSIGNER" | "AGENTIC_ASSIGNER" | "LOGICAL_SWITCH" | "AGENTIC_SWITCH";
     /** NodeUpdateRequest */
     NodeUpdateRequest: {
       /** New Id */
@@ -768,43 +754,6 @@ export interface components {
       payload_vars?: string[] | null;
       /** Resume Var */
       resume_var?: string | null;
-      /** Max Attempts */
-      max_attempts?: number | null;
-      /** Valid Expression */
-      valid_expression?: {
-        [key: string]: unknown;
-      } | null;
-    };
-    /** RetryNode */
-    RetryNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "RETRY";
-      /** Slots */
-      slots?: components["schemas"]["SlotRead"][];
-      /**
-       * Max Attempts
-       * @default 3
-       */
-      max_attempts: number;
-      /** Valid Expression */
-      valid_expression?: {
-        [key: string]: unknown;
-      } | null;
-    };
-    /** ReviewNode */
-    ReviewNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "REVIEW";
     };
     /** SetActiveGraph */
     SetActiveGraph: {
@@ -872,34 +821,10 @@ export interface components {
        */
       node_type: "START";
     };
-    /** SwitchNode */
-    SwitchNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "SWITCH";
-      /** Slots */
-      slots?: components["schemas"]["SlotRead"][];
-    };
     /** UserCreate */
     UserCreate: {
       /** User Name */
       user_name: string;
-    };
-    /** ValidateNode */
-    ValidateNode: {
-      /** Id */
-      id: string;
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "VALIDATE";
-      /** Assignments */
-      assignments?: components["schemas"]["LogicalAssignmentSchema"][];
     };
     /** ValidationError */
     ValidationError: {

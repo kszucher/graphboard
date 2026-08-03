@@ -11,9 +11,9 @@ from app.graphs.schemas import (
     GraphFlowData,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
+    LogicalSwitchNode,
     SlotRead,
     StartNode,
-    SwitchNode,
 )
 
 
@@ -21,7 +21,7 @@ from app.graphs.schemas import (
 def base_flow() -> GraphFlowData:
     nodes = [
         StartNode(id="start"),
-        SwitchNode(
+        LogicalSwitchNode(
             id="switch_1",
             slots=[
                 SlotRead(
@@ -88,7 +88,6 @@ def base_flow() -> GraphFlowData:
 
 
 def test_validation_variable_existence_on_assignment_creation(base_flow: GraphFlowData) -> None:
-    # 1. Invalid target variable key
     with pytest.raises(ValidationError, match="not defined in state schema"):
         graph_operations.create_logical_assignment(
             flow_data=base_flow,
@@ -100,7 +99,6 @@ def test_validation_variable_existence_on_assignment_creation(base_flow: GraphFl
 
 
 def test_validation_variable_existence_on_switch_expression_update(base_flow: GraphFlowData) -> None:
-    # Invalid stateRef variable key in expression
     with pytest.raises(ValidationError, match="references undefined variables"):
         graph_operations.update_switch_expression(
             flow_data=base_flow,
@@ -110,41 +108,34 @@ def test_validation_variable_existence_on_switch_expression_update(base_flow: Gr
 
 
 def test_blocked_variable_delete_when_referenced(base_flow: GraphFlowData) -> None:
-    # 1. Blocked because 'x' is referenced in assigner_1 expression and switch_1 expression
     with pytest.raises(ValidationError, match="Cannot delete variable 'x'"):
         graph_operations.delete_definer_variable(base_flow, var_id="var_x")
 
-    # 2. Blocked because 'y' is target in assigner_2
     with pytest.raises(ValidationError, match="Cannot delete variable 'y'"):
         graph_operations.delete_definer_variable(base_flow, var_id="var_y")
 
 
 def test_cascading_rename(base_flow: GraphFlowData) -> None:
-    # Rename 'x' to 'x_new'
     graph_operations.update_definer_variable(base_flow, var_id="var_x", updates={"key": "x_new"})
 
-    # Verify assignment target updated
     assigner_1 = next(n for n in base_flow.nodes if n.id == "assigner_1")
     assert isinstance(assigner_1, LogicalAssignerNode)
     assert assigner_1.assignments[0].target_var_key == "x_new"
 
-    # Verify expression in switch_1 updated
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
-    assert isinstance(switch_1, SwitchNode)
+    assert isinstance(switch_1, LogicalSwitchNode)
     expr = switch_1.slots[0].expression
     assert expr is not None
     assert expr["left"]["varKey"] == "x_new"
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
-    # Standard complete flow should pass without error
     assert_flow_is_complete(base_flow)
 
 
 def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
-    # Set expression on slot to None
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
-    assert isinstance(switch_1, SwitchNode)
+    assert isinstance(switch_1, LogicalSwitchNode)
     switch_1.slots[1].expression = None
 
     with pytest.raises(ValidationError, match="unset condition"):
@@ -152,7 +143,6 @@ def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> None:
-    # Remove outgoing edge from switch_1_option_a
     base_flow.edges = [e for e in base_flow.edges if e.source_id != "switch_1_option_a"]
 
     with pytest.raises(ValidationError, match="not connected to any target node"):
@@ -160,7 +150,6 @@ def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> None:
-    # Add an unconnected assigner node
     base_flow.nodes.append(LogicalAssignerNode(id="unconnected_assigner"))
 
     with pytest.raises(ValidationError, match="unreachable from the START node"):
@@ -168,7 +157,6 @@ def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> None:
-    # Add a valid reachable agentic assigner node
     base_flow.nodes.append(
         AgenticAssignerNode(
             id="agentic_1",
@@ -177,7 +165,6 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
             agentic_outputs=["y"],
         )
     )
-    # Reroute assigner_2 to agentic_1 instead of end, and agentic_1 to end
     base_flow.edges = [e for e in base_flow.edges if e.source_id != "assigner_2"]
     base_flow.edges.extend(
         [
@@ -186,10 +173,8 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
         ]
     )
 
-    # Should pass completeness check
     assert_flow_is_complete(base_flow)
 
-    # 1. Test missing prompt
     agentic_node = next(n for n in base_flow.nodes if n.id == "agentic_1")
     original_prompt = agentic_node.prompt
     agentic_node.prompt = ""
@@ -197,21 +182,18 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
         assert_flow_is_complete(base_flow)
     agentic_node.prompt = original_prompt
 
-    # 2. Test missing output variables
     original_outputs = agentic_node.agentic_outputs
     agentic_node.agentic_outputs = []
     with pytest.raises(ValidationError, match="must have at least one output variable"):
         assert_flow_is_complete(base_flow)
     agentic_node.agentic_outputs = original_outputs
 
-    # 3. Test invalid input variable reference
     original_inputs = agentic_node.agentic_inputs
     agentic_node.agentic_inputs = ["non_existent"]
     with pytest.raises(ValidationError, match="Invalid input reference"):
         assert_flow_is_complete(base_flow)
     agentic_node.agentic_inputs = original_inputs
 
-    # 4. Test invalid output variable reference
     agentic_node.agentic_outputs = ["non_existent"]
     with pytest.raises(ValidationError, match="Invalid output target"):
         assert_flow_is_complete(base_flow)

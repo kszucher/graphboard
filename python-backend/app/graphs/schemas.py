@@ -84,35 +84,15 @@ class AgenticAssignerNode(BaseNode):
     agentic_outputs: list[str] = Field(default_factory=list)
 
 
-class SwitchNode(BaseNode):
-    node_type: Literal[NodeType.SWITCH] = NodeType.SWITCH
+class LogicalSwitchNode(BaseNode):
+    node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
-
-
-# ── Sequential (no slots) ────────────────────────────────────────
 
 
 class InterruptNode(BaseNode):
     node_type: Literal[NodeType.INTERRUPT] = NodeType.INTERRUPT
     payload_vars: list[str] = Field(default_factory=list)
     resume_var: str = ""
-
-
-class ExtractNode(BaseNode):
-    node_type: Literal[NodeType.EXTRACT] = NodeType.EXTRACT
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-
-class ValidateNode(BaseNode):
-    node_type: Literal[NodeType.VALIDATE] = NodeType.VALIDATE
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-
-class ReviewNode(BaseNode):
-    node_type: Literal[NodeType.REVIEW] = NodeType.REVIEW
-
-
-# ── Routing (have slots) ─────────────────────────────────────────
 
 
 class AgenticSwitchNode(BaseNode):
@@ -122,32 +102,14 @@ class AgenticSwitchNode(BaseNode):
     agentic_inputs: list[str] = Field(default_factory=list)
 
 
-class RetryNode(BaseNode):
-    node_type: Literal[NodeType.RETRY] = NodeType.RETRY
-    slots: list[SlotRead] = Field(default_factory=list)
-    max_attempts: int = 3
-    valid_expression: dict[str, Any] | None = None
-
-
-class ConfirmNode(BaseNode):
-    node_type: Literal[NodeType.CONFIRM] = NodeType.CONFIRM
-    slots: list[SlotRead] = Field(default_factory=list)
-    payload_vars: list[str] = Field(default_factory=list)
-
-
 NodeRead: TypeAlias = Annotated[
     StartNode
     | EndNode
     | LogicalAssignerNode
     | AgenticAssignerNode
     | InterruptNode
-    | ExtractNode
-    | ValidateNode
-    | ReviewNode
-    | SwitchNode
-    | AgenticSwitchNode
-    | RetryNode
-    | ConfirmNode,
+    | LogicalSwitchNode
+    | AgenticSwitchNode,
     Field(discriminator="node_type"),
 ]
 
@@ -191,8 +153,6 @@ class NodeUpdateRequest(BaseModel):
     agentic_outputs: list[str] | None = None
     payload_vars: list[str] | None = None
     resume_var: str | None = None
-    max_attempts: int | None = None
-    valid_expression: dict[str, Any] | None = None
 
 
 class DefinerVariableCreateRequest(BaseModel):

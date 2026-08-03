@@ -123,9 +123,8 @@ async def update_node_endpoint(
             agentic_outputs=payload.agentic_outputs,
             payload_vars=payload.payload_vars,
             resume_var=payload.resume_var,
-            max_attempts=payload.max_attempts,
-            valid_expression=payload.valid_expression,
         )
+
     return GraphFlowRead.model_validate(updated_flow)
 
 

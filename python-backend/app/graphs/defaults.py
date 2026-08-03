@@ -6,22 +6,17 @@ from typing import Literal
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    ConfirmNode,
     DefinerVariableSchema,
     EdgeRead,
     EndNode,
-    ExtractNode,
     GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
+    LogicalSwitchNode,
     NodeRead,
-    RetryNode,
-    ReviewNode,
     SlotRead,
     StartNode,
-    SwitchNode,
-    ValidateNode,
 )
 
 
@@ -51,7 +46,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 ),
             ],
         ),
-        SwitchNode(
+        LogicalSwitchNode(
             id="loop_questions",
             slots=[
                 SlotRead(
@@ -81,7 +76,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             payload_vars=["current_question"],
             resume_var="user_answer",
         ),
-        ExtractNode(
+        LogicalAssignerNode(
             id="parse_answer",
             assignments=[
                 LogicalAssignmentSchema(
@@ -89,32 +84,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                     target_var_key="parsed_answer",
                     value_type="string",
                     expression={"kind": "stateRef", "varKey": "user_answer"},
-                )
-            ],
-        ),
-        RetryNode(
-            id="parse_retry",
-            max_attempts=3,
-            valid_expression={
-                "kind": "binaryOp",
-                "op": "!=",
-                "left": {"kind": "stateRef", "varKey": "parsed_answer"},
-                "right": {"kind": "literal", "value": ""},
-            },
-            slots=[
-                SlotRead(id="parse_retry_valid", raw_string="valid"),
-                SlotRead(id="parse_retry_retry", raw_string="retry"),
-                SlotRead(id="parse_retry_exhausted", raw_string="exhausted"),
-            ],
-        ),
-        LogicalAssignerNode(
-            id="reset_parse_retry",
-            assignments=[
-                LogicalAssignmentSchema(
-                    id="reset_parse_counter",
-                    target_var_key="__retry_parse_retry_count",
-                    value_type="number",
-                    expression={"kind": "literal", "value": 0},
                 )
             ],
         ),
@@ -132,12 +101,10 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             prompt="Determine which lifeline user selected from user_answer: '{user_answer}'.",
             agentic_inputs=["user_answer"],
             slots=[
-                SlotRead(id="choose_lifeline_fifty", raw_string="50-50"),
                 SlotRead(id="choose_lifeline_audience", raw_string="Audience"),
                 SlotRead(id="choose_lifeline_phone", raw_string="Phone"),
             ],
         ),
-        LogicalAssignerNode(id="fifty_fifty", assignments=[]),
         AgenticAssignerNode(
             id="audience_votes",
             prompt="Poll audience for advice on question: '{current_question}'.",
@@ -150,38 +117,8 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             agentic_inputs=["current_question"],
             agentic_outputs=["phone_call_advice"],
         ),
-        ConfirmNode(
-            id="confirm_answer",
-            payload_vars=["parsed_answer"],
-            slots=[
-                SlotRead(id="confirm_answer_confirmed", raw_string="confirmed"),
-                SlotRead(id="confirm_answer_rejected", raw_string="rejected"),
-                SlotRead(id="confirm_answer_unclear", raw_string="unclear"),
-            ],
-        ),
-        RetryNode(
-            id="confirm_retry",
-            max_attempts=2,
-            valid_expression=None,
-            slots=[
-                SlotRead(id="confirm_retry_valid", raw_string="valid"),
-                SlotRead(id="confirm_retry_retry", raw_string="retry"),
-                SlotRead(id="confirm_retry_exhausted", raw_string="exhausted"),
-            ],
-        ),
         LogicalAssignerNode(
-            id="reset_confirm_retry",
-            assignments=[
-                LogicalAssignmentSchema(
-                    id="reset_confirm_counter",
-                    target_var_key="__retry_confirm_retry_count",
-                    value_type="number",
-                    expression={"kind": "literal", "value": 0},
-                )
-            ],
-        ),
-        ValidateNode(
-            id="validate_step",
+            id="check_correct",
             assignments=[
                 LogicalAssignmentSchema(
                     id="validate_check",
@@ -196,7 +133,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 )
             ],
         ),
-        SwitchNode(
+        LogicalSwitchNode(
             id="result_switch",
             slots=[
                 SlotRead(
@@ -227,7 +164,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 )
             ],
         ),
-        ReviewNode(id="show_result"),
         EndNode(id="end"),
     ]
 
@@ -253,32 +189,17 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         make_edge("loop_questions_no->end", "loop_questions_no", "slot", "end"),
         make_edge("gen_question->ask_question", "gen_question", "node", "ask_question"),
         make_edge("ask_question->parse_answer", "ask_question", "node", "parse_answer"),
-        make_edge("parse_answer->parse_retry", "parse_answer", "node", "parse_retry"),
-        make_edge("parse_retry_valid->reset_parse_retry", "parse_retry_valid", "slot", "reset_parse_retry"),
-        make_edge("reset_parse_retry->lifeline_switch", "reset_parse_retry", "node", "lifeline_switch"),
-        make_edge("parse_retry_retry->ask_question", "parse_retry_retry", "slot", "ask_question"),
-        make_edge("parse_retry_exhausted->end", "parse_retry_exhausted", "slot", "end"),
-        make_edge("lifeline_switch_submit->confirm_answer", "lifeline_switch_submit", "slot", "confirm_answer"),
+        make_edge("parse_answer->lifeline_switch", "parse_answer", "node", "lifeline_switch"),
+        make_edge("lifeline_switch_submit->check_correct", "lifeline_switch_submit", "slot", "check_correct"),
         make_edge("lifeline_switch_lifeline->choose_lifeline", "lifeline_switch_lifeline", "slot", "choose_lifeline"),
-        make_edge("choose_lifeline_fifty->fifty_fifty", "choose_lifeline_fifty", "slot", "fifty_fifty"),
         make_edge("choose_lifeline_audience->audience_votes", "choose_lifeline_audience", "slot", "audience_votes"),
         make_edge("choose_lifeline_phone->phone_advice", "choose_lifeline_phone", "slot", "phone_advice"),
-        make_edge("fifty_fifty->ask_question", "fifty_fifty", "node", "ask_question"),
         make_edge("audience_votes->ask_question", "audience_votes", "node", "ask_question"),
         make_edge("phone_advice->ask_question", "phone_advice", "node", "ask_question"),
-        make_edge(
-            "confirm_answer_confirmed->reset_confirm_retry", "confirm_answer_confirmed", "slot", "reset_confirm_retry"
-        ),
-        make_edge("reset_confirm_retry->validate_step", "reset_confirm_retry", "node", "validate_step"),
-        make_edge("confirm_answer_rejected->ask_question", "confirm_answer_rejected", "slot", "ask_question"),
-        make_edge("confirm_answer_unclear->confirm_retry", "confirm_answer_unclear", "slot", "confirm_retry"),
-        make_edge("confirm_retry_retry->confirm_answer", "confirm_retry_retry", "slot", "confirm_answer"),
-        make_edge("confirm_retry_exhausted->ask_question", "confirm_retry_exhausted", "slot", "ask_question"),
-        make_edge("validate_step->result_switch", "validate_step", "node", "result_switch"),
+        make_edge("check_correct->result_switch", "check_correct", "node", "result_switch"),
         make_edge("result_switch_correct->increment_score", "result_switch_correct", "slot", "increment_score"),
-        make_edge("result_switch_wrong->show_result", "result_switch_wrong", "slot", "show_result"),
+        make_edge("result_switch_wrong->end", "result_switch_wrong", "slot", "end"),
         make_edge("increment_score->loop_questions", "increment_score", "node", "loop_questions"),
-        make_edge("show_result->end", "show_result", "node", "end"),
     ]
 
     state = [

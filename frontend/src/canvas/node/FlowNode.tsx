@@ -10,16 +10,11 @@ import { FlowNodeActions } from './FlowNodeActions.tsx';
 const NODE_COLORS: Record<NodeType, BadgeProps['color']> = {
   START: 'gray',
   END: 'gray',
-  SWITCH: 'amber',
+  LOGICAL_SWITCH: 'amber',
   LOGICAL_ASSIGNER: 'teal',
   AGENTIC_ASSIGNER: 'pink',
   INTERRUPT: 'orange',
   AGENTIC_SWITCH: 'indigo',
-  RETRY: 'blue',
-  EXTRACT: 'green',
-  VALIDATE: 'cyan',
-  REVIEW: 'gray',
-  CONFIRM: 'purple',
 };
 
 const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => {

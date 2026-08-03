@@ -7,20 +7,15 @@ from app.constants import NodeType
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    ConfirmNode,
     EdgeRead,
     EndNode,
-    ExtractNode,
     GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
+    LogicalSwitchNode,
     NodeRead,
-    RetryNode,
-    ReviewNode,
     SlotRead,
     StartNode,
-    SwitchNode,
-    ValidateNode,
 )
 
 SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
@@ -28,10 +23,6 @@ SEQUENTIAL_STEP_TYPES = {
     NodeType.LOGICAL_ASSIGNER,
     NodeType.AGENTIC_ASSIGNER,
     NodeType.INTERRUPT,
-    NodeType.EXTRACT,
-    NodeType.VALIDATE,
-    NodeType.REVIEW,
-    NodeType.CONFIRM,
 }
 
 _UNSET: Any = object()
@@ -59,27 +50,10 @@ def add_node(
     node_id = generate_node_id(node_type, nodes)
 
     slots: list[SlotRead] = []
-    if node_type == NodeType.SWITCH:
+    if node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH):
         slots = [
             SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
             SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
-        ]
-    elif node_type == NodeType.AGENTIC_SWITCH:
-        slots = [
-            SlotRead(id=f"{node_id}_option_a", raw_string="option_a"),
-            SlotRead(id=f"{node_id}_option_b", raw_string="option_b"),
-        ]
-    elif node_type == NodeType.RETRY:
-        slots = [
-            SlotRead(id=f"{node_id}_valid", raw_string="valid"),
-            SlotRead(id=f"{node_id}_retry", raw_string="retry"),
-            SlotRead(id=f"{node_id}_exhausted", raw_string="exhausted"),
-        ]
-    elif node_type == NodeType.CONFIRM:
-        slots = [
-            SlotRead(id=f"{node_id}_confirmed", raw_string="confirmed"),
-            SlotRead(id=f"{node_id}_rejected", raw_string="rejected"),
-            SlotRead(id=f"{node_id}_unclear", raw_string="unclear"),
         ]
 
     new_node: NodeRead
@@ -91,22 +65,12 @@ def add_node(
         new_node = LogicalAssignerNode(id=node_id, assignments=[])
     elif node_type == NodeType.AGENTIC_ASSIGNER:
         new_node = AgenticAssignerNode(id=node_id, prompt="", agentic_inputs=[], agentic_outputs=[])
-    elif node_type == NodeType.SWITCH:
-        new_node = SwitchNode(id=node_id, slots=slots)
+    elif node_type == NodeType.LOGICAL_SWITCH:
+        new_node = LogicalSwitchNode(id=node_id, slots=slots)
     elif node_type == NodeType.INTERRUPT:
         new_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
-    elif node_type == NodeType.EXTRACT:
-        new_node = ExtractNode(id=node_id, assignments=[])
-    elif node_type == NodeType.VALIDATE:
-        new_node = ValidateNode(id=node_id, assignments=[])
-    elif node_type == NodeType.REVIEW:
-        new_node = ReviewNode(id=node_id)
     elif node_type == NodeType.AGENTIC_SWITCH:
         new_node = AgenticSwitchNode(id=node_id, slots=slots, prompt="", agentic_inputs=[])
-    elif node_type == NodeType.RETRY:
-        new_node = RetryNode(id=node_id, slots=slots, max_attempts=3, valid_expression=None)
-    elif node_type == NodeType.CONFIRM:
-        new_node = ConfirmNode(id=node_id, slots=slots, payload_vars=[])
     else:
         raise ValueError(f"Unsupported node_type: {node_type}")
 
@@ -115,7 +79,6 @@ def add_node(
     if connector_id and direction:
         is_after = direction == "after"
 
-        # Filter matching edges
         old_edges = []
         for e in edges:
             if is_after:
@@ -126,7 +89,7 @@ def add_node(
                     old_edges.append(e)
 
         to_slot_id = node_id
-        from_slot_id = slots[0].id if (node_type == NodeType.SWITCH and slots) else node_id
+        from_slot_id = slots[0].id if (node_type == NodeType.LOGICAL_SWITCH and slots) else node_id
 
         target_or_source_node = next((n for n in nodes if n.id == connector_id), None)
         if not target_or_source_node:
@@ -140,7 +103,7 @@ def add_node(
             )
 
         source_type: Literal["node", "slot"] = "node"
-        if is_after and target_or_source_node and target_or_source_node.node_type == NodeType.SWITCH:
+        if is_after and target_or_source_node and target_or_source_node.node_type == NodeType.LOGICAL_SWITCH:
             source_type = "slot"
 
         target_type: Literal["node", "slot"] = "node"
@@ -161,7 +124,7 @@ def add_node(
             upd = old_edge.model_copy()
             if is_after:
                 upd.source_id = from_slot_id
-                upd.source_type = "slot" if node_type == NodeType.SWITCH else "node"
+                upd.source_type = "slot" if node_type == NodeType.LOGICAL_SWITCH else "node"
             else:
                 upd.target_id = to_slot_id
                 upd.target_type = "node"
@@ -188,7 +151,9 @@ def delete_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
     if target_node.node_type in SENTINEL_NODE_TYPES:
         return flow_data
 
-    slot_ids = {s.id for s in target_node.slots} if isinstance(target_node, SwitchNode) else set()
+    slot_ids = (
+        {s.id for s in target_node.slots} if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)) else set()
+    )
 
     flow_data.nodes = [n for n in nodes if n.id != node_id]
     flow_data.edges = [
@@ -208,7 +173,7 @@ def shortcircuit_node(flow_data: GraphFlowData, node_id: str) -> GraphFlowData:
 
     target_node = next((n for n in nodes if n.id == node_id), None)
     if not target_node or target_node.node_type not in SEQUENTIAL_STEP_TYPES:
-        return flow_data  # START, END, SWITCH nodes cannot be shortcircuited
+        return flow_data
 
     incoming = [e for e in edges if e.target_id == node_id]
     outgoing = [e for e in edges if e.source_id == node_id]
@@ -242,8 +207,6 @@ def update_node(
     agentic_outputs: list[str] | None = _UNSET,
     payload_vars: list[str] | None = _UNSET,
     resume_var: str | None = _UNSET,
-    max_attempts: int | None = _UNSET,
-    valid_expression: dict[str, Any] | None = _UNSET,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -278,17 +241,11 @@ def update_node(
     if isinstance(target_node, AgenticAssignerNode):
         if agentic_outputs is not _UNSET and agentic_outputs is not None:
             target_node.agentic_outputs = agentic_outputs
-    if isinstance(target_node, (InterruptNode, ConfirmNode)):
+    if isinstance(target_node, InterruptNode):
         if payload_vars is not _UNSET and payload_vars is not None:
             target_node.payload_vars = payload_vars
-    if isinstance(target_node, InterruptNode):
         if resume_var is not _UNSET and resume_var is not None:
             target_node.resume_var = resume_var
-    if isinstance(target_node, RetryNode):
-        if max_attempts is not _UNSET and max_attempts is not None:
-            target_node.max_attempts = max_attempts
-        if valid_expression is not _UNSET:
-            target_node.valid_expression = valid_expression
 
     return flow_data
 
@@ -296,7 +253,7 @@ def update_node(
 def create_slot(flow_data: GraphFlowData, node_id: str, index: int) -> GraphFlowData:
     nodes = flow_data.nodes
     target_node = next((n for n in nodes if n.id == node_id), None)
-    if not target_node or not isinstance(target_node, (SwitchNode, AgenticSwitchNode)):
+    if not target_node or not isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
         return flow_data
 
     slots = target_node.slots
@@ -336,7 +293,7 @@ def delete_slot(flow_data: GraphFlowData, slot_id: str) -> GraphFlowData:
     edges = flow_data.edges
 
     for node in nodes:
-        if isinstance(node, (SwitchNode, AgenticSwitchNode)):
+        if isinstance(node, (LogicalSwitchNode, AgenticSwitchNode)):
             slots = node.slots
             if any(s.id == slot_id for s in slots):
                 node.slots = [s for s in slots if s.id != slot_id]
@@ -390,11 +347,11 @@ def create_edge(
     target_node = next((n for n in nodes if n.id == target), None)
 
     source_type: Literal["node", "slot"] = (
-        "slot" if (source_node and source_node.node_type == NodeType.SWITCH) else "node"
+        "slot" if (source_node and source_node.node_type == NodeType.LOGICAL_SWITCH) else "node"
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if isinstance(target_node, SwitchNode):
+    if isinstance(target_node, LogicalSwitchNode):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"
@@ -429,11 +386,11 @@ def reconnect_edge(
     target_node = next((n for n in nodes if n.id == target), None)
 
     source_type: Literal["node", "slot"] = (
-        "slot" if (source_node and source_node.node_type == NodeType.SWITCH) else "node"
+        "slot" if (source_node and source_node.node_type == NodeType.LOGICAL_SWITCH) else "node"
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if isinstance(target_node, SwitchNode):
+    if isinstance(target_node, LogicalSwitchNode):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"

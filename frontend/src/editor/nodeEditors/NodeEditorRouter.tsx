@@ -2,10 +2,8 @@ import { Box, Text } from '@radix-ui/themes';
 import type { AppFlowNode, NodeType } from '../../canvas/types';
 import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
 import { AgenticSwitchNodeEditor } from './AgenticSwitchNodeEditor';
-import { ConfirmNodeEditor } from './ConfirmNodeEditor';
 import { InterruptNodeEditor } from './InterruptNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
-import { RetryNodeEditor } from './RetryNodeEditor';
 import { SwitchNodeEditor } from './SwitchNodeEditor';
 
 interface NodeEditorRouterProps {
@@ -44,39 +42,19 @@ export const NodeEditorRouter = ({
 
   switch (selectedNodeType) {
     case 'LOGICAL_ASSIGNER':
-    case 'EXTRACT':
-    case 'VALIDATE':
-      return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+      return <LogicalAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'AGENTIC_ASSIGNER':
-      return <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+      return <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
-    case 'SWITCH':
-      return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+    case 'LOGICAL_SWITCH':
+      return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'AGENTIC_SWITCH':
-      return <AgenticSwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
+      return <AgenticSwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'INTERRUPT':
-      return <InterruptNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
-
-    case 'RETRY':
-      return <RetryNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
-
-    case 'CONFIRM':
-      return <ConfirmNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled} />;
-
-    case 'REVIEW':
-      return (
-        <Box style={{ backgroundColor: 'var(--gray-3)', padding: '16px', borderRadius: 'var(--radius-3)' }}>
-          <Text size="2" weight="bold" color="gray">
-            Review Node ({selectedNodeId})
-          </Text>
-          <Text size="1" color="gray" style={{ display: 'block', marginTop: '4px' }}>
-            Review node acts as a human-in-the-loop passthrough inspection checkpoint in the graph flow.
-          </Text>
-        </Box>
-      );
+      return <InterruptNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'START':
     case 'END':
