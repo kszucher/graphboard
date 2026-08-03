@@ -7,6 +7,9 @@ These baseline guidelines apply to all development tasks in this repository.
 - **State vs Visual Separation**: **Always** keep visual details (CSS rules, transitions, colors, opacity, interactive flags) inside the React components. **NEVER** calculate layout styles or visual flags inside layout calculation utilities or store them inside global store slices.
 - **Challenge Function Signatures**: **Always** simplify function signatures through structural changes rather than code syntax improvements.
 - **Code Cleanliness**: **Always** ensure no unused functions, imports, or variables remain in the code after modifications.
+- **Structural Bug Fixing & Prior Communication**: In case of bug fixes or architectural shifts, **always** attempt organic structural fixes and **never** use surface-level patches or backward-compatibility workarounds. **Always** communicate the proposed structural solution and trade-offs to the user BEFORE starting implementation.
+- **Experimental Stage & Clean Refactored State**: The project is in active R&D experimentation; **always** execute changes with zero backward compatibility overhead and no data migration fallbacks. Keep the implementation completely clean and structurally modern.
+- **Default Graph Adaptation**: In case of refactors affecting node semantics, schema models, or compiler generation, **always** make sure the default sample graph in `defaults.py` (and relevant frontend/backend tests) is adapted accordingly.
 
 ## Styling & Component Rules
 

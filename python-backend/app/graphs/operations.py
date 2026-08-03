@@ -216,10 +216,11 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
             if isinstance(node, (AgenticAssignerNode, AgenticSwitchNode)):
                 if node.agentic_inputs:
                     node.agentic_inputs = [new_key if k == old_key else k for k in node.agentic_inputs]
-                if isinstance(node, AgenticAssignerNode) and node.agentic_outputs:
-                    node.agentic_outputs = [new_key if k == old_key else k for k in node.agentic_outputs]
-                if node.prompt:
-                    node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
+                if isinstance(node, AgenticAssignerNode):
+                    if node.agentic_outputs:
+                        node.agentic_outputs = [new_key if k == old_key else k for k in node.agentic_outputs]
+                    if node.prompt:
+                        node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
 
         # 4. Update INTERRUPT payload_vars and resume_var
         for node in flow_data.nodes:

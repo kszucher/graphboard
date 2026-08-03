@@ -98,7 +98,6 @@ class InterruptNode(BaseNode):
 class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
-    prompt: str = ""
     agentic_inputs: list[str] = Field(default_factory=list)
 
 

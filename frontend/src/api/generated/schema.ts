@@ -474,11 +474,6 @@ export interface components {
       node_type: "AGENTIC_SWITCH";
       /** Slots */
       slots?: components["schemas"]["SlotRead"][];
-      /**
-       * Prompt
-       * @default
-       */
-      prompt: string;
       /** Agentic Inputs */
       agentic_inputs?: string[];
     };

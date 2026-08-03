@@ -70,7 +70,7 @@ def add_node(
     elif node_type == NodeType.INTERRUPT:
         new_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
     elif node_type == NodeType.AGENTIC_SWITCH:
-        new_node = AgenticSwitchNode(id=node_id, slots=slots, prompt="", agentic_inputs=[])
+        new_node = AgenticSwitchNode(id=node_id, slots=slots, agentic_inputs=[])
     else:
         raise ValueError(f"Unsupported node_type: {node_type}")
 
@@ -208,11 +208,11 @@ def update_node(
     flow_data: GraphFlowData,
     node_id: str,
     new_id: str | None = None,
-    prompt: str | None = _UNSET,
-    agentic_inputs: list[str] | None = _UNSET,
-    agentic_outputs: list[str] | None = _UNSET,
-    payload_vars: list[str] | None = _UNSET,
-    resume_var: str | None = _UNSET,
+    prompt: str | None = None,
+    agentic_inputs: list[str] | None = None,
+    agentic_outputs: list[str] | None = None,
+    payload_vars: list[str] | None = None,
+    resume_var: str | None = None,
 ) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -239,9 +239,10 @@ def update_node(
             elif edge.target_id.startswith(f"{node_id}_"):
                 edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
 
-    if isinstance(target_node, (AgenticAssignerNode, AgenticSwitchNode)):
+    if isinstance(target_node, AgenticAssignerNode):
         if prompt is not _UNSET and prompt is not None:
             target_node.prompt = prompt
+    if isinstance(target_node, (AgenticAssignerNode, AgenticSwitchNode)):
         if agentic_inputs is not _UNSET and agentic_inputs is not None:
             target_node.agentic_inputs = agentic_inputs
     if isinstance(target_node, AgenticAssignerNode):

@@ -199,22 +199,21 @@ class DirectLangGraphCompiler:
             choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: {node.id}Option"
 
             inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
-            replacements = "\n".join(
-                f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
-            )
+            var_str = ", ".join(f"{k}='{{state.get({repr(k)})}}'" for k in inputs) if inputs else "(none)"
+            options_str = ", ".join(repr(label) for label in slot_labels)
+            prompt_str = f"Classify input state {var_str} into one of options: [{options_str}]."
+
             fallback = slot_labels[0] if slot_labels else ""
             fallback_enum_expr = (
                 f"{node.id}Option.{enum_members[0].split('=')[0].strip()}.value"
                 if enum_members
                 else repr(fallback)
             )
-            repl_block = f"{replacements}\n" if replacements else ""
 
             fn_code = (
                 f"def {node.id}(state: State) -> str:\n"
                 f"    client = Groq()\n"
-                f"    prompt_text = {repr(node.prompt or '')}\n"
-                f"{repl_block}"
+                f"    prompt_text = f{repr(prompt_str)}\n"
                 f"    chat_completion = client.beta.chat.completions.parse(\n"
                 f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
                 f"        model='llama3-8b-8192',\n"

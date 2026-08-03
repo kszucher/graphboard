@@ -89,7 +89,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         ),
         AgenticSwitchNode(
             id="lifeline_switch",
-            prompt="Determine if user wants to submit answer or use a lifeline from user_answer: '{user_answer}'.",
             agentic_inputs=["user_answer"],
             slots=[
                 SlotRead(id="lifeline_switch_submit", raw_string="Submit"),
@@ -98,7 +97,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         ),
         AgenticSwitchNode(
             id="choose_lifeline",
-            prompt="Determine which lifeline user selected from user_answer: '{user_answer}'.",
             agentic_inputs=["user_answer"],
             slots=[
                 SlotRead(id="choose_lifeline_audience", raw_string="Audience"),
