@@ -43,8 +43,7 @@ async def list_graphs(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) ->
 
 
 @router.get("/{graph_id}/flow", response_model=GraphFlowRead)
-async def get_graph_flow(graph_id: uuid.UUID, response: Response, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
     flow = await graph_service.get_and_reset_graph_flow(uow, graph_id)
 
     return GraphFlowRead.model_validate(flow)
@@ -52,9 +51,8 @@ async def get_graph_flow(graph_id: uuid.UUID, response: Response, uow: UnitOfWor
 
 @router.get("/{graph_id}/code", response_model=GraphCodeRead)
 async def get_graph_code_endpoint(
-    graph_id: uuid.UUID, response: Response, uow: UnitOfWork = Depends(get_uow)
+    graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
 ) -> GraphCodeRead:
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     code_data = await graph_service.get_compiled_code(uow, graph_id)
     return GraphCodeRead.model_validate(code_data)
 
