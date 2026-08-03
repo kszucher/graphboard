@@ -158,11 +158,9 @@ export const FlowNodeSlotActionsContent = ({
     );
   };
 
-  const isFixedSlot = node ? ['RETRY', 'CONFIRM'].includes(node.data.node.node_type) : false;
-
   return (
     <>
-      {!isFixedSlot && (
+      {
         <>
           <DropdownMenu.Item onClick={handleAddAbove}>
             <PlusIcon style={{ marginRight: 8 }}/> Add Slot Above
@@ -172,12 +170,12 @@ export const FlowNodeSlotActionsContent = ({
           </DropdownMenu.Item>
           <DropdownMenu.Separator/>
         </>
-      )}
+      }
 
       {showAddConnected && renderAddConnectedSubmenu()}
       {showAddConnected && <DropdownMenu.Separator/>}
 
-      {!isFixedSlot && (
+      {
         <>
           <DropdownMenu.Item onClick={handleMoveTop} disabled={!canMoveUp}>
             <ArrowUpIcon style={{ marginRight: 8 }}/> Move to Top
@@ -193,19 +191,19 @@ export const FlowNodeSlotActionsContent = ({
           </DropdownMenu.Item>
           <DropdownMenu.Separator/>
         </>
-      )}
+      }
 
       {renderDeleteSubmenu('outgoing')}
       {renderDeleteSubmenu('incoming')}
 
-      {!isFixedSlot && (
+      {
         <>
           <DropdownMenu.Separator/>
           <DropdownMenu.Item onClick={handleDeleteItem} color="red" disabled={!canDelete}>
             <TrashIcon style={{ marginRight: 8 }}/> Delete Slot
           </DropdownMenu.Item>
         </>
-      )}
+      }
     </>
   );
 };

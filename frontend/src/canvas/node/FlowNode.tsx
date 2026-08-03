@@ -84,7 +84,8 @@ const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => 
         return (
           <FlowNodeSlot
             key={slot.id}
-            slotId={slot.id}
+            slot={slot}
+            nodeType={data.node.node_type}
             disabled={disabled}
             isStart={isStart}
             isEnd={isEnd}

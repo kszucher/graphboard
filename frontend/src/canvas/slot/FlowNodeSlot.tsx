@@ -1,17 +1,16 @@
 import { Flex } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import { useUpdateSlot } from '../../api/mutations';
-import { useGraphQuery } from '../../api/queries';
 import { NODE_PADDING } from '../../domain/graph/layout';
-import { fromApiPayload } from '../../domain/graph/mappers';
 import { Editor } from '../../editor/Editor.tsx';
 import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
-import type { ApiSlot } from '../types';
+import type { ApiSlot, NodeType } from '../types';
 import { FlowNodeSlotActions } from './FlowNodeSlotActions.tsx';
 
 interface FlowNodeSlotProps {
-  slotId: string;
+  slot: ApiSlot;
+  nodeType: NodeType;
   disabled: boolean;
   isStart: boolean;
   isEnd: boolean;
@@ -19,37 +18,21 @@ interface FlowNodeSlotProps {
 }
 
 export const FlowNodeSlot = memo(({
-  slotId,
+  slot,
   disabled,
   isStart,
   isEnd,
   parentNodeSelected,
 }: FlowNodeSlotProps) => {
   const graphId = useCurrentGraphId();
-  const { data } = useGraphQuery(graphId);
-  const { nodes } = useMemo(() => {
-    if (!data) return { nodes: [] };
-    return fromApiPayload(data.nodes, []);
-  }, [data]);
-
   const { mutateAsync: updateSlot } = useUpdateSlot(graphId);
-
-  const node = useMemo(() => {
-    return nodes.find((n) => n.data.node.slots?.some((s: ApiSlot) => s.id === slotId));
-  }, [nodes, slotId]);
-
-  const slot = useMemo(() => {
-    return node?.data.node.slots?.find((s: ApiSlot) => s.id === slotId);
-  }, [node, slotId]);
 
   const handleUpdateItem = useCallback(
     (newValue: string) => {
-      void updateSlot({ slotId, rawString: newValue });
+      void updateSlot({ slotId: slot.id, rawString: newValue });
     },
-    [slotId, updateSlot]
+    [slot.id, updateSlot]
   );
-
-  if (!slot) return null;
 
   const leftHandle = false;
   const rightHandle = true;
@@ -79,9 +62,6 @@ export const FlowNodeSlot = memo(({
     return slot.raw_string;
   })();
 
-  const isFixedSlot = node ? ['RETRY', 'CONFIRM'].includes(node.data.node.node_type) : false;
-  const isSlotDisabled = disabled || isFixedSlot;
-
   return (
     <Flex align="center" width="100%" height="24px" style={{ position: 'relative', gap: '6px' }}>
       {leftHandle && (
@@ -101,7 +81,7 @@ export const FlowNodeSlot = memo(({
         <Editor
           initialValue={initialValue}
           onSave={handleUpdateItem}
-          disabled={isSlotDisabled}
+          disabled={disabled}
           parentNodeSelected={parentNodeSelected}
         />
       </Flex>

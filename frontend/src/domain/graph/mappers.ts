@@ -32,7 +32,7 @@ export const fromApiPayload = (
   const rfNodes: AppFlowNode[] = nodes.map(n => {
     const prevNode = getPrevNode(n.id);
     const is_input = n.node_type !== 'START';
-    const is_output = n.node_type !== 'END' && !['SWITCH', 'AGENTIC_SWITCH', 'RETRY', 'CONFIRM'].includes(n.node_type);
+    const is_output = n.node_type !== 'END' && !['LOGICAL_SWITCH', 'AGENTIC_SWITCH'].includes(n.node_type);
     // Cast the raw node to ApiNode — slots/expressions are cast here at the boundary
     const apiNode: ApiNode = {
       ...(n as ApiNode),
