@@ -89,7 +89,9 @@ def add_node(
                     old_edges.append(e)
 
         to_slot_id = node_id
-        from_slot_id = slots[0].id if (node_type == NodeType.LOGICAL_SWITCH and slots) else node_id
+        from_slot_id = (
+            slots[0].id if (node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH) and slots) else node_id
+        )
 
         target_or_source_node = next((n for n in nodes if n.id == connector_id), None)
         if not target_or_source_node:
@@ -103,7 +105,11 @@ def add_node(
             )
 
         source_type: Literal["node", "slot"] = "node"
-        if is_after and target_or_source_node and target_or_source_node.node_type == NodeType.LOGICAL_SWITCH:
+        if (
+            is_after
+            and target_or_source_node
+            and target_or_source_node.node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH)
+        ):
             source_type = "slot"
 
         target_type: Literal["node", "slot"] = "node"
@@ -124,7 +130,7 @@ def add_node(
             upd = old_edge.model_copy()
             if is_after:
                 upd.source_id = from_slot_id
-                upd.source_type = "slot" if node_type == NodeType.LOGICAL_SWITCH else "node"
+                upd.source_type = "slot" if node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH) else "node"
             else:
                 upd.target_id = to_slot_id
                 upd.target_type = "node"
@@ -347,11 +353,13 @@ def create_edge(
     target_node = next((n for n in nodes if n.id == target), None)
 
     source_type: Literal["node", "slot"] = (
-        "slot" if (source_node and source_node.node_type == NodeType.LOGICAL_SWITCH) else "node"
+        "slot"
+        if (source_node and source_node.node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH))
+        else "node"
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if isinstance(target_node, LogicalSwitchNode):
+    if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"
@@ -386,11 +394,13 @@ def reconnect_edge(
     target_node = next((n for n in nodes if n.id == target), None)
 
     source_type: Literal["node", "slot"] = (
-        "slot" if (source_node and source_node.node_type == NodeType.LOGICAL_SWITCH) else "node"
+        "slot"
+        if (source_node and source_node.node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH))
+        else "node"
     )
     target_type: Literal["node", "slot"] = "node"
 
-    if isinstance(target_node, LogicalSwitchNode):
+    if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
         is_target_slot = any(s.id == target_handle for s in target_node.slots)
         if is_target_slot:
             target_type = "slot"

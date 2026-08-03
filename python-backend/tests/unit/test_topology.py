@@ -245,3 +245,44 @@ def test_edge_crud_operations() -> None:
 
     updated = topology.delete_edge(updated, edge_id)
     assert len(updated.edges) == 1
+
+
+def test_agentic_switch_topology_operations() -> None:
+    flow = GraphFlowData(
+        nodes=[
+            LogicalAssignerNode(id="assigner_1"),
+            LogicalAssignerNode(id="assigner_2"),
+        ],
+        edges=[
+            EdgeRead(id=uuid.uuid4(), source_id="assigner_1", target_id="assigner_2"),
+        ],
+    )
+
+    # Test inserting AGENTIC_SWITCH after an edge
+    updated = topology.add_node(
+        flow,
+        node_type=NodeType.AGENTIC_SWITCH,
+        connector_id="assigner_1",
+        direction="after",
+    )
+    switch_node = next(n for n in updated.nodes if n.node_type == NodeType.AGENTIC_SWITCH)
+    assert switch_node is not None
+    # Edge from assigner_1 -> AGENTIC_SWITCH
+    edge_in = next(e for e in updated.edges if e.target_id == switch_node.id)
+    assert edge_in.source_id == "assigner_1"
+    # Edge from AGENTIC_SWITCH first slot -> assigner_2
+    edge_out = next(e for e in updated.edges if e.target_id == "assigner_2")
+    assert edge_out.source_type == "slot"
+    assert edge_out.source_id == switch_node.slots[0].id
+
+    # Test create edge from AGENTIC_SWITCH slot
+    updated = topology.create_edge(
+        updated,
+        source=switch_node.id,
+        target="assigner_1",
+        source_handle=switch_node.slots[1].id,
+        target_handle="assigner_1",
+    )
+    new_edge = updated.edges[-1]
+    assert new_edge.source_type == "slot"
+    assert new_edge.source_id == switch_node.slots[1].id

@@ -50,9 +50,7 @@ async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
 
 
 @router.get("/{graph_id}/code", response_model=GraphCodeRead)
-async def get_graph_code_endpoint(
-    graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)
-) -> GraphCodeRead:
+async def get_graph_code_endpoint(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphCodeRead:
     code_data = await graph_service.get_compiled_code(uow, graph_id)
     return GraphCodeRead.model_validate(code_data)
 
