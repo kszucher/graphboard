@@ -205,9 +205,7 @@ class DirectLangGraphCompiler:
 
             fallback = slot_labels[0] if slot_labels else ""
             fallback_enum_expr = (
-                f"{node.id}Option.{enum_members[0].split('=')[0].strip()}.value"
-                if enum_members
-                else repr(fallback)
+                f"{node.id}Option.{enum_members[0].split('=')[0].strip()}.value" if enum_members else repr(fallback)
             )
 
             fn_code = (

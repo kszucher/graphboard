@@ -149,4 +149,7 @@ async def test_default_example_graph_ast_compilation() -> None:
     assert "class lifeline_switchOption(str, Enum):" in code
     assert "class lifeline_switchChoice(BaseModel):" in code
     assert "def lifeline_switch(state: State) -> str:" in code
-    assert "workflow.add_conditional_edges('parse_answer', lifeline_switch," in code or 'workflow.add_conditional_edges("parse_answer", lifeline_switch,' in code
+    assert (
+        "workflow.add_conditional_edges('parse_answer', lifeline_switch," in code
+        or 'workflow.add_conditional_edges("parse_answer", lifeline_switch,' in code
+    )

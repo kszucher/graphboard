@@ -128,7 +128,9 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                 if not node_item.prompt or not node_item.prompt.strip():
                     raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
                 if not node_item.agentic_outputs:
-                    raise ValidationError(f"Agentic Assigner node '{node_item.id}' must have at least one output variable.")
+                    raise ValidationError(
+                        f"Agentic Assigner node '{node_item.id}' must have at least one output variable."
+                    )
             if node_item.agentic_inputs:
                 for k in node_item.agentic_inputs:
                     if k not in valid_keys:
