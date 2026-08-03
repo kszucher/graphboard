@@ -113,6 +113,24 @@ async def test_undo_redo_graph_flow(
 
 
 @pytest.mark.asyncio
+async def test_get_and_reset_graph_flow_preserves_history(
+    real_uow: UnitOfWork,
+    dummy_graph: Graph,
+) -> None:
+    # Save baseline snapshot
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
+    await real_uow.session.commit()
+
+    # Mutation -> Sequence 1
+    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
+    await real_uow.session.commit()
+
+    # Fetching flow should preserve can_undo = True
+    flow = await graphs_service.get_and_reset_graph_flow(real_uow, dummy_graph.id)
+    assert flow["can_undo"] is True, "get_and_reset_graph_flow must not reset history or make can_undo False"
+
+
+@pytest.mark.asyncio
 async def test_run_graph_flow_success(
     real_uow: UnitOfWork,
     dummy_graph: Graph,

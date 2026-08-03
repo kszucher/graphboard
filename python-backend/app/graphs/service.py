@@ -35,6 +35,8 @@ async def create_graph(
     initial_flow = flow_data.model_dump(mode="json")
 
     graph.flow_json = initial_flow
+    graph.current_history_sequence = 0
+    await uow.graph_history.save_snapshot(graph.id, initial_flow, 0)
     await uow.session.flush()
 
     await uow.users.set_active_graph(user_id, graph.id)
@@ -105,7 +107,8 @@ async def get_and_reset_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict
 
     existing_snapshot = await uow.graph_history.get_by_sequence(graph_id, 0)
     if not existing_snapshot:
-        await reset_graph_history(uow, graph_id)
+        await uow.graph_history.save_snapshot(graph_id, graph.flow_json or {}, 0)
+        await uow.session.flush()
 
     return await _prepare_response_flow(uow, graph, flow_data)
 

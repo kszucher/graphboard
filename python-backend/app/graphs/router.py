@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, status
 
 from app.context import UnitOfWork
 from app.db import get_uow
@@ -44,7 +44,8 @@ async def list_graphs(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) ->
 
 @router.get("/{graph_id}/flow", response_model=GraphFlowRead)
 async def get_graph_flow(graph_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> GraphFlowRead:
-    flow = await graph_service.get_and_reset_graph_flow(uow, graph_id)
+    async with uow:
+        flow = await graph_service.get_and_reset_graph_flow(uow, graph_id)
 
     return GraphFlowRead.model_validate(flow)
 
