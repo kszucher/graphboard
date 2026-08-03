@@ -12,17 +12,17 @@ import {
   useNodeEditorData,
 } from './NodeEditorShared';
 
-interface SwitchNodeEditorProps {
+interface LogicalSwitchNodeEditorProps {
   graphId: string;
   nodeId: string;
   disabled?: boolean;
 }
 
-export const SwitchNodeEditor = ({
+export const LogicalSwitchNodeEditor = ({
   graphId,
   nodeId,
   disabled = false,
-}: SwitchNodeEditorProps) => {
+}: LogicalSwitchNodeEditorProps) => {
   const { node, stateVariables } = useNodeEditorData(graphId, nodeId);
 
   const slots: Array<{ id: string; raw_string: string; expression?: ASTExpression | null }> = useMemo(() => {

@@ -4,7 +4,7 @@ import { AgenticAssignerNodeEditor } from './AgenticAssignerNodeEditor';
 import { AgenticSwitchNodeEditor } from './AgenticSwitchNodeEditor';
 import { InterruptNodeEditor } from './InterruptNodeEditor';
 import { LogicalAssignerNodeEditor } from './LogicalAssignerNodeEditor';
-import { SwitchNodeEditor } from './SwitchNodeEditor';
+import { LogicalSwitchNodeEditor } from './LogicalSwitchNodeEditor.tsx';
 
 interface NodeEditorRouterProps {
   graphId: string;
@@ -48,7 +48,7 @@ export const NodeEditorRouter = ({
       return <AgenticAssignerNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'LOGICAL_SWITCH':
-      return <SwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
+      return <LogicalSwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
 
     case 'AGENTIC_SWITCH':
       return <AgenticSwitchNodeEditor graphId={graphId} nodeId={selectedNodeId} disabled={disabled}/>;
