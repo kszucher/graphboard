@@ -80,12 +80,15 @@ class DirectLangGraphCompiler:
 
     def emit_imports(self) -> str:
         has_agentic = any(isinstance(n, (AgenticAssignerNode, AgenticSwitchNode)) for n in self.executable_nodes)
+        has_agentic_switch = any(isinstance(n, AgenticSwitchNode) for n in self.executable_nodes)
         has_interrupt = any(isinstance(n, InterruptNode) for n in self.executable_nodes)
 
         lines = [
             "from typing import TypedDict, Literal, Any",
             "from langgraph.graph import StateGraph, START, END",
         ]
+        if has_agentic_switch:
+            lines.append("from enum import Enum")
         if has_agentic:
             lines.extend(["from pydantic import BaseModel, Field", "from groq import Groq"])
         if has_interrupt:
@@ -94,15 +97,6 @@ class DirectLangGraphCompiler:
         return "\n".join(lines)
 
     def emit_state_typeddict(self) -> str:
-        known_keys = {v.key for v in self.all_variables}
-        synthetic_vars: list[tuple[str, str, Any]] = []
-
-        for n in self.executable_nodes:
-            if isinstance(n, AgenticSwitchNode):
-                skey = f"__sys_choice_{n.id}"
-                if skey not in known_keys and not any(k == skey for k, _, _ in synthetic_vars):
-                    synthetic_vars.append((skey, "str", ""))
-
         all_keys: list[tuple[str, str, Any]] = [
             (
                 v.key,
@@ -110,7 +104,7 @@ class DirectLangGraphCompiler:
                 v.default_value if v.default_value is not None else DEFAULT_VALUES.get(v.type, ""),
             )
             for v in self.all_variables
-        ] + synthetic_vars
+        ]
 
         if not all_keys:
             return "class State(TypedDict):\n    pass\n\ninitial_state: State = {}"
@@ -192,18 +186,32 @@ class DirectLangGraphCompiler:
 
         if isinstance(node, AgenticSwitchNode):
             slot_labels = [s.raw_string for s in node.slots if s.raw_string]
-            literal_union = ", ".join(repr(label) for label in slot_labels)
-            choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: Literal[{literal_union}]"
+            enum_members = []
+            for idx, label in enumerate(slot_labels):
+                slug = "".join(c if c.isalnum() else "_" for c in label).upper()
+                slug = slug.strip("_")
+                if not slug or slug[0].isdigit():
+                    slug = f"OPTION_{idx + 1}"
+                enum_members.append(f"    {slug} = {repr(label)}")
+
+            enum_code = "\n".join(enum_members) if enum_members else "    NONE = ''"
+            enum_cls = f"class {node.id}Option(str, Enum):\n{enum_code}"
+            choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: {node.id}Option"
 
             inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
             replacements = "\n".join(
                 f"    prompt_text = prompt_text.replace({repr(f'{{{k}}}')}, str(state.get({repr(k)})))" for k in inputs
             )
             fallback = slot_labels[0] if slot_labels else ""
+            fallback_enum_expr = (
+                f"{node.id}Option.{enum_members[0].split('=')[0].strip()}.value"
+                if enum_members
+                else repr(fallback)
+            )
             repl_block = f"{replacements}\n" if replacements else ""
 
             fn_code = (
-                f"def {node.id}(state: State) -> dict:\n"
+                f"def {node.id}(state: State) -> str:\n"
                 f"    client = Groq()\n"
                 f"    prompt_text = {repr(node.prompt or '')}\n"
                 f"{repl_block}"
@@ -212,13 +220,12 @@ class DirectLangGraphCompiler:
                 f"        model='llama3-8b-8192',\n"
                 f"        response_format={node.id}Choice,\n"
                 f"    )\n"
-                f"    parsed_msg = chat_completion.choices[0].message\n"
-                f"    decision = parsed_msg.parsed.decision if parsed_msg.parsed is not None else {repr(fallback)}\n"
-                f"    return {{'__sys_choice_{node.id}': decision}}\n\n"
-                f"def __{node.id}_route(state: State) -> str:\n"
-                f"    return state.get('__sys_choice_{node.id}')"
+                f"    parsed = chat_completion.choices[0].message.parsed\n"
+                f"    if parsed is not None:\n"
+                f"        return parsed.decision.value\n"
+                f"    return {fallback_enum_expr}"
             )
-            return f"{choice_cls}\n\n{fn_code}"
+            return f"{enum_cls}\n\n{choice_cls}\n\n{fn_code}"
 
         if isinstance(node, InterruptNode):
             payload_keys = [k for k in node.payload_vars if k in self.valid_keys]
@@ -241,9 +248,9 @@ class DirectLangGraphCompiler:
             "workflow = StateGraph(State)",
         ]
 
-        # 1. Add Executable Nodes to Graph (Computation nodes and AgenticSwitchNode)
+        # 1. Add Executable Nodes to Graph (Only computation nodes: LogicalAssigner, AgenticAssigner, Interrupt)
         for n in self.executable_nodes:
-            if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode, AgenticSwitchNode)):
+            if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode)):
                 lines.append(f"workflow.add_node('{n.id}', {n.id})")
 
         # 2. Build Slot Map & Route lookup
@@ -273,7 +280,7 @@ class DirectLangGraphCompiler:
             target_id = edge.target_id
             if target_id in self.nodes_by_id:
                 tnode = self.nodes_by_id[target_id]
-                if isinstance(tnode, LogicalSwitchNode):
+                if isinstance(tnode, (LogicalSwitchNode, AgenticSwitchNode)):
                     src_id = edge.source_id
                     if src_id in all_slots:
                         src_id = all_slots[src_id][0]
@@ -283,9 +290,9 @@ class DirectLangGraphCompiler:
                         src_id = "START"
                     router_incoming_sources.setdefault(tnode.id, []).append(src_id)
 
-        # Emit conditional edges for LogicalSwitchNode
+        # Emit conditional edges for LogicalSwitchNode & AgenticSwitchNode
         for n in self.executable_nodes:
-            if isinstance(n, LogicalSwitchNode):
+            if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
                 slot_map: dict[str, str] = {}
                 for slot in n.slots:
                     slot_edge = next((e for e in self.flow_data.edges if e.source_id == slot.id), None)
@@ -304,28 +311,12 @@ class DirectLangGraphCompiler:
                         src_ref = "START" if src == "START" else repr(src)
                         lines.append(f"workflow.add_conditional_edges({src_ref}, {n.id}, {slot_map_code})")
 
-            elif isinstance(n, AgenticSwitchNode):
-                slot_map = {}
-                for slot in n.slots:
-                    slot_edge = next((e for e in self.flow_data.edges if e.source_id == slot.id), None)
-                    if slot_edge is not None:
-                        tgt = resolve_target(slot_edge.target_id)
-                        slot_map[slot.raw_string] = tgt
-
-                if slot_map:
-                    slot_map_code = (
-                        "{"
-                        + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in slot_map.items())
-                        + "}"
-                    )
-                    lines.append(f"workflow.add_conditional_edges('{n.id}', __{n.id}_route, {slot_map_code})")
-
         # Emit Direct Edges
         for edge in self.flow_data.edges:
             if edge.source_id in all_slots or edge.source_type == "slot":
                 continue
             target_node = self.nodes_by_id.get(edge.target_id)
-            if isinstance(target_node, LogicalSwitchNode):
+            if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
                 continue
 
             src = (
