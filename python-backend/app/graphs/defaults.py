@@ -32,19 +32,19 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 "id": "init_score",
                 "target_var_key": "score",
                 "value_type": "number",
-                "expression": {"kind": "literal", "value": 0},
+                "expression": "0",
             },
             {
                 "id": "init_more",
                 "target_var_key": "more_questions",
                 "value_type": "boolean",
-                "expression": {"kind": "literal", "value": True},
+                "expression": "True",
             },
             {
                 "id": "init_correct_answer",
                 "target_var_key": "correct_answer",
                 "value_type": "string",
-                "expression": {"kind": "literal", "value": "A"},
+                "expression": "'A'",
             },
         ],
     )
@@ -55,16 +55,12 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "loop_questions_yes",
                 "raw_string": "Yes",
-                "expression": {"kind": "stateRef", "varKey": "more_questions"},
+                "expression": "more_questions",
             },
             {
                 "id": "loop_questions_no",
                 "raw_string": "No",
-                "expression": {
-                    "kind": "unaryOp",
-                    "op": "not",
-                    "expr": {"kind": "stateRef", "varKey": "more_questions"},
-                },
+                "expression": "not more_questions",
             },
         ],
     )
@@ -92,7 +88,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 "id": "parse_extract",
                 "target_var_key": "parsed_answer",
                 "value_type": "string",
-                "expression": {"kind": "stateRef", "varKey": "user_answer"},
+                "expression": "user_answer",
             }
         ],
     )
@@ -140,12 +136,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 "id": "validate_check",
                 "target_var_key": "is_correct",
                 "value_type": "boolean",
-                "expression": {
-                    "kind": "binaryOp",
-                    "op": "==",
-                    "left": {"kind": "stateRef", "varKey": "parsed_answer"},
-                    "right": {"kind": "stateRef", "varKey": "correct_answer"},
-                },
+                "expression": "parsed_answer == correct_answer",
             }
         ],
     )
@@ -156,16 +147,12 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "result_switch_correct",
                 "raw_string": "correct",
-                "expression": {"kind": "stateRef", "varKey": "is_correct"},
+                "expression": "is_correct",
             },
             {
                 "id": "result_switch_wrong",
                 "raw_string": "wrong",
-                "expression": {
-                    "kind": "unaryOp",
-                    "op": "not",
-                    "expr": {"kind": "stateRef", "varKey": "is_correct"},
-                },
+                "expression": "not is_correct",
             },
         ],
     )
@@ -181,12 +168,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
                 "id": "add_score",
                 "target_var_key": "score",
                 "value_type": "number",
-                "expression": {
-                    "kind": "binaryOp",
-                    "op": "+",
-                    "left": {"kind": "stateRef", "varKey": "score"},
-                    "right": {"kind": "literal", "value": 1},
-                },
+                "expression": "score + 1",
             }
         ],
     ).then_to("loop_questions")

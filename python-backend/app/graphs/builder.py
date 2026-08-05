@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from app.constants import NodeType
+from app.graphs.expressions import parse_expression
 from app.graphs.schemas import (
     ConnectOp,
     GraphOperation,
@@ -117,18 +118,30 @@ class ChainContext:
 
     def assigner(self, node_id: str, assignments: list[dict[str, Any]]) -> ChainContext:
         """Shortcut to create a LOGICAL_ASSIGNER node."""
+        parsed_assignments = []
+        for a in assignments:
+            parsed_a = a.copy()
+            if "expression" in parsed_a:
+                parsed_a["expression"] = parse_expression(parsed_a["expression"])
+            parsed_assignments.append(parsed_a)
         return self.then_node(
             node_id,
             NodeType.LOGICAL_ASSIGNER,
-            {"assignments": assignments},
+            {"assignments": parsed_assignments},
         )
 
     def logical_switch(self, node_id: str, slots: list[dict[str, Any]]) -> ChainContext:
         """Shortcut to create a LOGICAL_SWITCH node."""
+        parsed_slots = []
+        for s in slots:
+            parsed_s = s.copy()
+            if "expression" in parsed_s:
+                parsed_s["expression"] = parse_expression(parsed_s["expression"])
+            parsed_slots.append(parsed_s)
         return self.then_node(
             node_id,
             NodeType.LOGICAL_SWITCH,
-            {"slots": slots},
+            {"slots": parsed_slots},
         )
 
     def agentic_assigner(
