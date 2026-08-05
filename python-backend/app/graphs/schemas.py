@@ -139,45 +139,49 @@ class GraphFlowData(BaseModel):
     state: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
-class NodeCreateRequest(BaseModel):
+class UpsertNodeOp(BaseModel):
+    op: Literal["upsert_node"] = "upsert_node"
+    node_id: str
     node_type: NodeType
-    connector_id: str | None = None
-    direction: Literal["before", "after"] | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
-class NodeUpdateRequest(BaseModel):
-    new_id: str | None = None
-    prompt: str | None = None
-    agentic_inputs: list[str] | None = None
-    agentic_input: str | None = None
-    agentic_outputs: list[str] | None = None
-    payload_vars: list[str] | None = None
-    resume_var: str | None = None
+class DeleteNodeOp(BaseModel):
+    op: Literal["delete_node"] = "delete_node"
+    node_id: str
 
 
-class SlotCreateRequest(BaseModel):
-    index: int
+class ConnectOp(BaseModel):
+    op: Literal["connect"] = "connect"
+    source_id: str
+    target_id: str
+    source_type: Literal["node", "slot"] = "node"
+    target_type: Literal["node", "slot"] = "node"
 
 
-class SlotUpdateRequest(BaseModel):
-    raw_string: str | None = None
-    expression: dict[str, Any] | None = None
-    target_var_key: str | None = None
+class DisconnectOp(BaseModel):
+    op: Literal["disconnect"] = "disconnect"
+    source_id: str
+    target_id: str
+    source_type: Literal["node", "slot"] = "node"
+    target_type: Literal["node", "slot"] = "node"
 
 
-class SlotMoveRequest(BaseModel):
-    direction: Literal["up", "down", "top", "bottom"]
+class UpsertStateVarOp(BaseModel):
+    op: Literal["upsert_state_var"] = "upsert_state_var"
+    id: str | None = None
+    key: str
+    type: VariableType
+    default_value: Any = None
+    description: str | None = None
 
 
-class EdgeCreateRequest(BaseModel):
-    source: str
-    target: str
-    source_handle: str
-    target_handle: str
+class DeleteStateVarOp(BaseModel):
+    op: Literal["delete_state_var"] = "delete_state_var"
+    key: str
 
 
-class EdgeReconnectRequest(BaseModel):
-    source: str
-    target: str
-    source_handle: str
-    target_handle: str
+GraphOperation: TypeAlias = Annotated[
+    UpsertNodeOp | DeleteNodeOp | ConnectOp | DisconnectOp | UpsertStateVarOp | DeleteStateVarOp,
+    Field(discriminator="op"),
+]

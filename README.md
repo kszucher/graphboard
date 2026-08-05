@@ -72,21 +72,25 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 * **Clean Default Example Map**: Redesigned default trivia workflow to strictly showcase these 7 primitive node types.
 * **Offline Spec Generator**: Automated `npm run generate:api` to extract OpenAPI JSON in-memory via `uv` without requiring a live server process.
 
+### Phase 7: Consolidated Primitives & Copilot-Driven Patch mutations
+* **Consolidated mutations Module**: Merged the decoupled `topology.py` and `operations.py` engines into a single `mutations.py` to prevent split configurations.
+* **Batch Patch Processing**: Introduced a unified `apply_patch(...)` entrypoint processing lists of coarse-grained, discriminated union operations (`upsert_node`, `delete_node`, `connect`, `disconnect`, `upsert_state_var`, `delete_state_var`) in a single transactional pass.
+
 ---
 
 ## 🏗️ Architecture Overview
 
 ```mermaid
 graph TD
-    Canvas[Visual React Flow Canvas] -- "Node / Slot AST Mutations" --> API[FastAPI Backend]
-    API -- "Enforces Variable Dependencies" --> Operations[Strict State Integrity]
-    Canvas -- "Queries /code on Invalidation" --> CodeEP[GET /graphs/graph_id/code]
-    CodeEP -- "Synthesizes Python Script" --> Compiler[Direct AST Generator]
-    Compiler -- "Generated Code String" --> Sidebar[Read-Only Code Mirror Sidebar]
+    Copilot[AI Copilot Agent] -- "apply_patch(list[GraphOperation])" --> Mutations[Unified mutations.py]
+    Mutations -- "1. Enforces Structural Integrity" --> History[UoW / Snapshot History]
+    Mutations -- "2. Updates State Schema & Nodes" --> History
+    History -- "Triggers /code regeneration" --> Compiler[Direct AST Generator]
+    Compiler -- "Synthesized Script" --> UI[Visual React Flow Canvas]
 ```
 
 ### Key Technical Choices
-* **Pure Server State Architecture**: TanStack Query manages API mutations, caching, and server state, while React Flow manages canvas selection state natively.
+* **Transaction-Level Integrity**: Structural and referential constraints (e.g. key cascading and deletion blocks) are validated on every patch. Topological completeness (e.g. unconnected handles) is deferred to compile-time/execution to allow the copilot to build workflows iteratively.
 * **Auto-Layout ONLY (No Drag-and-Drop)**: Coordinates `(x, y)` are computed on the fly by ELK in two phases: unmeasured initial load and deferred measuring on node dimension resizes.
 * **String-Based Identifiers**: Node and slot IDs use human-readable strings (e.g. `"step_1"`, `"option_a"`), matching the execution keys in compiled LangGraph workflows.
 
@@ -103,7 +107,7 @@ graph TD
 
 * **Handle Lifecycle (`updateNodeInternals`)**: When slots are added or removed dynamically on switch nodes, React Flow's cached handle locations become stale. We listen to `node.slots` changes in `FlowNode.tsx` to trigger `updateNodeInternals(id)` whenever slot structure updates.
 * **CodeMirror Read-Only Guard**: Setting `EditorState.readOnly.of(true)` across CodeMirror locks typing while allowing `@codemirror/language` AST syntax tree iteration to continue driving bidirectional node highlighting and code folding.
-* **Cascading Rename & Blocked Delete**: Renaming a defined variable key cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and agentic inputs/outputs). Deleting a defined variable is strictly blocked with a 400 Bad Request error if any references remain in expressions or assignments.
+* **Cascading Rename & Blocked Delete**: Renaming a defined variable key (accomplished by matching IDs in `UpsertStateVarOp`) cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and agentic inputs/outputs). Deleting a defined variable is strictly blocked with a ValidationError if any references remain.
 * **State Schema Integration**: State schema variables are declared in a dedicated `state` section of the JSON graph data separate from the nodes/edges, allowing for a cleaner compilation from visual topology to executable LangGraph code.
 * **UoW Transaction Timing & Context Manager**: FastAPI dependency teardown (after `yield`) runs after the HTTP response has been sent. To prevent race conditions where the client refetches data (like generated code) before the database commit completes, all mutating route endpoints must explicitly manage transaction boundaries using `async with uow:` context blocks to guarantee commits are complete before returning the response.
 * **Discriminated Union Node Read Schema**: Node instances use a Pydantic `Annotated` discriminated union (`NodeRead = Annotated[StartNode | EndNode | LogicalAssignerNode | ..., Field(discriminator='node_type')]`). Each concrete type carries only relevant fields without nullables or sparse fields, and `slots` are strictly absent on sequential step types.

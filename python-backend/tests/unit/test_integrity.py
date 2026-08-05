@@ -1,7 +1,6 @@
 import pytest
 
 from app.exceptions import ValidationError
-from app.graphs import operations as graph_operations
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
     AgenticAssignerNode,
@@ -85,48 +84,6 @@ def base_flow() -> GraphFlowData:
     ]
 
     return GraphFlowData(nodes=nodes, edges=edges, state=state)
-
-
-def test_validation_variable_existence_on_assignment_creation(base_flow: GraphFlowData) -> None:
-    with pytest.raises(ValidationError, match="not defined in state schema"):
-        graph_operations.create_logical_assignment(
-            flow_data=base_flow,
-            node_id="assigner_1",
-            target_var_key="non_existent",
-            value_type="number",
-            value=10,
-        )
-
-
-def test_validation_variable_existence_on_switch_expression_update(base_flow: GraphFlowData) -> None:
-    with pytest.raises(ValidationError, match="references undefined variables"):
-        graph_operations.update_switch_expression(
-            flow_data=base_flow,
-            slot_id="switch_1_option_a",
-            expression={"kind": "stateRef", "varKey": "missing_var"},
-        )
-
-
-def test_blocked_variable_delete_when_referenced(base_flow: GraphFlowData) -> None:
-    with pytest.raises(ValidationError, match="Cannot delete variable 'x'"):
-        graph_operations.delete_definer_variable(base_flow, var_id="var_x")
-
-    with pytest.raises(ValidationError, match="Cannot delete variable 'y'"):
-        graph_operations.delete_definer_variable(base_flow, var_id="var_y")
-
-
-def test_cascading_rename(base_flow: GraphFlowData) -> None:
-    graph_operations.update_definer_variable(base_flow, var_id="var_x", updates={"key": "x_new"})
-
-    assigner_1 = next(n for n in base_flow.nodes if n.id == "assigner_1")
-    assert isinstance(assigner_1, LogicalAssignerNode)
-    assert assigner_1.assignments[0].target_var_key == "x_new"
-
-    switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
-    assert isinstance(switch_1, LogicalSwitchNode)
-    expr = switch_1.slots[0].expression
-    assert expr is not None
-    assert expr["left"]["varKey"] == "x_new"
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.constants import EventName, NodeType
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
+from app.graphs.schemas import UpsertNodeOp
 from app.models import Graph, GraphHistory, User
 
 
@@ -47,8 +48,9 @@ async def test_add_node(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Action: add a node of type LOGICAL_ASSIGNER
-    result = await graphs_service.add_node(uow=real_uow, graph_id=dummy_graph.id, node_type=NodeType.LOGICAL_ASSIGNER)
+    # Action: add a node of type LOGICAL_ASSIGNER using apply_patch
+    patch = [UpsertNodeOp(op="upsert_node", node_id="logical_assigner_1", node_type=NodeType.LOGICAL_ASSIGNER)]
+    result = await graphs_service.apply_patch(uow=real_uow, graph_id=dummy_graph.id, patch=patch)
 
     await real_uow.commit()
 
@@ -85,9 +87,11 @@ async def test_undo_redo_graph_flow(
     initial_count = len(dummy_graph.flow_json["nodes"])
 
     # Mutation 1 -> Sequence 1 (Add node)
-    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
+    patch1 = [UpsertNodeOp(op="upsert_node", node_id="la_1", node_type=NodeType.LOGICAL_ASSIGNER)]
+    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch1)
     # Mutation 2 -> Sequence 2 (Add another node)
-    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
+    patch2 = [UpsertNodeOp(op="upsert_node", node_id="la_2", node_type=NodeType.LOGICAL_ASSIGNER)]
+    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch2)
 
     await real_uow.session.refresh(dummy_graph)
     assert dummy_graph.current_history_sequence == 2
@@ -122,7 +126,8 @@ async def test_get_and_reset_graph_flow_preserves_history(
     await real_uow.session.commit()
 
     # Mutation -> Sequence 1
-    await graphs_service.add_node(real_uow, dummy_graph.id, NodeType.LOGICAL_ASSIGNER)
+    patch = [UpsertNodeOp(op="upsert_node", node_id="la_1", node_type=NodeType.LOGICAL_ASSIGNER)]
+    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch)
     await real_uow.session.commit()
 
     # Fetching flow should preserve can_undo = True
