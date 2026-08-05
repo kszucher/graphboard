@@ -199,9 +199,20 @@ class DirectLangGraphCompiler:
             choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: {node.id}Option"
 
             inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
-            var_str = ", ".join(f"{k}='{{state.get({repr(k)})}}'" for k in inputs) if inputs else "(none)"
-            options_str = ", ".join(repr(label) for label in slot_labels)
-            prompt_str = f"Classify input state {var_str} into one of options: [{options_str}]."
+            input_declarations = []
+            for k in inputs:
+                input_declarations.append(f"    {k} = state.get({repr(k)})")
+
+            options_list_expr = ", ".join(repr(label) for label in slot_labels)
+            input_declarations.append(f"    options = [{options_list_expr}]")
+            declarations_code = "\n".join(input_declarations)
+
+            prompt_lines = ['        f"Inputs:\\n"']
+            for k in inputs:
+                prompt_lines.append(f'        f"{k}: {{{k}}}\\n"')
+            prompt_lines.append('        f"\\n"')
+            prompt_lines.append('        f"Classify the inputs into one of the following options: {{options}}"')
+            prompt_concatenation = "\n".join(prompt_lines)
 
             fallback = slot_labels[0] if slot_labels else ""
             fallback_enum_expr = (
@@ -210,8 +221,11 @@ class DirectLangGraphCompiler:
 
             fn_code = (
                 f"def {node.id}(state: State) -> str:\n"
+                f"{declarations_code}\n"
                 f"    client = Groq()\n"
-                f"    prompt_text = f{repr(prompt_str)}\n"
+                f"    prompt_text = (\n"
+                f"{prompt_concatenation}\n"
+                f"    )\n"
                 f"    chat_completion = client.beta.chat.completions.parse(\n"
                 f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
                 f"        model='llama3-8b-8192',\n"
