@@ -114,3 +114,69 @@ class ChainContext:
     def slot(self, slot_id: str) -> ChainContext:
         """Positions the cursor on a specific slot ID of the current node."""
         return ChainContext(self.builder, current_node_id=self.node_id, current_slot_id=slot_id)
+
+    def assigner(self, node_id: str, assignments: list[dict[str, Any]]) -> ChainContext:
+        """Shortcut to create a LOGICAL_ASSIGNER node."""
+        return self.then_node(
+            node_id,
+            NodeType.LOGICAL_ASSIGNER,
+            {"assignments": assignments},
+        )
+
+    def logical_switch(self, node_id: str, slots: list[dict[str, Any]]) -> ChainContext:
+        """Shortcut to create a LOGICAL_SWITCH node."""
+        return self.then_node(
+            node_id,
+            NodeType.LOGICAL_SWITCH,
+            {"slots": slots},
+        )
+
+    def agentic_assigner(
+        self,
+        node_id: str,
+        prompt: str,
+        outputs: list[str],
+        inputs: list[str] | None = None,
+    ) -> ChainContext:
+        """Shortcut to create an AGENTIC_ASSIGNER node."""
+        return self.then_node(
+            node_id,
+            NodeType.AGENTIC_ASSIGNER,
+            {
+                "prompt": prompt,
+                "agentic_inputs": inputs or [],
+                "agentic_outputs": outputs,
+            },
+        )
+
+    def agentic_switch(
+        self,
+        node_id: str,
+        agentic_input: str,
+        slots: list[dict[str, Any]],
+    ) -> ChainContext:
+        """Shortcut to create an AGENTIC_SWITCH node."""
+        return self.then_node(
+            node_id,
+            NodeType.AGENTIC_SWITCH,
+            {
+                "agentic_input": agentic_input,
+                "slots": slots,
+            },
+        )
+
+    def interrupt(
+        self,
+        node_id: str,
+        payload_vars: list[str],
+        resume_var: str,
+    ) -> ChainContext:
+        """Shortcut to create an INTERRUPT node."""
+        return self.then_node(
+            node_id,
+            NodeType.INTERRUPT,
+            {
+                "payload_vars": payload_vars,
+                "resume_var": resume_var,
+            },
+        )

@@ -30,3 +30,46 @@ def test_graph_builder_flow() -> None:
     assert len(updated.edges) == 1
     assert updated.edges[0].source_id == "start_node"
     assert updated.edges[0].target_id == "end_node"
+
+
+def test_graph_builder_specialized_helpers() -> None:
+    b = GraphBuilder()
+    b.state("x", "number", 0)
+    b.state("out", "string", "")
+    b.state("res", "string", "")
+
+    (
+        b.start_chain("start", NodeType.START)
+        .assigner(
+            "init",
+            [
+                {
+                    "id": "asgn1",
+                    "target_var_key": "x",
+                    "expression": {"kind": "literal", "value": 10},
+                }
+            ],
+        )
+        .logical_switch(
+            "switch",
+            [
+                {
+                    "id": "slot1",
+                    "raw_string": "yes",
+                    "expression": {"kind": "literal", "value": True},
+                }
+            ],
+        )
+        .slot("slot1")
+        .agentic_assigner("agent", prompt="Prompt", outputs=["out"])
+        .interrupt("wait", payload_vars=["out"], resume_var="res")
+        .agentic_switch(
+            "a_switch",
+            agentic_input="res",
+            slots=[{"id": "slot2", "raw_string": "ok"}],
+        )
+    )
+
+    flow = GraphFlowData(nodes=[], edges=[])
+    updated = apply_patch(flow, b.patch)
+    assert len(updated.nodes) == 6
