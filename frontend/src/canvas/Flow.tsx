@@ -1,14 +1,12 @@
-import type { Connection, OnError } from '@xyflow/react';
+import type { OnError } from '@xyflow/react';
 import { Controls, ReactFlow, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback } from 'react';
-import { useCreateEdge, useDeleteEdge, useReconnectEdge } from '../api/mutations';
 import { useGraphKeyboardShortcuts } from '../hooks/graph/useGraphKeyboardShortcuts';
 import { useGraphWebSocket } from '../hooks/graph/useGraphWebSocket';
 import { useLaidOutGraph } from '../hooks/graph/useLaidOutGraph';
 import FlowEdge from './edge/FlowEdge.tsx';
 import { CustomNode } from './node/FlowNode.tsx';
-import type { AppFlowEdge } from './types';
 
 const nodeTypes = { custom: CustomNode };
 const edgeTypes = { custom: FlowEdge };
@@ -20,16 +18,10 @@ const FlowContent = ({
 }) => {
   const { isLoading, onNodesChange, onEdgesChange } = useLaidOutGraph(selectedGraphId);
 
-  const { mutateAsync: createEdge } = useCreateEdge(selectedGraphId);
-  const { mutateAsync: deleteEdge } = useDeleteEdge(selectedGraphId);
-  const { mutateAsync: reconnectEdge } = useReconnectEdge(selectedGraphId);
-
   const { fitView } = useReactFlow();
 
   useGraphWebSocket(selectedGraphId);
-  useGraphKeyboardShortcuts(selectedGraphId);
-
-  const isValidConnection = useCallback(() => true, []);
+  useGraphKeyboardShortcuts();
 
   const handleDoubleClick = useCallback(
     (event: React.MouseEvent) => {
@@ -49,35 +41,6 @@ const FlowContent = ({
     console.warn(message);
   }, []);
 
-  const onConnect = useCallback((connection: Connection) => {
-    if (connection.source && connection.target && connection.sourceHandle && connection.targetHandle) {
-      void createEdge({
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle,
-        targetHandle: connection.targetHandle,
-      });
-    }
-  }, [createEdge]);
-
-  const onEdgesDelete = useCallback((edgesToDelete: AppFlowEdge[]) => {
-    edgesToDelete.forEach(e => {
-      void deleteEdge(e.id);
-    });
-  }, [deleteEdge]);
-
-  const onReconnect = useCallback((oldEdge: AppFlowEdge, newConnection: Connection) => {
-    if (newConnection.source && newConnection.target && newConnection.sourceHandle && newConnection.targetHandle) {
-      void reconnectEdge({
-        edgeId: oldEdge.id,
-        source: newConnection.source,
-        target: newConnection.target,
-        sourceHandle: newConnection.sourceHandle,
-        targetHandle: newConnection.targetHandle,
-      });
-    }
-  }, [reconnectEdge]);
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div style={{
@@ -94,11 +57,10 @@ const FlowContent = ({
           edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onEdgesDelete={onEdgesDelete}
-          onReconnect={onReconnect}
-          isValidConnection={isValidConnection}
           nodesDraggable={false}
+          nodesConnectable={false}
+          edgesFocusable={true}
+          edgesReconnectable={false}
           multiSelectionKeyCode={null}
           deleteKeyCode={null}
           colorMode="dark"

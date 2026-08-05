@@ -1,12 +1,9 @@
 import { Flex } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
-import { memo, useCallback } from 'react';
-import { useUpdateSlot } from '../../api/mutations';
+import { memo } from 'react';
 import { NODE_PADDING } from '../../domain/graph/layout';
 import { Editor } from '../../editor/Editor.tsx';
-import { useCurrentGraphId } from '../../hooks/graph/useCurrentGraphId';
 import type { ApiSlot, NodeType } from '../types';
-import { FlowNodeSlotActions } from './FlowNodeSlotActions.tsx';
 
 interface FlowNodeSlotProps {
   slot: ApiSlot;
@@ -24,37 +21,8 @@ export const FlowNodeSlot = memo(({
   isEnd,
   parentNodeSelected,
 }: FlowNodeSlotProps) => {
-  const graphId = useCurrentGraphId();
-  const { mutateAsync: updateSlot } = useUpdateSlot(graphId);
-
-  const handleUpdateItem = useCallback(
-    (newValue: string) => {
-      void updateSlot({ slotId: slot.id, rawString: newValue });
-    },
-    [slot.id, updateSlot]
-  );
-
   const leftHandle = false;
   const rightHandle = true;
-
-  const actions = !disabled ? (
-    <div
-      onPointerDown={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        flexShrink: 0,
-        paddingRight: '2px',
-        visibility: parentNodeSelected ? 'visible' : 'hidden',
-      }}
-    >
-      <FlowNodeSlotActions
-        slotId={slot.id}
-      />
-    </div>
-  ) : null;
 
   const initialValue = (() => {
     if (isStart) return slot.raw_string || 'Start Node (Output)';
@@ -80,12 +48,13 @@ export const FlowNodeSlot = memo(({
       >
         <Editor
           initialValue={initialValue}
-          onSave={handleUpdateItem}
+          onSave={() => {
+          }}
           disabled={disabled}
+          readOnly={true}
           parentNodeSelected={parentNodeSelected}
         />
       </Flex>
-      {actions}
       {rightHandle && (
         <Handle
           type="source"

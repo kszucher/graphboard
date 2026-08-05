@@ -26,25 +26,14 @@ export type ApiSlot = Omit<components['schemas']['SlotRead'], 'expression'> & {
   target_var_key?: string | null;
 };
 
-export type NodeType = components['schemas']['NodeType'];
-export type InsertableNodeType = Exclude<NodeType, 'START' | 'END'>;
-
-export const ROUTING_NODE_TYPES: NodeType[] = ['LOGICAL_SWITCH', 'AGENTIC_SWITCH'];
-export const FIXED_SLOT_NODE_TYPES: NodeType[] = [];
-export const SEQUENTIAL_NODE_TYPES: NodeType[] = [
-  'START',
-  'LOGICAL_ASSIGNER',
-  'AGENTIC_ASSIGNER',
-  'INTERRUPT',
-];
-
-export const INSERTABLE_NODE_ITEMS: { type: InsertableNodeType; label: string }[] = [
-  { type: 'LOGICAL_ASSIGNER', label: 'Logical Assigner' },
-  { type: 'AGENTIC_ASSIGNER', label: 'Agentic Assigner' },
-  { type: 'LOGICAL_SWITCH', label: 'Logical Switch' },
-  { type: 'AGENTIC_SWITCH', label: 'Agentic Switch' },
-  { type: 'INTERRUPT', label: 'Interrupt' },
-];
+export type NodeType =
+  | 'START'
+  | 'END'
+  | 'LOGICAL_SWITCH'
+  | 'LOGICAL_ASSIGNER'
+  | 'AGENTIC_ASSIGNER'
+  | 'INTERRUPT'
+  | 'AGENTIC_SWITCH';
 
 export interface DefinerVariable {
   id: string;
@@ -60,16 +49,6 @@ export interface LogicalAssignment {
   value_type: 'boolean' | 'string' | 'number' | 'float';
   value?: unknown;
   expression?: ASTExpression | null;
-}
-
-export interface Diagnostic {
-  line: number;
-  column: number;
-  code: string;
-  message: string;
-  severity: 'error' | 'warning';
-  node_id?: string | null;
-  slot_id?: string | null;
 }
 
 export type ASTExpression =

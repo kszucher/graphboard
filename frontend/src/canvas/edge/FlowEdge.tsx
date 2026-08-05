@@ -1,14 +1,10 @@
 import { BaseEdge, type EdgeProps } from '@xyflow/react';
 import { memo } from 'react';
 import type { AppFlowEdge } from '../types.ts';
-import { getPolylineCenter, getRoundedOrthogonalPath } from './edgeUtils.ts';
-import { FlowEdgeActions } from './FlowEdgeActions.tsx';
+import { getRoundedOrthogonalPath } from './edgeUtils.ts';
 
 function FlowEdge({
-  id,
   selected,
-  source,
-  sourceHandleId,
   sourceX,
   sourceY,
   targetX,
@@ -19,8 +15,6 @@ function FlowEdge({
 }: EdgeProps<AppFlowEdge>) {
   const sections = data?.sections;
   let path: string;
-  let labelX = (sourceX + targetX) / 2;
-  let labelY = (sourceY + targetY) / 2;
 
   if (sections && sections.length > 0) {
     const allPoints: { x: number; y: number }[] = [];
@@ -40,10 +34,6 @@ function FlowEdge({
         return getRoundedOrthogonalPath(points, 30);
       })
       .join(' ');
-
-    const center = getPolylineCenter(allPoints);
-    labelX = center.x;
-    labelY = center.y;
   } else {
     path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
   }
@@ -60,16 +50,6 @@ function FlowEdge({
   return (
     <>
       <BaseEdge path={path} markerEnd={markerEnd} style={edgeStyle}/>
-
-      {selected && (
-        <FlowEdgeActions
-          edgeId={id}
-          labelX={labelX}
-          labelY={labelY}
-          source={source}
-          sourceHandleId={sourceHandleId}
-        />
-      )}
     </>
   );
 }

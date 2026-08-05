@@ -1,11 +1,10 @@
-import { CaretDownIcon, CheckIcon, MixIcon, PlayIcon, ResetIcon } from '@radix-ui/react-icons';
+import { CaretDownIcon, CheckIcon, PlayIcon, ResetIcon } from '@radix-ui/react-icons';
 import { Box, Button, DropdownMenu, Flex, IconButton, Text } from '@radix-ui/themes';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useMemo } from 'react';
-import { useAddNode, useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
+import { useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
-import { INSERTABLE_NODE_ITEMS, type NodeType } from './canvas/types';
 import { RightSidebar } from './editor/RightSidebar.tsx';
 
 export const Frame = () => {
@@ -16,7 +15,6 @@ export const Frame = () => {
 
   const { mutate: undo } = useUndo(selectedGraphId || '');
   const { mutate: redo } = useRedo(selectedGraphId || '');
-  const { mutate: addNode } = useAddNode(selectedGraphId || '');
   const { mutate: runGraph } = useRunGraph(selectedGraphId || '');
 
   const canUndo = graphFlow?.can_undo ?? false;
@@ -24,13 +22,6 @@ export const Frame = () => {
 
   const createGraphMutation = useCreateGraph();
   const setActiveGraphMutation = useSetActiveGraph();
-
-  const handleCreateNode = useCallback(
-    (nodeType: NodeType) => {
-      void addNode(nodeType);
-    },
-    [addNode]
-  );
 
   const handleCreateGraph = useCallback(() => {
     if (!userId) return;
@@ -128,24 +119,6 @@ export const Frame = () => {
             >
               <ResetIcon width="20" height="20" style={{ transform: 'scaleX(-1)' }}/>
             </IconButton>
-
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <IconButton variant="solid" color="gray" radius="full" disabled={!isGraphSelected} title="Add Node">
-                  <MixIcon width="20" height="20"/>
-                </IconButton>
-              </DropdownMenu.Trigger>
-              {isGraphSelected && (
-                <DropdownMenu.Content onCloseAutoFocus={e => e.preventDefault()}>
-                  <DropdownMenu.Label>Add Primitive Node</DropdownMenu.Label>
-                  {INSERTABLE_NODE_ITEMS.map((item) => (
-                    <DropdownMenu.Item onClick={() => handleCreateNode(item.type)} key={item.type}>
-                      {item.label}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              )}
-            </DropdownMenu.Root>
 
             <IconButton variant="solid" color="gray" radius="full" onClick={() => runGraph()}
                         disabled={!isGraphSelected}>

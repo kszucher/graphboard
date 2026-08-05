@@ -1,16 +1,10 @@
 import { useReactFlow } from '@xyflow/react';
-import { useEffect, useRef } from 'react';
-import { useDeleteEdge, useDeleteNode } from '../../api/mutations';
+import { useEffect } from 'react';
 import type { AppFlowEdge, AppFlowNode } from '../../canvas/types';
 import { getNextDownstreamNodeId, getNextUpstreamNodeId, getSiblingNodeId } from '../../domain/graph/traversal';
 
-export const useGraphKeyboardShortcuts = (graphId: string) => {
+export const useGraphKeyboardShortcuts = () => {
   const { getNodes, getEdges, setNodes } = useReactFlow();
-
-  const { mutateAsync: deleteNode } = useDeleteNode(graphId);
-  const { mutateAsync: deleteEdge } = useDeleteEdge(graphId);
-
-  const isMutatingRef = useRef(false);
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -26,37 +20,8 @@ export const useGraphKeyboardShortcuts = (graphId: string) => {
       const nodes = getNodes() as AppFlowNode[];
       const edges = getEdges() as AppFlowEdge[];
       const selectedNodeId = nodes.find(n => n.selected)?.id || null;
-      const selectedEdgeId = edges.find(e => e.selected)?.id || null;
-
-      if (selectedEdgeId !== null) {
-        if (e.key === 'Delete') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (isMutatingRef.current) return;
-          isMutatingRef.current = true;
-          try {
-            await deleteEdge(selectedEdgeId);
-          } finally {
-            isMutatingRef.current = false;
-          }
-          return;
-        }
-      }
 
       if (selectedNodeId !== null) {
-        if (e.key === 'Delete') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (isMutatingRef.current) return;
-          isMutatingRef.current = true;
-          try {
-            await deleteNode(selectedNodeId);
-          } finally {
-            isMutatingRef.current = false;
-          }
-          return;
-        }
-
         // Topological Node Traversal
         if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
           e.preventDefault();
@@ -90,7 +55,5 @@ export const useGraphKeyboardShortcuts = (graphId: string) => {
     getNodes,
     getEdges,
     setNodes,
-    deleteNode,
-    deleteEdge,
   ]);
 };

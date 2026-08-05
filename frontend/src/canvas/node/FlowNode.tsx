@@ -5,7 +5,6 @@ import { memo, useEffect } from 'react';
 import { NODE_PADDING } from '../../domain/graph/layout';
 import { FlowNodeSlot } from '../slot/FlowNodeSlot.tsx';
 import { type AppFlowNode, type NodeType } from '../types.ts';
-import { FlowNodeActions } from './FlowNodeActions.tsx';
 
 const NODE_COLORS: Record<NodeType, BadgeProps['color']> = {
   START: 'gray',
@@ -59,15 +58,6 @@ const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => 
           </Badge>
         </Flex>
 
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          flexShrink: 0,
-          paddingRight: '2px',
-          visibility: selected ? 'visible' : 'hidden',
-        }}>
-          <FlowNodeActions nodeId={id}/>
-        </div>
         {data.node.is_output && (
           <Handle
             type="source"
