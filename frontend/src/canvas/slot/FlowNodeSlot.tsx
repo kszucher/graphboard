@@ -1,8 +1,7 @@
-import { Flex } from '@radix-ui/themes';
+import { Flex, Text } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
 import { NODE_PADDING } from '../../domain/graph/layout';
-import { Editor } from '../../editor/Editor.tsx';
 import type { ApiSlot, NodeType } from '../types';
 
 interface FlowNodeSlotProps {
@@ -19,7 +18,6 @@ export const FlowNodeSlot = memo(({
   disabled,
   isStart,
   isEnd,
-  parentNodeSelected,
 }: FlowNodeSlotProps) => {
   const leftHandle = false;
   const rightHandle = true;
@@ -45,15 +43,28 @@ export const FlowNodeSlot = memo(({
         flexGrow="1"
         align="center"
         height="100%"
+        style={{
+          background: 'var(--gray-a3)',
+          borderRadius: 'var(--radius-1)',
+          padding: '2px 8px',
+          boxSizing: 'border-box',
+          minHeight: '24px',
+          minWidth: '120px',
+        }}
       >
-        <Editor
-          initialValue={initialValue}
-          onSave={() => {
+        <Text
+          style={{
+            fontFamily: 'Consolas, Menlo, Monaco, "Courier New", monospace',
+            fontSize: '13px',
+            lineHeight: '18px',
+            color: 'var(--gray-10)',
+            whiteSpace: 'pre',
+            userSelect: 'none',
+            opacity: disabled ? 0.7 : 1,
           }}
-          disabled={disabled}
-          readOnly={true}
-          parentNodeSelected={parentNodeSelected}
-        />
+        >
+          {initialValue}
+        </Text>
       </Flex>
       {rightHandle && (
         <Handle
