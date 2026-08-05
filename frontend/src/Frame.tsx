@@ -6,7 +6,6 @@ import { useAddNode, useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, us
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
 import { INSERTABLE_NODE_ITEMS, type NodeType } from './canvas/types';
-import { LeftSidebar } from './editor/LeftSidebar.tsx';
 import { RightSidebar } from './editor/RightSidebar.tsx';
 
 export const Frame = () => {
@@ -168,9 +167,6 @@ export const Frame = () => {
             backgroundColor: 'var(--gray-1)',
           }}
         >
-          {/* Left Sidebar Component */}
-          <LeftSidebar isGraphSelected={isGraphSelected} graphId={selectedGraphId || ''}/>
-
           {/* Flow Canvas Container */}
           <Box
             style={{

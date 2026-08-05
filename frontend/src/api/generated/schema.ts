@@ -346,76 +346,6 @@ export interface paths {
     patch: operations["reconnect_edge_endpoint_graphs__graph_id__edges__edge_id__reconnect_patch"];
     trace?: never;
   };
-  "/graphs/{graph_id}/state/variables": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Create Definer Variable Endpoint */
-    post: operations["create_definer_variable_endpoint_graphs__graph_id__state_variables_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/state/variables/{var_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete Definer Variable Endpoint */
-    delete: operations["delete_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__delete"];
-    options?: never;
-    head?: never;
-    /** Update Definer Variable Endpoint */
-    patch: operations["update_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__patch"];
-    trace?: never;
-  };
-  "/graphs/{graph_id}/nodes/{node_id}/logical/assignments": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Create Logical Assignment Endpoint */
-    post: operations["create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/logical/assignments/{assignment_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete Logical Assignment Endpoint */
-    delete: operations["delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete"];
-    options?: never;
-    head?: never;
-    /** Update Logical Assignment Endpoint */
-    patch: operations["update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch"];
-    trace?: never;
-  };
   "/health": {
     parameters: {
       query?: never;
@@ -477,21 +407,6 @@ export interface components {
       /** Agentic Inputs */
       agentic_inputs?: string[];
     };
-    /** DefinerVariableCreateRequest */
-    DefinerVariableCreateRequest: {
-      /** Key */
-      key: string;
-      /**
-       * Type
-       * @default string
-       * @enum {string}
-       */
-      type: "boolean" | "string" | "number" | "float";
-      /** Default Value */
-      default_value?: unknown;
-      /** Description */
-      description?: string | null;
-    };
     /** DefinerVariableSchema */
     DefinerVariableSchema: {
       /**
@@ -506,17 +421,6 @@ export interface components {
        * @enum {string}
        */
       type: "boolean" | "string" | "number" | "float";
-      /** Default Value */
-      default_value?: unknown;
-      /** Description */
-      description?: string | null;
-    };
-    /** DefinerVariableUpdateRequest */
-    DefinerVariableUpdateRequest: {
-      /** Key */
-      key?: string | null;
-      /** Type */
-      type?: ("boolean" | "string" | "number" | "float") | null;
       /** Default Value */
       default_value?: unknown;
       /** Description */
@@ -661,23 +565,6 @@ export interface components {
       /** Assignments */
       assignments?: components["schemas"]["LogicalAssignmentSchema"][];
     };
-    /** LogicalAssignmentCreateRequest */
-    LogicalAssignmentCreateRequest: {
-      /** Target Var Key */
-      target_var_key: string;
-      /**
-       * Value Type
-       * @default string
-       * @enum {string}
-       */
-      value_type: "boolean" | "string" | "number" | "float";
-      /** Value */
-      value?: unknown;
-      /** Expression */
-      expression?: {
-        [key: string]: unknown;
-      } | null;
-    };
     /** LogicalAssignmentSchema */
     LogicalAssignmentSchema: {
       /** Id */
@@ -690,19 +577,6 @@ export interface components {
        * @enum {string}
        */
       value_type: "boolean" | "string" | "number" | "float";
-      /** Value */
-      value?: unknown;
-      /** Expression */
-      expression?: {
-        [key: string]: unknown;
-      } | null;
-    };
-    /** LogicalAssignmentUpdateRequest */
-    LogicalAssignmentUpdateRequest: {
-      /** Target Var Key */
-      target_var_key?: string | null;
-      /** Value Type */
-      value_type?: ("boolean" | "string" | "number" | "float") | null;
       /** Value */
       value?: unknown;
       /** Expression */
@@ -1585,225 +1459,6 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["EdgeReconnectRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_definer_variable_endpoint_graphs__graph_id__state_variables_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DefinerVariableCreateRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        var_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_definer_variable_endpoint_graphs__graph_id__state_variables__var_id__patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        var_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DefinerVariableUpdateRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_logical_assignment_endpoint_graphs__graph_id__nodes__node_id__logical_assignments_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        node_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["LogicalAssignmentCreateRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        assignment_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_logical_assignment_endpoint_graphs__graph_id__logical_assignments__assignment_id__patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-        assignment_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["LogicalAssignmentUpdateRequest"];
       };
     };
     responses: {

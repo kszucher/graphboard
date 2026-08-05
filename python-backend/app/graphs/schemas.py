@@ -154,34 +154,6 @@ class NodeUpdateRequest(BaseModel):
     resume_var: str | None = None
 
 
-class DefinerVariableCreateRequest(BaseModel):
-    key: str
-    type: VariableType = "string"
-    default_value: Any = None
-    description: str | None = None
-
-
-class DefinerVariableUpdateRequest(BaseModel):
-    key: str | None = None
-    type: VariableType | None = None
-    default_value: Any = None
-    description: str | None = None
-
-
-class LogicalAssignmentCreateRequest(BaseModel):
-    target_var_key: str
-    value_type: VariableType = "string"
-    value: Any = None
-    expression: dict[str, Any] | None = None
-
-
-class LogicalAssignmentUpdateRequest(BaseModel):
-    target_var_key: str | None = None
-    value_type: VariableType | None = None
-    value: Any = None
-    expression: dict[str, Any] | None = None
-
-
 class SlotCreateRequest(BaseModel):
     index: int
 
