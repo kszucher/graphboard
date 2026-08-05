@@ -6,6 +6,9 @@ from app.constants import NodeType
 from app.graphs.expressions import parse_expression
 from app.graphs.schemas import (
     ConnectOp,
+    DeleteNodeOp,
+    DeleteStateVarOp,
+    DisconnectOp,
     GraphOperation,
     UpsertNodeOp,
     UpsertStateVarOp,
@@ -51,6 +54,27 @@ class GraphBuilder:
             )
         )
         return ChainContext(self, current_node_id=node_id)
+
+    def delete_node(self, node_id: str) -> GraphBuilder:
+        """Deletes a node and all of its connected edges."""
+        self.patch.append(DeleteNodeOp(op="delete_node", node_id=node_id))
+        return self
+
+    def delete_state_var(self, key: str) -> GraphBuilder:
+        """Deletes a state variable. Raises ValidationError if any node still references it."""
+        self.patch.append(DeleteStateVarOp(op="delete_state_var", key=key))
+        return self
+
+    def disconnect(self, source_id: str, target_id: str) -> GraphBuilder:
+        """Removes a specific edge between source and target."""
+        self.patch.append(
+            DisconnectOp(
+                op="disconnect",
+                source_id=source_id,
+                target_id=target_id,
+            )
+        )
+        return self
 
 
 class ChainContext:
