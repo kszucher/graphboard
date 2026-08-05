@@ -239,6 +239,7 @@ async def update_node(
     new_id: str | None = None,
     prompt: str | None = None,
     agentic_inputs: list[str] | None = None,
+    agentic_input: str | None = None,
     agentic_outputs: list[str] | None = None,
     payload_vars: list[str] | None = None,
     resume_var: str | None = None,
@@ -250,6 +251,8 @@ async def update_node(
         kwargs["prompt"] = prompt
     if agentic_inputs is not None:
         kwargs["agentic_inputs"] = agentic_inputs
+    if agentic_input is not None:
+        kwargs["agentic_input"] = agentic_input
     if agentic_outputs is not None:
         kwargs["agentic_outputs"] = agentic_outputs
     if payload_vars is not None:

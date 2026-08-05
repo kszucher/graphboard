@@ -4,6 +4,7 @@ from app.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.schemas import (
     AgenticAssignerNode,
+    AgenticSwitchNode,
     DefinerVariableSchema,
     GraphFlowData,
     LogicalAssignerNode,
@@ -261,4 +262,29 @@ def test_agentic_assigner_cascade_rename_and_blocked_delete() -> None:
     # Clear inputs and test output block
     agentic_node.agentic_inputs = []
     with pytest.raises(ValidationError, match="referenced as an output"):
+        operations.delete_definer_variable(updated, var_id="var_x")
+
+
+def test_agentic_switch_cascade_rename_and_blocked_delete() -> None:
+    flow = GraphFlowData(
+        nodes=[
+            AgenticSwitchNode(
+                id="switch_1",
+                agentic_input="x",
+                slots=[],
+            ),
+        ],
+        edges=[],
+        state=[
+            DefinerVariableSchema(id="var_x", key="x", type="number", default_value=0),
+        ],
+    )
+
+    # 1. Test Rename cascades to input
+    updated = operations.update_definer_variable(flow, var_id="var_x", updates={"key": "new_x"})
+    switch_node = updated.nodes[0]
+    assert switch_node.agentic_input == "new_x"
+
+    # 2. Test Blocked Delete when referenced
+    with pytest.raises(ValidationError, match="referenced as an input"):
         operations.delete_definer_variable(updated, var_id="var_x")

@@ -12,6 +12,7 @@ export type ApiNode =
   assignments?: LogicalAssignment[] | null;
   prompt?: string | null;
   agentic_inputs?: string[] | null;
+  agentic_input?: string | null;
   agentic_outputs?: string[] | null;
   payload_vars?: string[] | null;
   resume_var?: string | null;

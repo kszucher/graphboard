@@ -131,14 +131,20 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                     raise ValidationError(
                         f"Agentic Assigner node '{node_item.id}' must have at least one output variable."
                     )
-            if node_item.agentic_inputs:
-                for k in node_item.agentic_inputs:
-                    if k not in valid_keys:
-                        raise ValidationError(f"Invalid input reference: variable '{k}' is missing or deleted.")
-            if isinstance(node_item, AgenticAssignerNode) and node_item.agentic_outputs:
-                for k in node_item.agentic_outputs:
-                    if k not in valid_keys:
-                        raise ValidationError(f"Invalid output target: variable '{k}' is missing or deleted.")
+                if node_item.agentic_inputs:
+                    for k in node_item.agentic_inputs:
+                        if k not in valid_keys:
+                            raise ValidationError(f"Invalid input reference: variable '{k}' is missing or deleted.")
+                if node_item.agentic_outputs:
+                    for k in node_item.agentic_outputs:
+                        if k not in valid_keys:
+                            raise ValidationError(f"Invalid output target: variable '{k}' is missing or deleted.")
+            elif isinstance(node_item, AgenticSwitchNode):
+                if node_item.agentic_input:
+                    if node_item.agentic_input not in valid_keys:
+                        raise ValidationError(
+                            f"Invalid input reference: variable '{node_item.agentic_input}' is missing or deleted."
+                        )
         elif isinstance(node_item, InterruptNode):
             if not node_item.resume_var or node_item.resume_var not in valid_keys:
                 raise ValidationError(f"Interrupt node '{node_item.id}' must have a valid resume_var.")

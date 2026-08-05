@@ -70,7 +70,7 @@ def add_node(
     elif node_type == NodeType.INTERRUPT:
         new_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
     elif node_type == NodeType.AGENTIC_SWITCH:
-        new_node = AgenticSwitchNode(id=node_id, slots=slots, agentic_inputs=[])
+        new_node = AgenticSwitchNode(id=node_id, slots=slots, agentic_input="")
     else:
         raise ValueError(f"Unsupported node_type: {node_type}")
 
@@ -210,6 +210,7 @@ def update_node(
     new_id: str | None = None,
     prompt: str | None = None,
     agentic_inputs: list[str] | None = None,
+    agentic_input: str | None = None,
     agentic_outputs: list[str] | None = None,
     payload_vars: list[str] | None = None,
     resume_var: str | None = None,
@@ -242,12 +243,13 @@ def update_node(
     if isinstance(target_node, AgenticAssignerNode):
         if prompt is not _UNSET and prompt is not None:
             target_node.prompt = prompt
-    if isinstance(target_node, (AgenticAssignerNode, AgenticSwitchNode)):
         if agentic_inputs is not _UNSET and agentic_inputs is not None:
             target_node.agentic_inputs = agentic_inputs
-    if isinstance(target_node, AgenticAssignerNode):
         if agentic_outputs is not _UNSET and agentic_outputs is not None:
             target_node.agentic_outputs = agentic_outputs
+    if isinstance(target_node, AgenticSwitchNode):
+        if agentic_input is not _UNSET and agentic_input is not None:
+            target_node.agentic_input = agentic_input
     if isinstance(target_node, InterruptNode):
         if payload_vars is not _UNSET and payload_vars is not None:
             target_node.payload_vars = payload_vars

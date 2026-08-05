@@ -198,20 +198,23 @@ class DirectLangGraphCompiler:
             enum_cls = f"class {node.id}Option(str, Enum):\n{enum_code}"
             choice_cls = f"class {node.id}Choice(BaseModel):\n    decision: {node.id}Option"
 
-            inputs = [k for k in node.agentic_inputs if k in self.valid_keys]
+            input_key = node.agentic_input if (node.agentic_input and node.agentic_input in self.valid_keys) else ""
             input_declarations = []
-            for k in inputs:
-                input_declarations.append(f"    {k} = state.get({repr(k)})")
+            if input_key:
+                input_declarations.append(f"    input = state.get({repr(input_key)})")
+            else:
+                input_declarations.append("    input = None")
 
             options_list_expr = ", ".join(repr(label) for label in slot_labels)
             input_declarations.append(f"    options = [{options_list_expr}]")
             declarations_code = "\n".join(input_declarations)
 
-            prompt_lines = ['        f"Inputs:\\n"']
-            for k in inputs:
-                prompt_lines.append(f'        f"{k}: {{{k}}}\\n"')
-            prompt_lines.append('        f"\\n"')
-            prompt_lines.append('        f"Classify the inputs into one of the following options: {{options}}"')
+            prompt_lines = [
+                '        f"Input:\\n"',
+                '        f"{input}\\n"',
+                '        f"\\n"',
+                '        f"Classify the input into one of the following options: {{options}}"',
+            ]
             prompt_concatenation = "\n".join(prompt_lines)
 
             fallback = slot_labels[0] if slot_labels else ""

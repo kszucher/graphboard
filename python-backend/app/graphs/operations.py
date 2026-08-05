@@ -213,14 +213,16 @@ def update_definer_variable(flow_data: GraphFlowData, var_id: str, updates: Defi
 
         # 3. Update agentic_inputs, agentic_outputs, and prompt in AGENTIC_ASSIGNER and AGENTIC_SWITCH nodes
         for node in flow_data.nodes:
-            if isinstance(node, (AgenticAssignerNode, AgenticSwitchNode)):
+            if isinstance(node, AgenticAssignerNode):
                 if node.agentic_inputs:
                     node.agentic_inputs = [new_key if k == old_key else k for k in node.agentic_inputs]
-                if isinstance(node, AgenticAssignerNode):
-                    if node.agentic_outputs:
-                        node.agentic_outputs = [new_key if k == old_key else k for k in node.agentic_outputs]
-                    if node.prompt:
-                        node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
+                if node.agentic_outputs:
+                    node.agentic_outputs = [new_key if k == old_key else k for k in node.agentic_outputs]
+                if node.prompt:
+                    node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
+            elif isinstance(node, AgenticSwitchNode):
+                if node.agentic_input == old_key:
+                    node.agentic_input = new_key
 
         # 4. Update INTERRUPT payload_vars and resume_var
         for node in flow_data.nodes:
@@ -272,14 +274,19 @@ def delete_definer_variable(flow_data: GraphFlowData, var_id: str) -> GraphFlowD
 
     # 3. Check AGENTIC_ASSIGNER and AGENTIC_SWITCH inputs/outputs
     for node in flow_data.nodes:
-        if isinstance(node, (AgenticAssignerNode, AgenticSwitchNode)):
+        if isinstance(node, AgenticAssignerNode):
             if node.agentic_inputs and var_key in node.agentic_inputs:
                 raise ValidationError(
                     f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic node '{node.id}'."
                 )
-            if isinstance(node, AgenticAssignerNode) and node.agentic_outputs and var_key in node.agentic_outputs:
+            if node.agentic_outputs and var_key in node.agentic_outputs:
                 raise ValidationError(
                     f"Cannot delete variable '{var_key}' because it is referenced as an output in Agentic Assigner node '{node.id}'."
+                )
+        elif isinstance(node, AgenticSwitchNode):
+            if node.agentic_input == var_key:
+                raise ValidationError(
+                    f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic node '{node.id}'."
                 )
 
     # 4. Check INTERRUPT node

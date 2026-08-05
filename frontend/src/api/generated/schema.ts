@@ -404,8 +404,11 @@ export interface components {
       node_type: "AGENTIC_SWITCH";
       /** Slots */
       slots?: components["schemas"]["SlotRead"][];
-      /** Agentic Inputs */
-      agentic_inputs?: string[];
+      /**
+       * Agentic Input
+       * @default
+       */
+      agentic_input: string;
     };
     /** DefinerVariableSchema */
     DefinerVariableSchema: {
@@ -617,6 +620,8 @@ export interface components {
       prompt?: string | null;
       /** Agentic Inputs */
       agentic_inputs?: string[] | null;
+      /** Agentic Input */
+      agentic_input?: string | null;
       /** Agentic Outputs */
       agentic_outputs?: string[] | null;
       /** Payload Vars */

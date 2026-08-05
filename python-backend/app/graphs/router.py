@@ -111,6 +111,7 @@ async def update_node_endpoint(
             new_id=payload.new_id,
             prompt=payload.prompt,
             agentic_inputs=payload.agentic_inputs,
+            agentic_input=payload.agentic_input,
             agentic_outputs=payload.agentic_outputs,
             payload_vars=payload.payload_vars,
             resume_var=payload.resume_var,

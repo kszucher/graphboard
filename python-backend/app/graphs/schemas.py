@@ -98,7 +98,7 @@ class InterruptNode(BaseNode):
 class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
-    agentic_inputs: list[str] = Field(default_factory=list)
+    agentic_input: str = ""
 
 
 NodeRead: TypeAlias = Annotated[
@@ -149,6 +149,7 @@ class NodeUpdateRequest(BaseModel):
     new_id: str | None = None
     prompt: str | None = None
     agentic_inputs: list[str] | None = None
+    agentic_input: str | None = None
     agentic_outputs: list[str] | None = None
     payload_vars: list[str] | None = None
     resume_var: str | None = None
