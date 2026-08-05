@@ -13,7 +13,7 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ---
 
-<img width="1980" height="1080" alt="Graphboard Interface Preview" src="https://github.com/user-attachments/assets/6dcd5b60-4cdf-41ae-8310-8e19c698dc59" />
+<img width="1980" height="1080" alt="Image" src="https://github.com/user-attachments/assets/301356ec-f978-4108-9332-e61e30ea63ea" />
 
 ---
 
