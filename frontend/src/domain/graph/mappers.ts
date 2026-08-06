@@ -55,19 +55,19 @@ export const fromApiPayload = (
 
   const rfEdges: AppFlowEdge[] = edges
     .map(edge => {
-      const sourceNodeId = edge.source_type === 'slot' ? slotToNodeId[edge.source_id] : edge.source_id;
-      const targetNodeId = edge.target_type === 'slot' ? slotToNodeId[edge.target_id] : edge.target_id;
+      const sourceNodeId = edge.source;
+      const targetNodeId = edge.target;
 
       if (!sourceNodeId || !targetNodeId) return null;
 
       const prevEdge = prevEdges.find(e => e.id === edge.id);
 
       return {
-        id: edge.id ?? `${edge.source_id}-${edge.target_id}`,
+        id: edge.id ?? `${edge.source}-${edge.target}`,
         source: sourceNodeId,
         target: targetNodeId,
-        sourceHandle: edge.source_id,
-        targetHandle: edge.target_id,
+        sourceHandle: edge.source_handle || edge.source,
+        targetHandle: edge.target_handle || edge.target,
         type: 'custom' as const,
         animated: true,
         data: {

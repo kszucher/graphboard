@@ -151,15 +151,14 @@ async def test_run_graph_flow_success(
                     {
                         "id": "asgn_1",
                         "target_var_key": "x",
-                        "value_type": "number",
                         "expression": {"kind": "literal", "value": 42},
                     }
                 ],
             },
         ],
         "edges": [
-            {"source_id": "start", "target_id": "assigner_1"},
-            {"source_id": "assigner_1", "source_type": "node", "target_id": "end"},
+            {"source": "start", "target": "assigner_1"},
+            {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
@@ -212,7 +211,6 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_a",
                         "target_var_key": "y",
-                        "value_type": "number",
                         "expression": {"kind": "literal", "value": 100},
                     }
                 ],
@@ -224,18 +222,17 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_b",
                         "target_var_key": "y",
-                        "value_type": "number",
                         "expression": {"kind": "literal", "value": 200},
                     }
                 ],
             },
         ],
         "edges": [
-            {"source_id": "start", "target_id": "switch_1"},
-            {"source_id": "slot_a", "source_type": "slot", "target_id": "assigner_a"},
-            {"source_id": "slot_b", "source_type": "slot", "target_id": "assigner_b"},
-            {"source_id": "assigner_a", "source_type": "node", "target_id": "end"},
-            {"source_id": "assigner_b", "source_type": "node", "target_id": "end"},
+            {"source": "start", "target": "switch_1"},
+            {"source": "switch_1", "source_handle": "slot_a", "target": "assigner_a"},
+            {"source": "switch_1", "source_handle": "slot_b", "target": "assigner_b"},
+            {"source": "assigner_a", "target": "end"},
+            {"source": "assigner_b", "target": "end"},
         ],
         "state": [
             {"id": "v1", "key": "x", "type": "number", "default_value": 5},
@@ -284,15 +281,14 @@ async def test_run_graph_flow_invalid_state_ref(
                     {
                         "id": "asgn_1",
                         "target_var_key": "non_existent",
-                        "value_type": "number",
                         "expression": {"kind": "literal", "value": 42},
                     }
                 ],
             },
         ],
         "edges": [
-            {"source_id": "start", "target_id": "assigner_1"},
-            {"source_id": "assigner_1", "source_type": "node", "target_id": "end"},
+            {"source": "start", "target": "assigner_1"},
+            {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
@@ -321,9 +317,9 @@ async def test_run_graph_flow_cycle_limit(
             {"id": "assigner_2", "node_type": "LOGICAL_ASSIGNER", "assignments": []},
         ],
         "edges": [
-            {"source_id": "start", "target_id": "assigner_1"},
-            {"source_id": "assigner_1", "source_type": "node", "target_id": "assigner_2"},
-            {"source_id": "assigner_2", "source_type": "node", "target_id": "assigner_1"},
+            {"source": "start", "target": "assigner_1"},
+            {"source": "assigner_1", "target": "assigner_2"},
+            {"source": "assigner_2", "target": "assigner_1"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }

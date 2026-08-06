@@ -52,8 +52,6 @@ class DefinerVariableUpdates(TypedDict, total=False):
 
 class LogicalAssignmentUpdates(TypedDict, total=False):
     target_var_key: str
-    value_type: VariableType
-    value: Any
     expression: Expression | None
 
 
@@ -83,8 +81,6 @@ class DefinerVariableSchema(BaseModel):
 class LogicalAssignmentSchema(BaseModel):
     id: str
     target_var_key: str
-    value_type: VariableType = "string"
-    value: Any = None
     expression: Expression | None = None
 
 
@@ -150,10 +146,10 @@ NodeRead: TypeAlias = Annotated[
 
 class EdgeRead(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    source_id: str
-    source_type: Literal["node", "slot"] = "node"
-    target_id: str
-    target_type: Literal["node", "slot"] = "node"
+    source: str
+    source_handle: str | None = None
+    target: str
+    target_handle: str | None = None
 
 
 class GraphFlowRead(OrmModel):
@@ -188,18 +184,18 @@ class DeleteNodeOp(BaseModel):
 
 class ConnectOp(BaseModel):
     op: Literal["connect"] = "connect"
-    source_id: str
-    target_id: str
-    source_type: Literal["node", "slot"] = "node"
-    target_type: Literal["node", "slot"] = "node"
+    source: str
+    source_handle: str | None = None
+    target: str
+    target_handle: str | None = None
 
 
 class DisconnectOp(BaseModel):
     op: Literal["disconnect"] = "disconnect"
-    source_id: str
-    target_id: str
-    source_type: Literal["node", "slot"] = "node"
-    target_type: Literal["node", "slot"] = "node"
+    source: str
+    source_handle: str | None = None
+    target: str
+    target_handle: str | None = None
 
 
 class UpsertStateVarOp(BaseModel):

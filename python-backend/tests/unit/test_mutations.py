@@ -8,6 +8,7 @@ from app.graphs.schemas import (
     ConnectOp,
     DefinerVariableSchema,
     DeleteStateVarOp,
+    DisconnectOp,
     GraphFlowData,
     LogicalAssignerNode,
     LogicalSwitchNode,
@@ -85,13 +86,17 @@ def test_apply_patch_connect_disconnect() -> None:
     ]
     flow = mutations.apply_patch(flow, patch_nodes)
 
-    patch_connect = [
-        ConnectOp(op="connect", source_id="node_a", target_id="node_b", source_type="node", target_type="node")
-    ]
+    patch_connect = [ConnectOp(op="connect", source="node_a", target="node_b", source_handle=None, target_handle=None)]
     flow = mutations.apply_patch(flow, patch_connect)
     assert len(flow.edges) == 1
-    assert flow.edges[0].source_id == "node_a"
-    assert flow.edges[0].target_id == "node_b"
+    assert flow.edges[0].source == "node_a"
+    assert flow.edges[0].target == "node_b"
+
+    patch_disconnect = [
+        DisconnectOp(op="disconnect", source="node_a", target="node_b", source_handle=None, target_handle=None)
+    ]
+    flow = mutations.apply_patch(flow, patch_disconnect)
+    assert len(flow.edges) == 0
 
 
 def test_apply_patch_state_var_cascade() -> None:
@@ -116,7 +121,6 @@ def test_apply_patch_state_var_cascade() -> None:
                     "assignments": [
                         {
                             "target_var_key": "old_key",
-                            "value_type": "string",
                             "expression": {
                                 "kind": "binaryOp",
                                 "op": "+",
@@ -170,8 +174,7 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
                     "assignments": [
                         {
                             "target_var_key": "x",
-                            "value_type": "number",
-                            "value": 15,
+                            "expression": {"kind": "literal", "value": 15},
                         }
                     ]
                 },

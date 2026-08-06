@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from app.constants import NodeType
 from app.graphs.expressions import parse_expression
@@ -65,13 +65,21 @@ class GraphBuilder:
         self.patch.append(DeleteStateVarOp(op="delete_state_var", key=key))
         return self
 
-    def disconnect(self, source_id: str, target_id: str) -> GraphBuilder:
+    def disconnect(
+        self,
+        source: str,
+        target: str,
+        source_handle: str | None = None,
+        target_handle: str | None = None,
+    ) -> GraphBuilder:
         """Removes a specific edge between source and target."""
         self.patch.append(
             DisconnectOp(
                 op="disconnect",
-                source_id=source_id,
-                target_id=target_id,
+                source=source,
+                source_handle=source_handle,
+                target=target,
+                target_handle=target_handle,
             )
         )
         return self
@@ -106,32 +114,32 @@ class ChainContext:
             )
         )
 
-        source_id = self.slot_id if self.slot_id else self.node_id
-        source_type: Literal["node", "slot"] = "slot" if self.slot_id else "node"
+        source_node_id = self.node_id
+        source_handle = self.slot_id
 
         self.builder.patch.append(
             ConnectOp(
                 op="connect",
-                source_id=source_id,
-                target_id=node_id,
-                source_type=source_type,
-                target_type="node",
+                source=source_node_id,
+                source_handle=source_handle,
+                target=node_id,
+                target_handle=None,
             )
         )
         return ChainContext(self.builder, current_node_id=node_id)
 
     def then_to(self, target_node_id: str) -> ChainContext:
         """Connects the current cursor to an existing target node."""
-        source_id = self.slot_id if self.slot_id else self.node_id
-        source_type: Literal["node", "slot"] = "slot" if self.slot_id else "node"
+        source_node_id = self.node_id
+        source_handle = self.slot_id
 
         self.builder.patch.append(
             ConnectOp(
                 op="connect",
-                source_id=source_id,
-                target_id=target_node_id,
-                source_type=source_type,
-                target_type="node",
+                source=source_node_id,
+                source_handle=source_handle,
+                target=target_node_id,
+                target_handle=None,
             )
         )
         return ChainContext(self.builder, current_node_id=target_node_id)

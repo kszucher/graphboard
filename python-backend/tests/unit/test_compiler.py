@@ -55,8 +55,8 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
             ),
         ],
         edges=[
-            EdgeRead(source_id="start", target_id="assigner_1"),
-            EdgeRead(source_id="assigner_1", source_type="node", target_id="end"),
+            EdgeRead(source="start", target="assigner_1"),
+            EdgeRead(source="assigner_1", target="end"),
         ],
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
@@ -89,7 +89,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
                 ],
             ),
         ],
-        edges=[EdgeRead(source_id="slot_a", source_type="slot", target_id="end")],
+        edges=[EdgeRead(source="switch_1", source_handle="slot_a", target="end")],
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
         ],
@@ -112,8 +112,8 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
             ),
         ],
         edges=[
-            EdgeRead(source_id="start", target_id="agentic_1"),
-            EdgeRead(source_id="agentic_1", source_type="node", target_id="end"),
+            EdgeRead(source="start", target="agentic_1"),
+            EdgeRead(source="agentic_1", target="end"),
         ],
         state=[
             DefinerVariableSchema(id="v1", key="category", type="string", default_value="math"),

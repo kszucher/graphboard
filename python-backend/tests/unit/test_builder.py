@@ -28,8 +28,8 @@ def test_graph_builder_flow() -> None:
     assert len(updated.state) == 1
     assert len(updated.nodes) == 2
     assert len(updated.edges) == 1
-    assert updated.edges[0].source_id == "start_node"
-    assert updated.edges[0].target_id == "end_node"
+    assert updated.edges[0].source == "start_node"
+    assert updated.edges[0].target == "end_node"
 
 
 def test_graph_builder_specialized_helpers() -> None:

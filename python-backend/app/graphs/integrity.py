@@ -36,7 +36,7 @@ def _find_invalid_state_refs(expr_node: Expression | None, valid_keys: set[str])
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     """Verifies that the graph is topologically complete and has valid references before execution."""
-    edge_sources = {e.source_id for e in flow_data.edges}
+    edge_sources = {(e.source, e.source_handle) for e in flow_data.edges if e.source_handle}
 
     # Filter out synthetic nodes (starting with __)
     user_nodes = [n for n in flow_data.nodes if not n.id.startswith("__")]
@@ -49,24 +49,18 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                     raise ValidationError(
                         f"Logical Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'."
                     )
-                if slot.id not in edge_sources:
+                if (n.id, slot.id) not in edge_sources:
                     raise ValidationError(
                         f"Logical Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
         elif isinstance(n, AgenticSwitchNode):
             for slot in n.slots:
-                if slot.id not in edge_sources:
+                if (n.id, slot.id) not in edge_sources:
                     raise ValidationError(
                         f"Agentic Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
 
     # 2. Check reachability of nodes from "start"
-    slot_to_node: dict[str, str] = {}
-    for node_item in user_nodes:
-        if hasattr(node_item, "slots"):
-            for s in getattr(node_item, "slots", []):
-                slot_to_node[s.id] = node_item.id
-
     # Build adjacency list: node_id -> set of target node_ids
     adj: dict[str, set[str]] = {n.id: set() for n in user_nodes}
     if "start" not in adj:
@@ -75,8 +69,8 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
         adj["end"] = set()
 
     for e in flow_data.edges:
-        src_node = slot_to_node.get(e.source_id, e.source_id)
-        tgt_node = slot_to_node.get(e.target_id, e.target_id)
+        src_node = e.source
+        tgt_node = e.target
         if src_node in adj:
             adj[src_node].add(tgt_node)
 

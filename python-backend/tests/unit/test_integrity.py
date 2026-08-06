@@ -50,7 +50,6 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    value_type="number",
                     expression=BinaryOpExpression(
                         kind="binaryOp",
                         op="+",
@@ -66,8 +65,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_y",
                     target_var_key="y",
-                    value_type="boolean",
-                    value=True,
+                    expression=LiteralExpression(kind="literal", value=True),
                 )
             ],
         ),
@@ -75,11 +73,11 @@ def base_flow() -> GraphFlowData:
     ]
 
     edges = [
-        EdgeRead(source_id="start", target_id="switch_1"),
-        EdgeRead(source_id="switch_1_option_a", target_id="assigner_1"),
-        EdgeRead(source_id="switch_1_option_b", target_id="assigner_2"),
-        EdgeRead(source_id="assigner_1", target_id="end"),
-        EdgeRead(source_id="assigner_2", target_id="end"),
+        EdgeRead(source="start", target="switch_1"),
+        EdgeRead(source="switch_1", source_handle="switch_1_option_a", target="assigner_1"),
+        EdgeRead(source="switch_1", source_handle="switch_1_option_b", target="assigner_2"),
+        EdgeRead(source="assigner_1", target="end"),
+        EdgeRead(source="assigner_2", target="end"),
     ]
 
     state = [
@@ -104,7 +102,9 @@ def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> None:
-    base_flow.edges = [e for e in base_flow.edges if e.source_id != "switch_1_option_a"]
+    base_flow.edges = [
+        e for e in base_flow.edges if not (e.source == "switch_1" and e.source_handle == "switch_1_option_a")
+    ]
 
     with pytest.raises(ValidationError, match="not connected to any target node"):
         assert_flow_is_complete(base_flow)
@@ -126,11 +126,11 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
             agentic_outputs=["y"],
         )
     )
-    base_flow.edges = [e for e in base_flow.edges if e.source_id != "assigner_2"]
+    base_flow.edges = [e for e in base_flow.edges if e.source != "assigner_2"]
     base_flow.edges.extend(
         [
-            EdgeRead(source_id="assigner_2", target_id="agentic_1"),
-            EdgeRead(source_id="agentic_1", target_id="end"),
+            EdgeRead(source="assigner_2", target="agentic_1"),
+            EdgeRead(source="agentic_1", target="end"),
         ]
     )
 

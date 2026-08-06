@@ -298,22 +298,14 @@ export interface components {
        * Format: uuid
        */
       id?: string;
-      /** Source Id */
-      source_id: string;
-      /**
-       * Source Type
-       * @default node
-       * @enum {string}
-       */
-      source_type: "node" | "slot";
-      /** Target Id */
-      target_id: string;
-      /**
-       * Target Type
-       * @default node
-       * @enum {string}
-       */
-      target_type: "node" | "slot";
+      /** Source */
+      source: string;
+      /** Source Handle */
+      source_handle?: string | null;
+      /** Target */
+      target: string;
+      /** Target Handle */
+      target_handle?: string | null;
     };
     /** EndNode */
     EndNode: {
@@ -424,14 +416,6 @@ export interface components {
       id: string;
       /** Target Var Key */
       target_var_key: string;
-      /**
-       * Value Type
-       * @default string
-       * @enum {string}
-       */
-      value_type: "boolean" | "string" | "number" | "float";
-      /** Value */
-      value?: unknown;
       /** Expression */
       expression?: (components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"]) | null;
     };

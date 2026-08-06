@@ -23,6 +23,7 @@ from app.graphs.schemas import (
     GraphFlowData,
     GraphOperation,
     InterruptNode,
+    LiteralExpression,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
@@ -261,24 +262,24 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
         for a in assignments_data:
             a_id = a.get("id") or str(uuid.uuid4())
             target_var = a.get("target_var_key", "").strip()
-            val_type = a.get("value_type", "string")
-            val = a.get("value")
-            expr = parse_expression(a.get("expression"))
 
-            if not any(v.key == target_var for v in flow_data.state):
+            expr_data = a.get("expression")
+            expr = parse_expression(expr_data) if expr_data is not None else None
+
+            target_var_schema = next((v for v in flow_data.state if v.key == target_var), None)
+            if not target_var_schema:
                 raise ValidationError(f"Assignment target variable '{target_var}' is not defined in state schema.")
 
-            if expr is not None and not check_expression_variables(expr, valid_keys):
-                raise ValidationError(f"Assignment expression for '{target_var}' references undefined variables.")
-
-            validated_val = validate_default_value_type(val_type, val)
+            if expr is not None:
+                if not check_expression_variables(expr, valid_keys):
+                    raise ValidationError(f"Assignment expression for '{target_var}' references undefined variables.")
+                if isinstance(expr, LiteralExpression):
+                    validate_default_value_type(target_var_schema.type, expr.value)
 
             parsed_assignments.append(
                 LogicalAssignmentSchema(
                     id=a_id,
                     target_var_key=target_var,
-                    value_type=val_type,
-                    value=validated_val,
                     expression=expr,
                 )
             )
@@ -340,15 +341,19 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
 
         # Update edges targeting/sourcing this node
         for edge in edges:
-            if edge.source_id == node_id:
-                edge.source_id = new_id
-            elif edge.source_id.startswith(f"{node_id}_"):
-                edge.source_id = edge.source_id.replace(f"{node_id}_", f"{new_id}_", 1)
+            if edge.source == node_id:
+                edge.source = new_id
+                if edge.source_handle and edge.source_handle.startswith(f"{node_id}_"):
+                    edge.source_handle = edge.source_handle.replace(f"{node_id}_", f"{new_id}_", 1)
+            elif edge.source.startswith(f"{node_id}_"):
+                edge.source = edge.source.replace(f"{node_id}_", f"{new_id}_", 1)
 
-            if edge.target_id == node_id:
-                edge.target_id = new_id
-            elif edge.target_id.startswith(f"{node_id}_"):
-                edge.target_id = edge.target_id.replace(f"{node_id}_", f"{new_id}_", 1)
+            if edge.target == node_id:
+                edge.target = new_id
+                if edge.target_handle and edge.target_handle.startswith(f"{node_id}_"):
+                    edge.target_handle = edge.target_handle.replace(f"{node_id}_", f"{new_id}_", 1)
+            elif edge.target.startswith(f"{node_id}_"):
+                edge.target = edge.target.replace(f"{node_id}_", f"{new_id}_", 1)
 
     return flow_data
 
@@ -366,19 +371,8 @@ def _delete_node(flow_data: GraphFlowData, op: DeleteNodeOp) -> GraphFlowData:
     if target_node.node_type in SENTINEL_NODE_TYPES:
         raise ValidationError(f"Sentinel node of type '{target_node.node_type}' cannot be deleted.")
 
-    slot_ids = (
-        {s.id for s in target_node.slots} if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)) else set()
-    )
-
     flow_data.nodes = [n for n in nodes if n.id != node_id]
-    flow_data.edges = [
-        e
-        for e in edges
-        if e.source_id != node_id
-        and e.target_id != node_id
-        and e.source_id not in slot_ids
-        and e.target_id not in slot_ids
-    ]
+    flow_data.edges = [e for e in edges if e.source != node_id and e.target != node_id]
     return flow_data
 
 
@@ -387,41 +381,30 @@ def _connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
 
-    source_node = next(
-        (
-            n
-            for n in nodes
-            if n.id == op.source_id
-            or (hasattr(n, "slots") and any(s.id == op.source_id for s in getattr(n, "slots", [])))
-        ),
-        None,
-    )
-    target_node = next(
-        (
-            n
-            for n in nodes
-            if n.id == op.target_id
-            or (hasattr(n, "slots") and any(s.id == op.target_id for s in getattr(n, "slots", [])))
-        ),
-        None,
-    )
+    source_node = next((n for n in nodes if n.id == op.source), None)
+    target_node = next((n for n in nodes if n.id == op.target), None)
 
     if not source_node:
-        raise ValidationError(f"Source ID '{op.source_id}' not found.")
+        raise ValidationError(f"Source Node '{op.source}' not found.")
     if not target_node:
-        raise ValidationError(f"Target ID '{op.target_id}' not found.")
+        raise ValidationError(f"Target Node '{op.target}' not found.")
 
-    # Remove existing edges from this specific source handle to maintain single outbound constraints where relevant
-    # (Except for switch slots where each slot has 1 outbound edge, and sequential nodes have 1 outbound edge)
-    # Let's delete any edge that shares the same source_id
-    flow_data.edges = [e for e in edges if e.source_id != op.source_id]
+    if hasattr(source_node, "slots") and op.source_handle:
+        if not any(s.id == op.source_handle for s in getattr(source_node, "slots", [])):
+            raise ValidationError(f"Source handle '{op.source_handle}' not found on node '{op.source}'.")
+
+    # Remove existing edges from this specific source handle to maintain single outbound constraints
+    if op.source_handle:
+        flow_data.edges = [e for e in edges if not (e.source == op.source and e.source_handle == op.source_handle)]
+    else:
+        flow_data.edges = [e for e in edges if not (e.source == op.source and e.source_handle is None)]
 
     new_edge = EdgeRead(
         id=uuid.uuid4(),
-        source_id=op.source_id,
-        target_id=op.target_id,
-        source_type=op.source_type,
-        target_type=op.target_type,
+        source=op.source,
+        source_handle=op.source_handle,
+        target=op.target,
+        target_handle=op.target_handle,
     )
     flow_data.edges.append(new_edge)
     return flow_data
@@ -432,10 +415,10 @@ def _disconnect(flow_data: GraphFlowData, op: DisconnectOp) -> GraphFlowData:
         e
         for e in flow_data.edges
         if not (
-            e.source_id == op.source_id
-            and e.target_id == op.target_id
-            and e.source_type == op.source_type
-            and e.target_type == op.target_type
+            e.source == op.source
+            and e.source_handle == op.source_handle
+            and e.target == op.target
+            and e.target_handle == op.target_handle
         )
     ]
     return flow_data

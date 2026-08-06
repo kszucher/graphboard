@@ -123,7 +123,7 @@ class DirectLangGraphCompiler:
             pairs = []
             for i in valid_items:
                 expr = getattr(i, "expression", None)
-                val_code = ast_expr_to_code(expr) if expr is not None else repr(getattr(i, "value", None))
+                val_code = ast_expr_to_code(expr)
                 pairs.append(f"{repr(i.target_var_key)}: {val_code}")
             return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
@@ -271,14 +271,6 @@ class DirectLangGraphCompiler:
             if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode)):
                 lines.append(f"workflow.add_node('{n.id}', {n.id})")
 
-        # 2. Build Slot Map & Route lookup
-        all_slots: dict[str, tuple[str, str]] = {}  # slot_id -> (router_node_id, raw_string)
-        for n in self.executable_nodes:
-            if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
-                for s in n.slots:
-                    if s.id:
-                        all_slots[s.id] = (n.id, s.raw_string)
-
         def resolve_target(tgt_id: str) -> str:
             if tgt_id in self.nodes_by_id:
                 target_node = self.nodes_by_id[tgt_id]
@@ -292,17 +284,15 @@ class DirectLangGraphCompiler:
                 return "END"
             return tgt_id
 
-        # 3. Process Edges
+        # 2. Process Edges
         router_incoming_sources: dict[str, list[str]] = {}
         for edge in self.flow_data.edges:
-            target_id = edge.target_id
+            target_id = edge.target
             if target_id in self.nodes_by_id:
                 tnode = self.nodes_by_id[target_id]
                 if isinstance(tnode, (LogicalSwitchNode, AgenticSwitchNode)):
-                    src_id = edge.source_id
-                    if src_id in all_slots:
-                        src_id = all_slots[src_id][0]
-                    elif src_id in self.nodes_by_id and isinstance(self.nodes_by_id[src_id], StartNode):
+                    src_id = edge.source
+                    if src_id in self.nodes_by_id and isinstance(self.nodes_by_id[src_id], StartNode):
                         src_id = "START"
                     elif src_id == "start":
                         src_id = "START"
@@ -313,9 +303,11 @@ class DirectLangGraphCompiler:
             if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
                 slot_map: dict[str, str] = {}
                 for slot in n.slots:
-                    slot_edge = next((e for e in self.flow_data.edges if e.source_id == slot.id), None)
+                    slot_edge = next(
+                        (e for e in self.flow_data.edges if e.source == n.id and e.source_handle == slot.id), None
+                    )
                     if slot_edge is not None:
-                        tgt = resolve_target(slot_edge.target_id)
+                        tgt = resolve_target(slot_edge.target)
                         slot_map[slot.raw_string] = tgt
 
                 if slot_map:
@@ -331,21 +323,21 @@ class DirectLangGraphCompiler:
 
         # Emit Direct Edges
         for edge in self.flow_data.edges:
-            if edge.source_id in all_slots or edge.source_type == "slot":
+            if edge.source_handle is not None:
                 continue
-            target_node = self.nodes_by_id.get(edge.target_id)
+            target_node = self.nodes_by_id.get(edge.target)
             if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
                 continue
 
             src = (
                 "START"
                 if (
-                    edge.source_id == "start"
-                    or (edge.source_id in self.nodes_by_id and isinstance(self.nodes_by_id[edge.source_id], StartNode))
+                    edge.source == "start"
+                    or (edge.source in self.nodes_by_id and isinstance(self.nodes_by_id[edge.source], StartNode))
                 )
-                else edge.source_id
+                else edge.source
             )
-            tgt = resolve_target(edge.target_id)
+            tgt = resolve_target(edge.target)
             src_ref = "START" if src == "START" else repr(src)
             tgt_ref = "END" if tgt == "END" else repr(tgt)
             lines.append(f"workflow.add_edge({src_ref}, {tgt_ref})")

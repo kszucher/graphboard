@@ -46,8 +46,6 @@ export interface DefinerVariable {
 export interface LogicalAssignment {
   id: string;
   target_var_key: string;
-  value_type: 'boolean' | 'string' | 'number' | 'float';
-  value?: unknown;
   expression?: ASTExpression | null;
 }
 

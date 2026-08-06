@@ -31,19 +31,16 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "init_score",
                 "target_var_key": "score",
-                "value_type": "number",
                 "expression": "0",
             },
             {
                 "id": "init_more",
                 "target_var_key": "more_questions",
-                "value_type": "boolean",
                 "expression": "True",
             },
             {
                 "id": "init_correct_answer",
                 "target_var_key": "correct_answer",
-                "value_type": "string",
                 "expression": "'A'",
             },
         ],
@@ -87,7 +84,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "parse_extract",
                 "target_var_key": "parsed_answer",
-                "value_type": "string",
                 "expression": "user_answer",
             }
         ],
@@ -135,7 +131,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "validate_check",
                 "target_var_key": "is_correct",
-                "value_type": "boolean",
                 "expression": "parsed_answer == correct_answer",
             }
         ],
@@ -167,7 +162,6 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
             {
                 "id": "add_score",
                 "target_var_key": "score",
-                "value_type": "number",
                 "expression": "score + 1",
             }
         ],
