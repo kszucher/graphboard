@@ -38,9 +38,11 @@ def create_app() -> FastAPI:
             content={"detail": "Internal Server Error", "error": str(exc)},
         )
 
+    from app import copilot
     app.include_router(users.router)
     app.include_router(graphs.router)
     app.include_router(ws.router)
+    app.include_router(copilot.router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:
