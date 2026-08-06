@@ -90,7 +90,7 @@ Moves the cursor onto a specific slot of the current switch node. No creation, n
 ### Specialized helpers — all on `ChainContext`, all create + auto-connect
 
 ```python
-ctx.assigner(node_id, assignments=[
+ctx.logical_assigner(node_id, assignments=[
     {"id": str, "target_var_key": str, "value_type": str, "expression": str}
 ]) -> ChainContext
 ```

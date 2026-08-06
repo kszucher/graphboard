@@ -25,7 +25,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
     # 2. Nodes & Connections
     start = b.start_chain("start", NodeType.START)
 
-    init_game = start.assigner(
+    init_game = start.logical_assigner(
         "init_game",
         [
             {
@@ -81,7 +81,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         resume_var="user_answer",
     )
 
-    parse_answer = ask_question.assigner(
+    parse_answer = ask_question.logical_assigner(
         "parse_answer",
         [
             {
@@ -129,7 +129,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
     ).then_to("ask_question")
 
     # lifeline_switch_submit -> check_correct
-    check_correct = lifeline_switch.slot("lifeline_switch_submit").assigner(
+    check_correct = lifeline_switch.slot("lifeline_switch_submit").logical_assigner(
         "check_correct",
         [
             {
@@ -161,7 +161,7 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
     result_switch.slot("result_switch_wrong").then_to("end")
 
     # result_switch_correct -> increment_score -> loop_questions
-    result_switch.slot("result_switch_correct").assigner(
+    result_switch.slot("result_switch_correct").logical_assigner(
         "increment_score",
         [
             {

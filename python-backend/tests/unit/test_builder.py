@@ -40,7 +40,7 @@ def test_graph_builder_specialized_helpers() -> None:
 
     (
         b.start_chain("start", NodeType.START)
-        .assigner(
+        .logical_assigner(
             "init",
             [
                 {

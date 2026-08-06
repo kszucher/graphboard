@@ -140,7 +140,7 @@ class ChainContext:
         """Positions the cursor on a specific slot ID of the current node."""
         return ChainContext(self.builder, current_node_id=self.node_id, current_slot_id=slot_id)
 
-    def assigner(self, node_id: str, assignments: list[dict[str, Any]]) -> ChainContext:
+    def logical_assigner(self, node_id: str, assignments: list[dict[str, Any]]) -> ChainContext:
         """Shortcut to create a LOGICAL_ASSIGNER node."""
         parsed_assignments = []
         for a in assignments:
