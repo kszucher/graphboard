@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 import anyio
 from groq import AsyncGroq
@@ -60,17 +60,16 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     ]
 
     try:
-        from typing import cast
-
         from groq.types.chat import ChatCompletionNamedToolChoiceParam
 
         planner_completion = await client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-versatile",
             messages=messages,  # type: ignore
             tools=[SUBMIT_PLAN_TOOL],  # type: ignore
             tool_choice=cast(
                 ChatCompletionNamedToolChoiceParam, {"type": "function", "function": {"name": "submit_plan"}}
             ),
+            max_tokens=1000,
             temperature=0.0,
         )
     except Exception as e:
@@ -132,17 +131,16 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
     ]
 
     try:
-        from typing import cast
-
         from groq.types.chat import ChatCompletionNamedToolChoiceParam
 
         executor_completion = await client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-versatile",
             messages=messages,  # type: ignore
             tools=[PATCH_GRAPH_TOOL],  # type: ignore
             tool_choice=cast(
                 ChatCompletionNamedToolChoiceParam, {"type": "function", "function": {"name": "patch_graph"}}
             ),
+            max_tokens=1200,
             temperature=0.0,
         )
     except Exception as e:

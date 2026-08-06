@@ -31,15 +31,7 @@ SUBMIT_PLAN_TOOL = {
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "enum": [
-                                    "declare_variable",
-                                    "delete_variable",
-                                    "add_node",
-                                    "delete_node",
-                                    "modify_node",
-                                    "connect_nodes",
-                                    "disconnect_nodes",
-                                ],
+                                "description": "High-level operation type (e.g. declare_variable, add_node, connect_nodes).",
                             },
                             "description": {
                                 "type": "string",

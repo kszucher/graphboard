@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from app.constants import NodeType
+from app.copilot.tools import sort_operations_by_dependency, translate_tool_call_to_operations
 from app.graphs import mutations
 from app.graphs.schemas import GraphFlowData
-from app.copilot.tools import translate_tool_call_to_operations, sort_operations_by_dependency
 
 
 def build_default_trivia_graph_flow_data() -> GraphFlowData:

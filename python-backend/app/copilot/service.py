@@ -12,7 +12,7 @@ from app.copilot.tools import (
     sort_operations_by_dependency,
     translate_tool_call_to_operations,
 )
-from app.copilot.workflow import copilot_graph, CopilotState
+from app.copilot.workflow import copilot_graph
 from app.exceptions import ValidationError
 from app.graphs import mutations
 from app.graphs.schemas import GraphFlowData
