@@ -6,8 +6,8 @@ import type { AppFlowEdge, AppFlowNode } from '../../canvas/types';
 import { runLayout } from '../../domain/graph/layout';
 import { fromApiPayload } from '../../domain/graph/mappers';
 
-export const useLaidOutGraph = (graphId: string) => {
-  const query = useGraphQuery(graphId);
+export const useLaidOutGraph = (graphId: string, version: number | null = null) => {
+  const query = useGraphQuery(graphId, version);
   const layoutSeqRef = useRef(0);
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
 

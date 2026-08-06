@@ -1,8 +1,8 @@
-import { CaretDownIcon, CheckIcon, PlayIcon, ResetIcon } from '@radix-ui/react-icons';
+import { CaretDownIcon, CheckIcon, PlayIcon } from '@radix-ui/react-icons';
 import { Box, Button, DropdownMenu, Flex, IconButton, Text } from '@radix-ui/themes';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useMemo } from 'react';
-import { useCreateGraph, useRedo, useRunGraph, useSetActiveGraph, useUndo } from './api/mutations';
+import { useCallback, useMemo, useState } from 'react';
+import { useCreateGraph, useRunGraph, useSetActiveGraph } from './api/mutations';
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
 import { RightSidebar } from './editor/RightSidebar.tsx';
@@ -10,15 +10,18 @@ import { RightSidebar } from './editor/RightSidebar.tsx';
 export const Frame = () => {
   const { data: userId } = useUserId();
   const { data: selectedGraphId } = useActiveGraphId(userId ?? null);
-  const { data: graphFlow } = useGraphQuery(selectedGraphId || '');
+  const [prevGraphId, setPrevGraphId] = useState(selectedGraphId);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+
+  if (selectedGraphId !== prevGraphId) {
+    setPrevGraphId(selectedGraphId);
+    setSelectedVersion(null);
+  }
+
+  const { data: graphFlow } = useGraphQuery(selectedGraphId || '', selectedVersion);
   const { data: graphs } = useUserGraphs(userId ?? null);
 
-  const { mutate: undo } = useUndo(selectedGraphId || '');
-  const { mutate: redo } = useRedo(selectedGraphId || '');
   const { mutate: runGraph } = useRunGraph(selectedGraphId || '');
-
-  const canUndo = graphFlow?.can_undo ?? false;
-  const canRedo = graphFlow?.can_redo ?? false;
 
   const createGraphMutation = useCreateGraph();
   const setActiveGraphMutation = useSetActiveGraph();
@@ -40,6 +43,13 @@ export const Frame = () => {
     () => graphs?.find(graph => graph.id === selectedGraphId)?.name ?? 'Select graph',
     [graphs, selectedGraphId]
   );
+
+  const currentVersionObj = useMemo(() => {
+    if (!graphFlow?.versions) return null;
+    return graphFlow.versions.find(v => v.sequence_number === (selectedVersion ?? graphFlow.current_version));
+  }, [graphFlow, selectedVersion]);
+
+  const activeVersionName = currentVersionObj?.name ?? (graphFlow?.current_version !== undefined ? `v${graphFlow.current_version + 1}` : 'v1');
 
   const isGraphSelected = !!selectedGraphId;
 
@@ -99,29 +109,41 @@ export const Frame = () => {
           </Flex>
 
           {/* Right */}
-          <Flex align="center" gap="2">
-            <IconButton
-              variant="solid"
-              color="gray"
-              radius="full"
-              disabled={!isGraphSelected || !canUndo}
-              onClick={() => undo()}
-            >
-              <ResetIcon width="20" height="20"/>
-            </IconButton>
+          <Flex align="center" gap="3">
+            {isGraphSelected && graphFlow?.versions && (
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" color="gray" radius="full">
+                    {activeVersionName} <CaretDownIcon/>
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Label>Versions</DropdownMenu.Label>
+                  {graphFlow.versions.map(v => (
+                    <DropdownMenu.Item
+                      key={v.sequence_number}
+                      onClick={() => setSelectedVersion(v.sequence_number)}
+                    >
+                      <Flex align="center" gap="2">
+                        {v.sequence_number === (selectedVersion ?? graphFlow.current_version) && <CheckIcon/>}
+                        <Text>{v.name}</Text>
+                        <Text size="1" color="gray">
+                          ({new Date(v.created_at).toLocaleTimeString()})
+                        </Text>
+                      </Flex>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            )}
 
             <IconButton
               variant="solid"
               color="gray"
               radius="full"
-              disabled={!isGraphSelected || !canRedo}
-              onClick={() => redo()}
+              onClick={() => runGraph(selectedVersion ?? graphFlow?.current_version ?? null)}
+              disabled={!isGraphSelected}
             >
-              <ResetIcon width="20" height="20" style={{ transform: 'scaleX(-1)' }}/>
-            </IconButton>
-
-            <IconButton variant="solid" color="gray" radius="full" onClick={() => runGraph()}
-                        disabled={!isGraphSelected}>
               <PlayIcon width="20" height="20"/>
             </IconButton>
           </Flex>
@@ -150,12 +172,12 @@ export const Frame = () => {
             }}
           >
             {isGraphSelected && (
-              <Flow selectedGraphId={selectedGraphId}/>
+              <Flow selectedGraphId={selectedGraphId} version={selectedVersion}/>
             )}
           </Box>
 
           {/* Right Sidebar Component */}
-          <RightSidebar graphId={selectedGraphId || ''}/>
+          <RightSidebar graphId={selectedGraphId || ''} version={selectedVersion}/>
         </Flex>
       </ReactFlowProvider>
     </>

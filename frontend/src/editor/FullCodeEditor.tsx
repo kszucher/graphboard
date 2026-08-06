@@ -6,10 +6,11 @@ import { useCodeMirror } from '../hooks/editor/useCodeMirror';
 
 interface FullCodeEditorProps {
   graphId: string;
+  version: number | null;
 }
 
-export const FullCodeEditor = ({ graphId }: FullCodeEditorProps) => {
-  const { data: codeData } = useGraphCode(graphId);
+export const FullCodeEditor = ({ graphId, version }: FullCodeEditorProps) => {
+  const { data: codeData } = useGraphCode(graphId, version);
   const code = codeData?.code || '';
   const { setNodes } = useReactFlow();
   const nodes = useNodes();

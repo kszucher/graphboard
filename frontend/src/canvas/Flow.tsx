@@ -13,10 +13,12 @@ const edgeTypes = { custom: FlowEdge };
 
 const FlowContent = ({
   selectedGraphId,
+  version,
 }: {
   selectedGraphId: string;
+  version: number | null;
 }) => {
-  const { isLoading, onNodesChange, onEdgesChange } = useLaidOutGraph(selectedGraphId);
+  const { isLoading, onNodesChange, onEdgesChange } = useLaidOutGraph(selectedGraphId, version);
 
   const { fitView } = useReactFlow();
 
@@ -95,6 +97,6 @@ const FlowContent = ({
   );
 };
 
-export const Flow = ({ selectedGraphId }: { selectedGraphId: string }) => (
-  <FlowContent selectedGraphId={selectedGraphId}/>
+export const Flow = ({ selectedGraphId, version }: { selectedGraphId: string; version: number | null }) => (
+  <FlowContent selectedGraphId={selectedGraphId} version={version}/>
 );

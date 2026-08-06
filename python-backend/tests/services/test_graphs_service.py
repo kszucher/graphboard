@@ -33,9 +33,12 @@ async def test_create_graph(
     assert graph is not None
     assert graph.name == "New Test Graph"
     assert graph.user_id == dummy_user.id
-    assert "nodes" in graph.flow_json
-    assert "edges" in graph.flow_json
-    assert "code" not in graph.flow_json
+
+    # Check snapshot at sequence 0
+    snapshot = await real_uow.graph_history.get_by_sequence(graph_id, 0)
+    assert snapshot is not None
+    assert "nodes" in snapshot.flow_json
+    assert "edges" in snapshot.flow_json
 
     # Check that events were emitted on UoW commit
     mock_broker.emit.assert_called_once_with(
@@ -56,14 +59,8 @@ async def test_add_node(
 
     # Assert response
     assert "nodes" in result
-    # Check that a LOGICAL_ASSIGNER node was created
     assert len(result["nodes"]) == 1
     assert result["nodes"][0]["node_type"] == "LOGICAL_ASSIGNER"
-
-    # Check database records
-    await real_uow.session.refresh(dummy_graph)
-    assert dummy_graph.current_history_sequence == 1
-    assert len(dummy_graph.flow_json["nodes"]) == 1
 
     # Check snapshot
     res_snap = await real_uow.session.execute(
@@ -75,16 +72,14 @@ async def test_add_node(
 
 
 @pytest.mark.asyncio
-async def test_undo_redo_graph_flow(
+async def test_versions_graph_flow(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Save baseline snapshot (sequence 0)
-    await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
-    await real_uow.session.commit()
-
-    # Get initial node count
-    initial_count = len(dummy_graph.flow_json["nodes"])
+    # Get initial snapshot count
+    init_snap = await real_uow.graph_history.get_by_sequence(dummy_graph.id, 0)
+    assert init_snap is not None
+    initial_count = len(init_snap.flow_json["nodes"])
 
     # Mutation 1 -> Sequence 1 (Add node)
     patch1 = [UpsertNodeOp(op="upsert_node", node_id="la_1", node_type=NodeType.LOGICAL_ASSIGNER)]
@@ -93,46 +88,39 @@ async def test_undo_redo_graph_flow(
     patch2 = [UpsertNodeOp(op="upsert_node", node_id="la_2", node_type=NodeType.LOGICAL_ASSIGNER)]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch2)
 
-    await real_uow.session.refresh(dummy_graph)
-    assert dummy_graph.current_history_sequence == 2
-    assert len(dummy_graph.flow_json["nodes"]) == initial_count + 2
+    await real_uow.session.commit()
 
-    # Perform Undo -> Sequence 1 (1 node removed)
-    undo_res = await graphs_service.undo_graph_flow(real_uow, dummy_graph.id)
-    assert undo_res["can_undo"] is True
-    assert undo_res["can_redo"] is True
-    assert len(undo_res["nodes"]) == initial_count + 1
+    # Verify latest sequence is 2
+    latest = await real_uow.graph_history.get_latest_snapshot(dummy_graph.id)
+    assert latest is not None
+    assert latest.sequence_number == 2
+    assert len(latest.flow_json["nodes"]) == initial_count + 2
 
-    # Perform Undo again -> Sequence 0 (back to initial default nodes)
-    undo_res2 = await graphs_service.undo_graph_flow(real_uow, dummy_graph.id)
-    assert undo_res2["can_undo"] is False
-    assert undo_res2["can_redo"] is True
-    assert len(undo_res2["nodes"]) == initial_count
+    # Get flow for version 1
+    flow_v1 = await graphs_service.get_graph_flow(real_uow, dummy_graph.id, version=1)
+    assert flow_v1["current_version"] == 1
+    assert len(flow_v1["nodes"]) == initial_count + 1
 
-    # Perform Redo -> Sequence 1
-    redo_res = await graphs_service.redo_graph_flow(real_uow, dummy_graph.id)
-    assert redo_res["can_undo"] is True
-    assert redo_res["can_redo"] is True
-    assert len(redo_res["nodes"]) == initial_count + 1
+    # Get flow for version 0
+    flow_v0 = await graphs_service.get_graph_flow(real_uow, dummy_graph.id, version=0)
+    assert flow_v0["current_version"] == 0
+    assert len(flow_v0["nodes"]) == initial_count
 
 
 @pytest.mark.asyncio
-async def test_get_and_reset_graph_flow_preserves_history(
+async def test_get_graph_flow_returns_versions(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Save baseline snapshot
-    await real_uow.graph_history.save_snapshot(dummy_graph.id, dummy_graph.flow_json, 0)
-    await real_uow.session.commit()
-
     # Mutation -> Sequence 1
     patch = [UpsertNodeOp(op="upsert_node", node_id="la_1", node_type=NodeType.LOGICAL_ASSIGNER)]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch)
     await real_uow.session.commit()
 
-    # Fetching flow should preserve can_undo = True
-    flow = await graphs_service.get_and_reset_graph_flow(real_uow, dummy_graph.id)
-    assert flow["can_undo"] is True, "get_and_reset_graph_flow must not reset history or make can_undo False"
+    # Fetching flow should return versions list and current_version
+    flow = await graphs_service.get_graph_flow(real_uow, dummy_graph.id)
+    assert flow["current_version"] == 1
+    assert len(flow["versions"]) == 2
 
 
 @pytest.mark.asyncio
@@ -163,8 +151,8 @@ async def test_run_graph_flow_success(
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
-    dummy_graph.flow_json = flow_payload
-    real_uow.session.add(dummy_graph)
+    await real_uow.graph_history.clear_by_graph(dummy_graph.id)
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, flow_payload, 0)
     await real_uow.session.commit()
 
     # Action: Run graph
@@ -240,8 +228,8 @@ async def test_run_graph_flow_switch_routing(
         ],
     }
 
-    dummy_graph.flow_json = flow_payload_a
-    real_uow.session.add(dummy_graph)
+    await real_uow.graph_history.clear_by_graph(dummy_graph.id)
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, flow_payload_a, 0)
     await real_uow.session.commit()
 
     exec_result_a = await graphs_service.run_graph_flow(real_uow, dummy_graph.id)
@@ -256,8 +244,8 @@ async def test_run_graph_flow_switch_routing(
         {"id": "v2", "key": "y", "type": "number", "default_value": 0},
     ]
 
-    dummy_graph.flow_json = flow_payload_b
-    real_uow.session.add(dummy_graph)
+    await real_uow.graph_history.clear_by_graph(dummy_graph.id)
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, flow_payload_b, 0)
     await real_uow.session.commit()
 
     exec_result_b = await graphs_service.run_graph_flow(real_uow, dummy_graph.id)
@@ -293,8 +281,8 @@ async def test_run_graph_flow_invalid_state_ref(
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
-    dummy_graph.flow_json = flow_payload
-    real_uow.session.add(dummy_graph)
+    await real_uow.graph_history.clear_by_graph(dummy_graph.id)
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, flow_payload, 0)
     await real_uow.session.commit()
 
     exec_result = await graphs_service.run_graph_flow(real_uow, dummy_graph.id)
@@ -324,8 +312,8 @@ async def test_run_graph_flow_cycle_limit(
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
     }
 
-    dummy_graph.flow_json = flow_payload
-    real_uow.session.add(dummy_graph)
+    await real_uow.graph_history.clear_by_graph(dummy_graph.id)
+    await real_uow.graph_history.save_snapshot(dummy_graph.id, flow_payload, 0)
     await real_uow.session.commit()
 
     exec_result = await graphs_service.run_graph_flow(real_uow, dummy_graph.id)

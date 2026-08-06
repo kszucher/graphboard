@@ -157,40 +157,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/graphs/{graph_id}/history/undo": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Undo Graph Flow Endpoint */
-    post: operations["undo_graph_flow_endpoint_graphs__graph_id__history_undo_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/history/redo": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Redo Graph Flow Endpoint */
-    post: operations["redo_graph_flow_endpoint_graphs__graph_id__history_redo_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/health": {
     parameters: {
       query?: never;
@@ -340,16 +306,13 @@ export interface components {
       edges: components["schemas"]["EdgeRead"][];
       /** State */
       state?: components["schemas"]["DefinerVariableSchema"][];
+      /** Versions */
+      versions?: components["schemas"]["GraphVersionRead"][];
       /**
-       * Can Undo
-       * @default false
+       * Current Version
+       * @default 0
        */
-      can_undo: boolean;
-      /**
-       * Can Redo
-       * @default false
-       */
-      can_redo: boolean;
+      current_version: number;
     };
     /** GraphRead */
     GraphRead: {
@@ -365,6 +328,18 @@ export interface components {
        * Format: uuid
        */
       user_id: string;
+    };
+    /** GraphVersionRead */
+    GraphVersionRead: {
+      /** Sequence Number */
+      sequence_number: number;
+      /** Name */
+      name: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -723,7 +698,9 @@ export interface operations {
   };
   get_graph_flow_graphs__graph_id__flow_get: {
     parameters: {
-      query?: never;
+      query?: {
+        version?: number | null;
+      };
       header?: {
         "x-client-id"?: string | null;
       };
@@ -756,7 +733,9 @@ export interface operations {
   };
   get_graph_code_endpoint_graphs__graph_id__code_get: {
     parameters: {
-      query?: never;
+      query?: {
+        version?: number | null;
+      };
       header?: {
         "x-client-id"?: string | null;
       };
@@ -789,7 +768,9 @@ export interface operations {
   };
   run_graph_graphs__graph_id__run_post: {
     parameters: {
-      query?: never;
+      query?: {
+        version?: number | null;
+      };
       header?: {
         "x-client-id"?: string | null;
       };
@@ -809,72 +790,6 @@ export interface operations {
           "application/json": {
             [key: string]: unknown;
           };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  undo_graph_flow_endpoint_graphs__graph_id__history_undo_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  redo_graph_flow_endpoint_graphs__graph_id__history_redo_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
         };
       };
       /** @description Validation Error */

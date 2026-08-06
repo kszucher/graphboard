@@ -46,13 +46,22 @@ class GraphHistoryRepository(BaseRepository[models.GraphHistory, GraphHistoryCre
         await self.session.execute(delete(models.GraphHistory).where(models.GraphHistory.graph_id == graph_id))
         await self.session.flush()
 
-    async def delete_future_snapshots(self, graph_id: uuid.UUID, min_sequence: int) -> None:
-        await self.session.execute(
-            delete(models.GraphHistory).where(
-                models.GraphHistory.graph_id == graph_id, models.GraphHistory.sequence_number > min_sequence
-            )
+    async def list_by_graph(self, graph_id: uuid.UUID) -> list[models.GraphHistory]:
+        result = await self.session.execute(
+            select(models.GraphHistory)
+            .where(models.GraphHistory.graph_id == graph_id)
+            .order_by(models.GraphHistory.sequence_number.asc())
         )
-        await self.session.flush()
+        return list(result.scalars().all())
+
+    async def get_latest_snapshot(self, graph_id: uuid.UUID) -> models.GraphHistory | None:
+        result = await self.session.execute(
+            select(models.GraphHistory)
+            .where(models.GraphHistory.graph_id == graph_id)
+            .order_by(models.GraphHistory.sequence_number.desc())
+            .limit(1)
+        )
+        return result.scalars().first()
 
     async def get_by_sequence(self, graph_id: uuid.UUID, sequence_number: int) -> models.GraphHistory | None:
         result = await self.session.execute(

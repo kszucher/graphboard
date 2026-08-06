@@ -73,10 +73,6 @@ async def test_set_active_graph(
     await real_uow.session.refresh(dummy_user)
     assert dummy_user.selected_graph_id == dummy_graph.id
 
-    # Check graph has sequence reset and snapshot saved
-    await real_uow.session.refresh(dummy_graph)
-    assert dummy_graph.current_history_sequence == 0
-
     # Check history snapshot exists in DB
     result = await real_uow.session.execute(select(GraphHistory).where(GraphHistory.graph_id == dummy_graph.id))
     history = result.scalars().all()
@@ -100,7 +96,3 @@ async def test_get_active_graph_id(
 
     # Assertions
     assert graph_id == dummy_graph.id
-
-    # Check graph history is reset
-    await real_uow.session.refresh(dummy_graph)
-    assert dummy_graph.current_history_sequence == 0

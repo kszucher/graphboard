@@ -14,22 +14,28 @@ export const graphQueries = {
     },
     enabled: Boolean(userId),
   }),
-  flow: (graphId: string | null) => queryOptions({
-    queryKey: queryKeys.graphs.flow(graphId),
+  flow: (graphId: string | null, version: number | null = null) => queryOptions({
+    queryKey: queryKeys.graphs.flow(graphId, version),
     queryFn: async () => {
       const res = await apiClient.GET('/graphs/{graph_id}/flow', {
-        params: { path: { graph_id: graphId ?? '' } },
+        params: {
+          path: { graph_id: graphId ?? '' },
+          query: version !== null ? { version } : undefined,
+        },
       });
       if ('error' in res) throw res.error;
       return res.data ?? null;
     },
     enabled: Boolean(graphId),
   }),
-  code: (graphId: string | null) => queryOptions({
-    queryKey: queryKeys.graphs.code(graphId),
+  code: (graphId: string | null, version: number | null = null) => queryOptions({
+    queryKey: queryKeys.graphs.code(graphId, version),
     queryFn: async () => {
       const res = await apiClient.GET('/graphs/{graph_id}/code', {
-        params: { path: { graph_id: graphId ?? '' } },
+        params: {
+          path: { graph_id: graphId ?? '' },
+          query: version !== null ? { version } : undefined,
+        },
       });
       if ('error' in res) throw res.error;
       return res.data ?? null;
@@ -42,10 +48,10 @@ export const useUserGraphs = (userId: string | null) => {
   return useQuery(graphQueries.byUser(userId));
 };
 
-export const useGraphQuery = (graphId: string) => {
-  return useQuery(graphQueries.flow(graphId));
+export const useGraphQuery = (graphId: string, version: number | null = null) => {
+  return useQuery(graphQueries.flow(graphId, version));
 };
 
-export const useGraphCode = (graphId: string | null) => {
-  return useQuery(graphQueries.code(graphId));
+export const useGraphCode = (graphId: string | null, version: number | null = null) => {
+  return useQuery(graphQueries.code(graphId, version));
 };

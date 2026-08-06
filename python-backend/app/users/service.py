@@ -24,15 +24,8 @@ async def create_user(uow: UnitOfWork, user_name: str) -> uuid.UUID:
 
 async def get_active_graph_id(uow: UnitOfWork, user_id: uuid.UUID) -> uuid.UUID | None:
     graph_id = await uow.users.get_active_graph_id(user_id)
-    if graph_id:
-        from app.graphs.service import reset_graph_history
-
-        await reset_graph_history(uow, graph_id)
     return graph_id
 
 
 async def set_active_graph(uow: UnitOfWork, user_id: uuid.UUID, graph_id: uuid.UUID) -> None:
     await uow.users.set_active_graph(user_id, graph_id)
-    from app.graphs.service import reset_graph_history
-
-    await reset_graph_history(uow, graph_id)

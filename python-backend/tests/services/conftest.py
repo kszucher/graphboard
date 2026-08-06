@@ -65,26 +65,14 @@ async def dummy_graph(db_session: AsyncSession, dummy_user: User) -> Graph:
         id=uuid.uuid4(),
         name="Test Graph",
         user_id=dummy_user.id,
-        flow_json={
-            "nodes": [],
-            "edges": [],
-            "code": "",
-        },
-        current_history_sequence=0,
     )
     db_session.add(graph)
-    await db_session.flush()
-    return graph
-
-
-@pytest.fixture
-async def dummy_graph_snapshot(db_session: AsyncSession, dummy_graph: Graph) -> GraphHistory:
     snapshot = GraphHistory(
         id=uuid.uuid4(),
-        graph_id=dummy_graph.id,
-        flow_json={"nodes": [], "edges": []},
-        sequence_number=dummy_graph.current_history_sequence,
+        graph_id=graph.id,
+        flow_json={"nodes": [], "edges": [], "state": []},
+        sequence_number=0,
     )
     db_session.add(snapshot)
     await db_session.flush()
-    return snapshot
+    return graph

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Annotated, Any, Literal, TypeAlias, TypedDict, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -152,12 +153,18 @@ class EdgeRead(BaseModel):
     target_handle: str | None = None
 
 
+class GraphVersionRead(BaseModel):
+    sequence_number: int
+    name: str
+    created_at: datetime
+
+
 class GraphFlowRead(OrmModel):
     nodes: list[NodeRead]
     edges: list[EdgeRead]
     state: list[DefinerVariableSchema] = Field(default_factory=list)
-    can_undo: bool = False
-    can_redo: bool = False
+    versions: list[GraphVersionRead] = Field(default_factory=list)
+    current_version: int = 0
 
 
 class GraphCodeRead(BaseModel):

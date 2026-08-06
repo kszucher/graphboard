@@ -35,8 +35,6 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("user_id", sa.UUID(), nullable=False),
-        sa.Column("flow_json", sa.JSON(), nullable=False),
-        sa.Column("current_history_sequence", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

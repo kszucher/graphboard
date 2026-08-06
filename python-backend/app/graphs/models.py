@@ -24,8 +24,6 @@ class Graph(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="graphs")
-    flow_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    current_history_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     history: Mapped[list[GraphHistory]] = relationship(
         "GraphHistory", back_populates="graph", cascade="all, delete-orphan"
