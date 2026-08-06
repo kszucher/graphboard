@@ -7,10 +7,12 @@ from typing import Any
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
-from app.graphs.expressions import get_expression_variables, parse_expression
+from app.graphs.expressions import get_expression_variables
 from app.graphs.node_helpers import get_node_variable_references, rename_node_variable_references
 from app.graphs.schemas import (
+    AgenticAssignerConfig,
     AgenticAssignerNode,
+    AgenticSwitchConfig,
     AgenticSwitchNode,
     ConnectOp,
     DefinerVariableSchema,
@@ -21,10 +23,12 @@ from app.graphs.schemas import (
     EndNode,
     GraphFlowData,
     GraphOperation,
+    InterruptConfig,
     InterruptNode,
-    LiteralExpression,
+    LogicalAssignerConfig,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
+    LogicalSwitchConfig,
     LogicalSwitchNode,
     NodeRead,
     SlotRead,
@@ -180,18 +184,18 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             target_node = existing_node
 
     # Apply configuration
-    config = op.config
     valid_keys = {v.key for v in flow_data.state}
 
     # 1. Handle Slots (LogicalSwitchNode, AgenticSwitchNode)
-    if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)) and "slots" in config:
-        slots_data = config["slots"]
+    if isinstance(op.config, (LogicalSwitchConfig, AgenticSwitchConfig)) and isinstance(
+        target_node, (LogicalSwitchNode, AgenticSwitchNode)
+    ):
         parsed_slots = []
-        for s in slots_data:
-            s_id = s.get("id") or f"{node_id}_option_{uuid.uuid4().hex[:6]}"
-            raw_str = s.get("raw_string") or ""
-            expr = parse_expression(s.get("expression"))
-            target_var = s.get("target_var_key")
+        for s in op.config.slots:
+            s_id = s.id or f"{node_id}_option_{uuid.uuid4().hex[:6]}"
+            raw_str = s.raw_string
+            expr = s.expression
+            target_var = s.target_var_key
 
             # Validate slot expression variables
             if expr is not None and not (get_expression_variables(expr) <= valid_keys):
@@ -207,16 +211,19 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             )
         target_node.slots = parsed_slots
 
-    # 2. Handle Assignments (LogicalAssignerNode)
-    if isinstance(target_node, LogicalAssignerNode) and "assignments" in config:
-        assignments_data = config["assignments"]
-        parsed_assignments = []
-        for a in assignments_data:
-            a_id = a.get("id") or str(uuid.uuid4())
-            target_var = a.get("target_var_key", "").strip()
+        if isinstance(op.config, AgenticSwitchConfig) and isinstance(target_node, AgenticSwitchNode):
+            inp = op.config.agentic_input
+            if inp and inp not in valid_keys:
+                raise ValidationError(f"Agentic switch input '{inp}' is not defined in state schema.")
+            target_node.agentic_input = inp
 
-            expr_data = a.get("expression")
-            expr = parse_expression(expr_data) if expr_data is not None else None
+    # 2. Handle Assignments (LogicalAssignerNode)
+    elif isinstance(op.config, LogicalAssignerConfig) and isinstance(target_node, LogicalAssignerNode):
+        parsed_assignments = []
+        for a in op.config.assignments:
+            a_id = a.id or str(uuid.uuid4())
+            target_var = a.target_var_key.strip()
+            expr = a.expression
 
             target_var_schema = next((v for v in flow_data.state if v.key == target_var), None)
             if not target_var_schema:
@@ -225,8 +232,8 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             if expr is not None:
                 if not (get_expression_variables(expr) <= valid_keys):
                     raise ValidationError(f"Assignment expression for '{target_var}' references undefined variables.")
-                if isinstance(expr, LiteralExpression):
-                    validate_default_value_type(target_var_schema.type, expr.value)
+                if getattr(expr, "kind", None) == "literal":
+                    validate_default_value_type(target_var_schema.type, getattr(expr, "value", None))
 
             parsed_assignments.append(
                 LogicalAssignmentSchema(
@@ -238,47 +245,34 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
         target_node.assignments = parsed_assignments
 
     # 3. Handle prompt, agentic_inputs, agentic_outputs (AgenticAssignerNode)
-    if isinstance(target_node, AgenticAssignerNode):
-        if "prompt" in config:
-            target_node.prompt = config["prompt"]
-        if "agentic_inputs" in config:
-            inputs = config["agentic_inputs"]
-            for inp in inputs:
-                if inp not in valid_keys:
-                    raise ValidationError(f"Agentic input '{inp}' is not defined in state schema.")
-            target_node.agentic_inputs = inputs
-        if "agentic_outputs" in config:
-            outputs = config["agentic_outputs"]
-            for outp in outputs:
-                if outp not in valid_keys:
-                    raise ValidationError(f"Agentic output '{outp}' is not defined in state schema.")
-            target_node.agentic_outputs = outputs
+    elif isinstance(op.config, AgenticAssignerConfig) and isinstance(target_node, AgenticAssignerNode):
+        target_node.prompt = op.config.prompt
 
-    # 4. Handle agentic_input (AgenticSwitchNode)
-    if isinstance(target_node, AgenticSwitchNode):
-        if "agentic_input" in config:
-            inp = config["agentic_input"]
-            if inp and inp not in valid_keys:
-                raise ValidationError(f"Agentic switch input '{inp}' is not defined in state schema.")
-            target_node.agentic_input = inp
+        for inp in op.config.agentic_inputs:
+            if inp not in valid_keys:
+                raise ValidationError(f"Agentic input '{inp}' is not defined in state schema.")
+        target_node.agentic_inputs = op.config.agentic_inputs
 
-    # 5. Handle payload_vars, resume_var (InterruptNode)
-    if isinstance(target_node, InterruptNode):
-        if "payload_vars" in config:
-            p_vars = config["payload_vars"]
-            for pv in p_vars:
-                if pv not in valid_keys:
-                    raise ValidationError(f"Interrupt payload variable '{pv}' is not defined in state schema.")
-            target_node.payload_vars = p_vars
-        if "resume_var" in config:
-            r_var = config["resume_var"]
-            if r_var and r_var not in valid_keys:
-                raise ValidationError(f"Interrupt resume variable '{r_var}' is not defined in state schema.")
-            target_node.resume_var = r_var
+        for outp in op.config.agentic_outputs:
+            if outp not in valid_keys:
+                raise ValidationError(f"Agentic output '{outp}' is not defined in state schema.")
+        target_node.agentic_outputs = op.config.agentic_outputs
 
-    # 6. Handle potential Node ID Rename
-    if "new_id" in config and config["new_id"] and config["new_id"] != node_id:
-        new_id = config["new_id"]
+    # 4. Handle payload_vars, resume_var (InterruptNode)
+    elif isinstance(op.config, InterruptConfig) and isinstance(target_node, InterruptNode):
+        for pv in op.config.payload_vars:
+            if pv not in valid_keys:
+                raise ValidationError(f"Interrupt payload variable '{pv}' is not defined in state schema.")
+        target_node.payload_vars = op.config.payload_vars
+
+        r_var = op.config.resume_var
+        if r_var and r_var not in valid_keys:
+            raise ValidationError(f"Interrupt resume variable '{r_var}' is not defined in state schema.")
+        target_node.resume_var = r_var
+
+    # 5. Handle potential Node ID Rename
+    new_id = op.new_id
+    if new_id and new_id != node_id:
         # Verify new ID is unique
         if any(n.id == new_id for n in nodes if n.id != node_id):
             raise ValidationError(f"Node ID '{new_id}' is already taken.")

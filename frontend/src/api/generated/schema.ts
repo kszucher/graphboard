@@ -413,7 +413,7 @@ export interface components {
     /** LogicalAssignmentSchema */
     LogicalAssignmentSchema: {
       /** Id */
-      id: string;
+      id?: string;
       /** Target Var Key */
       target_var_key: string;
       /** Expression */

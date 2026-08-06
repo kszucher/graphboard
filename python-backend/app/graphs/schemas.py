@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any, Literal, TypeAlias, TypedDict, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.constants import NodeType
 
@@ -79,7 +79,7 @@ class DefinerVariableSchema(BaseModel):
 
 
 class LogicalAssignmentSchema(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     target_var_key: str
     expression: Expression | None = None
 
@@ -170,11 +170,74 @@ class GraphFlowData(BaseModel):
     state: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
+class StartNodeConfig(BaseModel):
+    pass
+
+
+class EndNodeConfig(BaseModel):
+    pass
+
+
+class LogicalAssignerConfig(BaseModel):
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+
+class AgenticAssignerConfig(BaseModel):
+    prompt: str = ""
+    agentic_inputs: list[str] = Field(default_factory=list)
+    agentic_outputs: list[str] = Field(default_factory=list)
+
+
+class LogicalSwitchConfig(BaseModel):
+    slots: list[SlotRead] = Field(default_factory=list)
+
+
+class InterruptConfig(BaseModel):
+    payload_vars: list[str] = Field(default_factory=list)
+    resume_var: str = ""
+
+
+class AgenticSwitchConfig(BaseModel):
+    slots: list[SlotRead] = Field(default_factory=list)
+    agentic_input: str = ""
+
+
+NodeConfig: TypeAlias = (
+    StartNodeConfig
+    | EndNodeConfig
+    | LogicalAssignerConfig
+    | AgenticAssignerConfig
+    | LogicalSwitchConfig
+    | AgenticSwitchConfig
+    | InterruptConfig
+)
+
+
 class UpsertNodeOp(BaseModel):
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
     node_type: NodeType
-    config: dict[str, Any] = Field(default_factory=dict)
+    new_id: str | None = None
+    config: Any = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_config(self) -> UpsertNodeOp:
+        if isinstance(self.config, dict):
+            if self.node_type == NodeType.START:
+                self.config = StartNodeConfig.model_validate(self.config)
+            elif self.node_type == NodeType.END:
+                self.config = EndNodeConfig.model_validate(self.config)
+            elif self.node_type == NodeType.LOGICAL_ASSIGNER:
+                self.config = LogicalAssignerConfig.model_validate(self.config)
+            elif self.node_type == NodeType.AGENTIC_ASSIGNER:
+                self.config = AgenticAssignerConfig.model_validate(self.config)
+            elif self.node_type == NodeType.LOGICAL_SWITCH:
+                self.config = LogicalSwitchConfig.model_validate(self.config)
+            elif self.node_type == NodeType.AGENTIC_SWITCH:
+                self.config = AgenticSwitchConfig.model_validate(self.config)
+            elif self.node_type == NodeType.INTERRUPT:
+                self.config = InterruptConfig.model_validate(self.config)
+        return self
 
 
 class DeleteNodeOp(BaseModel):
