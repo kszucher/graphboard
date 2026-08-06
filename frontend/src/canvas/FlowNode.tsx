@@ -2,9 +2,9 @@ import type { BadgeProps } from '@radix-ui/themes';
 import { Badge, Flex } from '@radix-ui/themes';
 import { Handle, type NodeProps, Position, useUpdateNodeInternals } from '@xyflow/react';
 import { memo, useEffect } from 'react';
-import { NODE_PADDING } from '../../domain/graph/layout';
-import { FlowNodeSlot } from '../slot/FlowNodeSlot.tsx';
-import { type AppFlowNode, type NodeType } from '../types.ts';
+import { NODE_PADDING } from '../domain/graph/layout.ts';
+import { FlowNodeSlot } from './FlowNodeSlot.tsx';
+import { type AppFlowNode, type NodeType } from './types.ts';
 
 const NODE_COLORS: Record<NodeType, BadgeProps['color']> = {
   START: 'gray',

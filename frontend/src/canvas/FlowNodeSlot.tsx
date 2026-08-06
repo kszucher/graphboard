@@ -1,8 +1,8 @@
 import { Flex, Text } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
 import { memo } from 'react';
-import { NODE_PADDING } from '../../domain/graph/layout';
-import type { ApiSlot, NodeType } from '../types';
+import { NODE_PADDING } from '../domain/graph/layout.ts';
+import type { ApiSlot, NodeType } from './types.ts';
 
 interface FlowNodeSlotProps {
   slot: ApiSlot;

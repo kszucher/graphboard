@@ -5,8 +5,8 @@ import { useCallback } from 'react';
 import { useGraphKeyboardShortcuts } from '../hooks/graph/useGraphKeyboardShortcuts';
 import { useGraphWebSocket } from '../hooks/graph/useGraphWebSocket';
 import { useLaidOutGraph } from '../hooks/graph/useLaidOutGraph';
-import FlowEdge from './edge/FlowEdge.tsx';
-import { CustomNode } from './node/FlowNode.tsx';
+import FlowEdge from './FlowEdge.tsx';
+import { CustomNode } from './FlowNode.tsx';
 
 const nodeTypes = { custom: CustomNode };
 const edgeTypes = { custom: FlowEdge };
