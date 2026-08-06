@@ -78,6 +78,12 @@ PYTHON_KEYWORDS = {
 SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
 
 
+def _make_slot_id(node_id: str, raw_string: str) -> str:
+    """Deterministically generate a slot handle ID from node_id and raw_string label."""
+    slug = re.sub(r"[^a-z0-9]+", "_", raw_string.lower()).strip("_") or "slot"
+    return f"{node_id}_{slug}"
+
+
 # ----------------------------------------------------
 # AST Expression & Validation Helpers
 # ----------------------------------------------------
@@ -192,7 +198,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     ):
         parsed_slots = []
         for s in op.config.slots:
-            s_id = s.id or f"{node_id}_option_{uuid.uuid4().hex[:6]}"
+            s_id = _make_slot_id(node_id, s.raw_string)
             raw_str = s.raw_string
             expr = s.expression
             target_var = s.target_var_key

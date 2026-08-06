@@ -235,10 +235,20 @@ class UpsertNodeOp(BaseModel):
             elif self.node_type == NodeType.END:
                 self.config = EndNodeConfig.model_validate(self.config)
             elif self.node_type == NodeType.LOGICAL_ASSIGNER:
+                from app.graphs.expressions import parse_expression
+
+                for asgn in self.config.get("assignments", []):
+                    if isinstance(asgn.get("expression"), str):
+                        asgn["expression"] = parse_expression(asgn["expression"])
                 self.config = LogicalAssignerConfig.model_validate(self.config)
             elif self.node_type == NodeType.AGENTIC_ASSIGNER:
                 self.config = AgenticAssignerConfig.model_validate(self.config)
             elif self.node_type == NodeType.LOGICAL_SWITCH:
+                from app.graphs.expressions import parse_expression
+
+                for slot in self.config.get("slots", []):
+                    if isinstance(slot.get("expression"), str):
+                        slot["expression"] = parse_expression(slot["expression"])
                 self.config = LogicalSwitchConfig.model_validate(self.config)
             elif self.node_type == NodeType.AGENTIC_SWITCH:
                 self.config = AgenticSwitchConfig.model_validate(self.config)

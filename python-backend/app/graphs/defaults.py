@@ -50,23 +50,21 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         "loop_questions",
         [
             {
-                "id": "loop_questions_yes",
                 "raw_string": "Yes",
                 "expression": "more_questions",
             },
             {
-                "id": "loop_questions_no",
                 "raw_string": "No",
                 "expression": "not more_questions",
             },
         ],
     )
 
-    # loop_questions_no -> end
-    loop_questions.slot("loop_questions_no").then_node("end", NodeType.END)
+    # loop_questions No -> end
+    loop_questions.case("No").then_node("end", NodeType.END)
 
-    # loop_questions_yes -> gen_question
-    gen_question = loop_questions.slot("loop_questions_yes").agentic_assigner(
+    # loop_questions Yes -> gen_question
+    gen_question = loop_questions.case("Yes").agentic_assigner(
         "gen_question",
         prompt="Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D.",
         outputs=["current_question", "correct_answer"],
@@ -93,39 +91,39 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         "lifeline_switch",
         agentic_input="user_answer",
         slots=[
-            {"id": "lifeline_switch_submit", "raw_string": "Submit"},
-            {"id": "lifeline_switch_lifeline", "raw_string": "Lifeline"},
+            {"raw_string": "Submit"},
+            {"raw_string": "Lifeline"},
         ],
     )
 
-    # lifeline_switch_lifeline -> choose_lifeline
-    choose_lifeline = lifeline_switch.slot("lifeline_switch_lifeline").agentic_switch(
+    # lifeline_switch Lifeline -> choose_lifeline
+    choose_lifeline = lifeline_switch.case("Lifeline").agentic_switch(
         "choose_lifeline",
         agentic_input="user_answer",
         slots=[
-            {"id": "choose_lifeline_audience", "raw_string": "Audience"},
-            {"id": "choose_lifeline_phone", "raw_string": "Phone"},
+            {"raw_string": "Audience"},
+            {"raw_string": "Phone"},
         ],
     )
 
-    # choose_lifeline_audience -> audience_votes -> ask_question
-    choose_lifeline.slot("choose_lifeline_audience").agentic_assigner(
+    # choose_lifeline Audience -> audience_votes -> ask_question
+    choose_lifeline.case("Audience").agentic_assigner(
         "audience_votes",
         prompt="Poll audience for advice on question: '{current_question}'.",
         inputs=["current_question"],
         outputs=["audience_poll_result"],
     ).then_to("ask_question")
 
-    # choose_lifeline_phone -> phone_advice -> ask_question
-    choose_lifeline.slot("choose_lifeline_phone").agentic_assigner(
+    # choose_lifeline Phone -> phone_advice -> ask_question
+    choose_lifeline.case("Phone").agentic_assigner(
         "phone_advice",
         prompt="Call a friend for advice on question: '{current_question}'.",
         inputs=["current_question"],
         outputs=["phone_call_advice"],
     ).then_to("ask_question")
 
-    # lifeline_switch_submit -> check_correct
-    check_correct = lifeline_switch.slot("lifeline_switch_submit").logical_assigner(
+    # lifeline_switch Submit -> check_correct
+    check_correct = lifeline_switch.case("Submit").logical_assigner(
         "check_correct",
         [
             {
@@ -140,23 +138,21 @@ def build_default_trivia_graph_flow_data() -> GraphFlowData:
         "result_switch",
         [
             {
-                "id": "result_switch_correct",
                 "raw_string": "correct",
                 "expression": "is_correct",
             },
             {
-                "id": "result_switch_wrong",
                 "raw_string": "wrong",
                 "expression": "not is_correct",
             },
         ],
     )
 
-    # result_switch_wrong -> end
-    result_switch.slot("result_switch_wrong").then_to("end")
+    # result_switch wrong -> end
+    result_switch.case("wrong").then_to("end")
 
-    # result_switch_correct -> increment_score -> loop_questions
-    result_switch.slot("result_switch_correct").logical_assigner(
+    # result_switch correct -> increment_score -> loop_questions
+    result_switch.case("correct").logical_assigner(
         "increment_score",
         [
             {

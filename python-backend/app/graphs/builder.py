@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.constants import NodeType
-from app.graphs.expressions import parse_expression
 from app.graphs.schemas import (
     ConnectOp,
     DeleteNodeOp,
@@ -14,6 +14,13 @@ from app.graphs.schemas import (
     UpsertStateVarOp,
     VariableType,
 )
+
+
+def _make_slot_id(node_id: str, raw_string: str) -> str:
+    """Deterministically generate a slot handle ID from node_id and raw_string label.
+    Must stay in sync with mutations._make_slot_id — same algorithm."""
+    slug = re.sub(r"[^a-z0-9]+", "_", raw_string.lower()).strip("_") or "slot"
+    return f"{node_id}_{slug}"
 
 
 class GraphBuilder:
@@ -113,15 +120,11 @@ class ChainContext:
                 config=config or {},
             )
         )
-
-        source_node_id = self.node_id
-        source_handle = self.slot_id
-
         self.builder.patch.append(
             ConnectOp(
                 op="connect",
-                source=source_node_id,
-                source_handle=source_handle,
+                source=self.node_id,
+                source_handle=self.slot_id,
                 target=node_id,
                 target_handle=None,
             )
@@ -130,51 +133,32 @@ class ChainContext:
 
     def then_to(self, target_node_id: str) -> ChainContext:
         """Connects the current cursor to an existing target node."""
-        source_node_id = self.node_id
-        source_handle = self.slot_id
-
         self.builder.patch.append(
             ConnectOp(
                 op="connect",
-                source=source_node_id,
-                source_handle=source_handle,
+                source=self.node_id,
+                source_handle=self.slot_id,
                 target=target_node_id,
                 target_handle=None,
             )
         )
         return ChainContext(self.builder, current_node_id=target_node_id)
 
-    def slot(self, slot_id: str) -> ChainContext:
-        """Positions the cursor on a specific slot ID of the current node."""
-        return ChainContext(self.builder, current_node_id=self.node_id, current_slot_id=slot_id)
+    def case(self, raw_string: str) -> ChainContext:
+        """Positions the cursor on the slot matching this branch label (auto-resolves slot ID)."""
+        return ChainContext(
+            self.builder,
+            current_node_id=self.node_id,
+            current_slot_id=_make_slot_id(self.node_id, raw_string),
+        )
 
     def logical_assigner(self, node_id: str, assignments: list[dict[str, Any]]) -> ChainContext:
         """Shortcut to create a LOGICAL_ASSIGNER node."""
-        parsed_assignments = []
-        for a in assignments:
-            parsed_a = a.copy()
-            if "expression" in parsed_a:
-                parsed_a["expression"] = parse_expression(parsed_a["expression"])
-            parsed_assignments.append(parsed_a)
-        return self.then_node(
-            node_id,
-            NodeType.LOGICAL_ASSIGNER,
-            {"assignments": parsed_assignments},
-        )
+        return self.then_node(node_id, NodeType.LOGICAL_ASSIGNER, {"assignments": assignments})
 
     def logical_switch(self, node_id: str, slots: list[dict[str, Any]]) -> ChainContext:
         """Shortcut to create a LOGICAL_SWITCH node."""
-        parsed_slots = []
-        for s in slots:
-            parsed_s = s.copy()
-            if "expression" in parsed_s:
-                parsed_s["expression"] = parse_expression(parsed_s["expression"])
-            parsed_slots.append(parsed_s)
-        return self.then_node(
-            node_id,
-            NodeType.LOGICAL_SWITCH,
-            {"slots": parsed_slots},
-        )
+        return self.then_node(node_id, NodeType.LOGICAL_SWITCH, {"slots": slots})
 
     def agentic_assigner(
         self,
@@ -187,11 +171,7 @@ class ChainContext:
         return self.then_node(
             node_id,
             NodeType.AGENTIC_ASSIGNER,
-            {
-                "prompt": prompt,
-                "agentic_inputs": inputs or [],
-                "agentic_outputs": outputs,
-            },
+            {"prompt": prompt, "agentic_inputs": inputs or [], "agentic_outputs": outputs},
         )
 
     def agentic_switch(
@@ -204,10 +184,7 @@ class ChainContext:
         return self.then_node(
             node_id,
             NodeType.AGENTIC_SWITCH,
-            {
-                "agentic_input": agentic_input,
-                "slots": slots,
-            },
+            {"agentic_input": agentic_input, "slots": slots},
         )
 
     def interrupt(
@@ -220,8 +197,5 @@ class ChainContext:
         return self.then_node(
             node_id,
             NodeType.INTERRUPT,
-            {
-                "payload_vars": payload_vars,
-                "resume_var": resume_var,
-            },
+            {"payload_vars": payload_vars, "resume_var": resume_var},
         )

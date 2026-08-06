@@ -54,19 +54,18 @@ def test_graph_builder_specialized_helpers() -> None:
             "switch",
             [
                 {
-                    "id": "slot1",
                     "raw_string": "yes",
                     "expression": {"kind": "literal", "value": True},
                 }
             ],
         )
-        .slot("slot1")
+        .case("yes")
         .agentic_assigner("agent", prompt="Prompt", outputs=["out"])
         .interrupt("wait", payload_vars=["out"], resume_var="res")
         .agentic_switch(
             "a_switch",
             agentic_input="res",
-            slots=[{"id": "slot2", "raw_string": "ok"}],
+            slots=[{"raw_string": "ok"}],
         )
     )
 
