@@ -1,19 +1,63 @@
 from __future__ import annotations
 
-import re
 from typing import Any
+
 from app.constants import NodeType
+from app.graphs.mutations import _make_slot_id
 from app.graphs.schemas import (
-    GraphFlowData,
-    GraphOperation,
-    UpsertStateVarOp,
-    UpsertNodeOp,
     ConnectOp,
-    DisconnectOp,
     DeleteNodeOp,
     DeleteStateVarOp,
+    DisconnectOp,
+    GraphFlowData,
+    GraphOperation,
+    UpsertNodeOp,
+    UpsertStateVarOp,
 )
-from app.graphs.mutations import _make_slot_id
+
+# The JSON tool schema defining the planner's structured output
+SUBMIT_PLAN_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "submit_plan",
+        "description": "Submits a structured plan of operations to perform on the graph.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "enum": [
+                                    "declare_variable",
+                                    "delete_variable",
+                                    "add_node",
+                                    "delete_node",
+                                    "modify_node",
+                                    "connect_nodes",
+                                    "disconnect_nodes",
+                                ],
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Short human-readable summary of what this step does.",
+                            },
+                            "details": {
+                                "type": "string",
+                                "description": "Specific details (e.g. variable name, node type, source, target).",
+                            },
+                        },
+                        "required": ["action", "description"],
+                    },
+                }
+            },
+            "required": ["steps"],
+        },
+    },
+}
 
 # The JSON tool schema defining the single `patch_graph` tool
 PATCH_GRAPH_TOOL = {
