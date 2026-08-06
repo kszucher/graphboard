@@ -17,8 +17,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     """Verifies that the graph is topologically complete and has valid references before execution."""
     edge_sources = {(e.source, e.source_handle) for e in flow_data.edges if e.source_handle}
 
-    # Filter out synthetic nodes (starting with __)
-    user_nodes = [n for n in flow_data.nodes if not n.id.startswith("__")]
+    user_nodes = flow_data.nodes
 
     # 1. Check Unset Expressions and Unconnected Slots on routing nodes
     for n in user_nodes:
