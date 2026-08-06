@@ -255,6 +255,19 @@ export interface components {
       /** Agentic Outputs */
       agentic_outputs?: string[];
     };
+    /** AgenticSlotRead */
+    AgenticSlotRead: {
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+      /**
+       * Raw String
+       * @default
+       */
+      raw_string: string;
+    };
     /** AgenticSwitchNode */
     AgenticSwitchNode: {
       /** Id */
@@ -265,7 +278,7 @@ export interface components {
        */
       node_type: "AGENTIC_SWITCH";
       /** Slots */
-      slots?: components["schemas"]["SlotRead"][];
+      slots?: components["schemas"]["AgenticSlotRead"][];
       /**
        * Agentic Input
        * @default

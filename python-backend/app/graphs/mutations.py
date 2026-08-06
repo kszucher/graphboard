@@ -12,6 +12,7 @@ from app.graphs.node_helpers import get_node_variable_references, rename_node_va
 from app.graphs.schemas import (
     AgenticAssignerConfig,
     AgenticAssignerNode,
+    AgenticSlotRead,
     AgenticSwitchConfig,
     AgenticSwitchNode,
     ConnectOp,
@@ -193,9 +194,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     valid_keys = {v.key for v in flow_data.state}
 
     # 1. Handle Slots (LogicalSwitchNode, AgenticSwitchNode)
-    if isinstance(op.config, (LogicalSwitchConfig, AgenticSwitchConfig)) and isinstance(
-        target_node, (LogicalSwitchNode, AgenticSwitchNode)
-    ):
+    if isinstance(op.config, LogicalSwitchConfig) and isinstance(target_node, LogicalSwitchNode):
         parsed_slots = []
         for s in op.config.slots:
             s_id = _make_slot_id(node_id, s.raw_string)
@@ -217,11 +216,22 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             )
         target_node.slots = parsed_slots
 
-        if isinstance(op.config, AgenticSwitchConfig) and isinstance(target_node, AgenticSwitchNode):
-            inp = op.config.agentic_input
-            if inp and inp not in valid_keys:
-                raise ValidationError(f"Agentic switch input '{inp}' is not defined in state schema.")
-            target_node.agentic_input = inp
+    elif isinstance(op.config, AgenticSwitchConfig) and isinstance(target_node, AgenticSwitchNode):
+        parsed_agentic_slots = []
+        for s_agentic in op.config.slots:
+            s_id = _make_slot_id(node_id, s_agentic.raw_string)
+            parsed_agentic_slots.append(
+                AgenticSlotRead(
+                    id=s_id,
+                    raw_string=s_agentic.raw_string,
+                )
+            )
+        target_node.slots = parsed_agentic_slots
+
+        inp = op.config.agentic_input
+        if inp and inp not in valid_keys:
+            raise ValidationError(f"Agentic switch input '{inp}' is not defined in state schema.")
+        target_node.agentic_input = inp
 
     # 2. Handle Assignments (LogicalAssignerNode)
     elif isinstance(op.config, LogicalAssignerConfig) and isinstance(target_node, LogicalAssignerNode):

@@ -92,6 +92,11 @@ class SlotRead(BaseModel):
     target_var_key: str | None = None
 
 
+class AgenticSlotRead(BaseModel):
+    id: str = ""
+    raw_string: str = ""
+
+
 class BaseNode(BaseModel):
     id: str
 
@@ -129,7 +134,7 @@ class InterruptNode(BaseNode):
 
 class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
-    slots: list[SlotRead] = Field(default_factory=list)
+    slots: list[AgenticSlotRead] = Field(default_factory=list)
     agentic_input: str = ""
 
 
@@ -205,7 +210,7 @@ class InterruptConfig(BaseModel):
 
 
 class AgenticSwitchConfig(BaseModel):
-    slots: list[SlotRead] = Field(default_factory=list)
+    slots: list[AgenticSlotRead] = Field(default_factory=list)
     agentic_input: str = ""
 
 

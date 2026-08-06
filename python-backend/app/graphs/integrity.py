@@ -32,10 +32,10 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                         f"Logical Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
         elif isinstance(n, AgenticSwitchNode):
-            for slot in n.slots:
-                if (n.id, slot.id) not in edge_sources:
+            for aslot in n.slots:
+                if (n.id, aslot.id) not in edge_sources:
                     raise ValidationError(
-                        f"Agentic Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
+                        f"Agentic Switch option '{aslot.raw_string}' on node '{n.id}' is not connected to any target node."
                     )
 
     # 2. Check reachability of nodes from "start"
