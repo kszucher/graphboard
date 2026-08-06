@@ -6,6 +6,8 @@ import { useCreateGraph, useRunGraph, useSetActiveGraph } from './api/mutations'
 import { useActiveGraphId, useGraphQuery, useUserGraphs, useUserId } from './api/queries';
 import { Flow } from './canvas/Flow.tsx';
 import { RightSidebar } from './editor/RightSidebar.tsx';
+import { CopilotPanel } from './editor/CopilotPanel.tsx';
+
 
 export const Frame = () => {
   const { data: userId } = useUserId();
@@ -172,7 +174,10 @@ export const Frame = () => {
             }}
           >
             {isGraphSelected && (
-              <Flow selectedGraphId={selectedGraphId} version={selectedVersion}/>
+              <>
+                <Flow selectedGraphId={selectedGraphId} version={selectedVersion}/>
+                <CopilotPanel graphId={selectedGraphId}/>
+              </>
             )}
           </Box>
 

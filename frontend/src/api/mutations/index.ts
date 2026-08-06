@@ -3,3 +3,5 @@
  */
 export * from './users';
 export * from './graphs';
+export * from './copilot';
+
