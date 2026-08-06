@@ -1,37 +1,16 @@
 from __future__ import annotations
 
 from app.exceptions import ValidationError
+from app.graphs.expressions import get_expression_variables
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    BinaryOpExpression,
-    Expression,
     GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
     LogicalSwitchNode,
     StartNode,
-    StateRefExpression,
-    UnaryOpExpression,
 )
-
-
-def _find_invalid_state_refs(expr_node: Expression | None, valid_keys: set[str]) -> set[str]:
-    if not expr_node:
-        return set()
-
-    invalid = set()
-    if isinstance(expr_node, StateRefExpression):
-        var_key = expr_node.varKey
-        if var_key and var_key not in valid_keys:
-            invalid.add(var_key)
-    elif isinstance(expr_node, BinaryOpExpression):
-        invalid.update(_find_invalid_state_refs(expr_node.left, valid_keys))
-        invalid.update(_find_invalid_state_refs(expr_node.right, valid_keys))
-    elif isinstance(expr_node, UnaryOpExpression):
-        invalid.update(_find_invalid_state_refs(expr_node.expr, valid_keys))
-
-    return invalid
 
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
@@ -105,7 +84,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
                         f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted."
                     )
                 if asgn.expression:
-                    invalid_refs = _find_invalid_state_refs(asgn.expression, valid_keys)
+                    invalid_refs = get_expression_variables(asgn.expression) - valid_keys
                     if invalid_refs:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
@@ -113,7 +92,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
         elif isinstance(node_item, LogicalSwitchNode):
             for slot in node_item.slots:
                 if slot.expression:
-                    invalid_refs = _find_invalid_state_refs(slot.expression, valid_keys)
+                    invalid_refs = get_expression_variables(slot.expression) - valid_keys
                     if invalid_refs:
                         raise ValidationError(
                             f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."

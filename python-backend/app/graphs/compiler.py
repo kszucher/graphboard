@@ -13,22 +13,18 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
+from app.graphs.expressions import expression_to_code
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    BinaryOpExpression,
     DefinerVariableSchema,
     EndNode,
-    Expression,
     GraphFlowData,
     InterruptNode,
-    LiteralExpression,
     LogicalAssignerNode,
     LogicalSwitchNode,
     NodeRead,
     StartNode,
-    StateRefExpression,
-    UnaryOpExpression,
 )
 
 try:
@@ -48,28 +44,6 @@ def get_executor() -> ProcessPoolExecutor:
     if _execution_executor is None:
         _execution_executor = ProcessPoolExecutor(max_workers=4, mp_context=multiprocessing.get_context("spawn"))
     return _execution_executor
-
-
-def ast_expr_to_code(node: Expression | None, fallback: str = "True") -> str:
-    """Converts a visual AST expression to Python code string."""
-    if not node:
-        return fallback
-
-    if isinstance(node, LiteralExpression):
-        return repr(node.value)
-    if isinstance(node, StateRefExpression):
-        return f"state.get({repr(node.varKey)})"
-    if isinstance(node, BinaryOpExpression):
-        op = node.op
-        left = ast_expr_to_code(node.left, fallback)
-        right = ast_expr_to_code(node.right, fallback)
-        return f"({left} {op} {right})"
-    if isinstance(node, UnaryOpExpression):
-        op_str = node.op
-        expr_str = ast_expr_to_code(node.expr, fallback)
-        return f"({op_str} {expr_str})"
-
-    return fallback
 
 
 class DirectLangGraphCompiler:
@@ -123,7 +97,7 @@ class DirectLangGraphCompiler:
             pairs = []
             for i in valid_items:
                 expr = getattr(i, "expression", None)
-                val_code = ast_expr_to_code(expr)
+                val_code = expression_to_code(expr)
                 pairs.append(f"{repr(i.target_var_key)}: {val_code}")
             return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
@@ -175,10 +149,14 @@ class DirectLangGraphCompiler:
             for idx, slot in enumerate(node.slots):
                 raw = slot.raw_string or f"Slot {idx + 1}"
                 expr = slot.expression
-                if idx == len(node.slots) - 1 and isinstance(expr, LiteralExpression) and expr.value is True:
+                if (
+                    idx == len(node.slots) - 1
+                    and getattr(expr, "kind", None) == "literal"
+                    and getattr(expr, "value", None) is True
+                ):
                     if_branches.append(f"    else:\n        return {repr(raw)}")
                 else:
-                    cond_code = ast_expr_to_code(expr, fallback="False")
+                    cond_code = expression_to_code(expr, fallback="False")
                     keyword = "if" if idx == 0 else "elif"
                     if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
 

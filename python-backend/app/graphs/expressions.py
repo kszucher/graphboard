@@ -113,3 +113,55 @@ def _convert_node(node: ast.AST) -> Expression:
 
     else:
         raise ValidationError(f"Unsupported expression construct: {type(node).__name__}")
+
+
+def expression_to_code(node: Expression | None, fallback: str = "True") -> str:
+    """Converts a visual AST expression to Python code string."""
+    if not node:
+        return fallback
+
+    if isinstance(node, LiteralExpression):
+        return repr(node.value)
+    if isinstance(node, StateRefExpression):
+        return f"state.get({repr(node.varKey)})"
+    if isinstance(node, BinaryOpExpression):
+        op = node.op
+        left = expression_to_code(node.left, fallback)
+        right = expression_to_code(node.right, fallback)
+        return f"({left} {op} {right})"
+    if isinstance(node, UnaryOpExpression):
+        op_str = node.op
+        expr_str = expression_to_code(node.expr, fallback)
+        return f"({op_str} {expr_str})"
+
+    return fallback
+
+
+def get_expression_variables(expr: Expression | None) -> set[str]:
+    """Recursively traverses the expression AST and returns all referenced state keys."""
+    if not expr:
+        return set()
+
+    if isinstance(expr, StateRefExpression):
+        return {expr.varKey} if expr.varKey else set()
+    elif isinstance(expr, BinaryOpExpression):
+        return get_expression_variables(expr.left) | get_expression_variables(expr.right)
+    elif isinstance(expr, UnaryOpExpression):
+        return get_expression_variables(expr.expr)
+
+    return set()
+
+
+def rename_expression_variables(expr: Expression | None, old_key: str, new_key: str) -> None:
+    """Recursively walks the expression AST and renames matching state reference keys in-place."""
+    if not expr:
+        return
+
+    if isinstance(expr, StateRefExpression):
+        if expr.varKey == old_key:
+            expr.varKey = new_key
+    elif isinstance(expr, BinaryOpExpression):
+        rename_expression_variables(expr.left, old_key, new_key)
+        rename_expression_variables(expr.right, old_key, new_key)
+    elif isinstance(expr, UnaryOpExpression):
+        rename_expression_variables(expr.expr, old_key, new_key)

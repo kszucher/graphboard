@@ -7,11 +7,11 @@ from typing import Any
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
-from app.graphs.expressions import parse_expression
+from app.graphs.expressions import get_expression_variables, parse_expression
+from app.graphs.node_helpers import get_node_variable_references, rename_node_variable_references
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    BinaryOpExpression,
     ConnectOp,
     DefinerVariableSchema,
     DeleteNodeOp,
@@ -19,7 +19,6 @@ from app.graphs.schemas import (
     DisconnectOp,
     EdgeRead,
     EndNode,
-    Expression,
     GraphFlowData,
     GraphOperation,
     InterruptNode,
@@ -30,8 +29,6 @@ from app.graphs.schemas import (
     NodeRead,
     SlotRead,
     StartNode,
-    StateRefExpression,
-    UnaryOpExpression,
     UpsertNodeOp,
     UpsertStateVarOp,
 )
@@ -80,51 +77,6 @@ SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
 # ----------------------------------------------------
 # AST Expression & Validation Helpers
 # ----------------------------------------------------
-def check_expression_variables(expr: Expression | None, valid_keys: set[str]) -> bool:
-    """Recursively checks if all state references in the expression exist in valid_keys."""
-    if not expr:
-        return True
-
-    if isinstance(expr, StateRefExpression):
-        return expr.varKey in valid_keys
-    elif isinstance(expr, BinaryOpExpression):
-        return check_expression_variables(expr.left, valid_keys) and check_expression_variables(expr.right, valid_keys)
-    elif isinstance(expr, UnaryOpExpression):
-        return check_expression_variables(expr.expr, valid_keys)
-
-    return True
-
-
-def rename_expression_variables(expr: Expression | None, old_key: str, new_key: str) -> None:
-    """Recursively walks the expression and renames all matching state reference keys."""
-    if not expr:
-        return
-
-    if isinstance(expr, StateRefExpression):
-        if expr.varKey == old_key:
-            expr.varKey = new_key
-    elif isinstance(expr, BinaryOpExpression):
-        rename_expression_variables(expr.left, old_key, new_key)
-        rename_expression_variables(expr.right, old_key, new_key)
-    elif isinstance(expr, UnaryOpExpression):
-        rename_expression_variables(expr.expr, old_key, new_key)
-
-
-def is_variable_referenced_in_expression(expr: Expression | None, var_key: str) -> bool:
-    """Recursively checks if the expression references the given variable key."""
-    if not expr:
-        return False
-
-    if isinstance(expr, StateRefExpression):
-        return expr.varKey == var_key
-    elif isinstance(expr, BinaryOpExpression):
-        return is_variable_referenced_in_expression(expr.left, var_key) or is_variable_referenced_in_expression(
-            expr.right, var_key
-        )
-    elif isinstance(expr, UnaryOpExpression):
-        return is_variable_referenced_in_expression(expr.expr, var_key)
-
-    return False
 
 
 def validate_default_value_type(var_type: str, val: Any) -> Any:
@@ -242,7 +194,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             target_var = s.get("target_var_key")
 
             # Validate slot expression variables
-            if expr is not None and not check_expression_variables(expr, valid_keys):
+            if expr is not None and not (get_expression_variables(expr) <= valid_keys):
                 raise ValidationError(f"Switch slot '{raw_str}' expression references undefined variables.")
 
             parsed_slots.append(
@@ -271,7 +223,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
                 raise ValidationError(f"Assignment target variable '{target_var}' is not defined in state schema.")
 
             if expr is not None:
-                if not check_expression_variables(expr, valid_keys):
+                if not (get_expression_variables(expr) <= valid_keys):
                     raise ValidationError(f"Assignment expression for '{target_var}' references undefined variables.")
                 if isinstance(expr, LiteralExpression):
                     validate_default_value_type(target_var_schema.type, expr.value)
@@ -459,42 +411,8 @@ def _upsert_state_var(flow_data: GraphFlowData, op: UpsertStateVarOp) -> GraphFl
         existing_var.description = op.description
 
         if key != old_key:
-            # 1. Update target_var_key and expression in LOGICAL_ASSIGNER assignments
             for node in flow_data.nodes:
-                if isinstance(node, LogicalAssignerNode):
-                    for asgn in node.assignments:
-                        if asgn.target_var_key == old_key:
-                            asgn.target_var_key = key
-                        if asgn.expression:
-                            rename_expression_variables(asgn.expression, old_key, key)
-
-            # 2. Update expression in LOGICAL_SWITCH slots
-            for node in flow_data.nodes:
-                if isinstance(node, LogicalSwitchNode):
-                    for slot in node.slots:
-                        if slot.expression:
-                            rename_expression_variables(slot.expression, old_key, key)
-
-            # 3. Update agentic_inputs, agentic_outputs, and prompt in AGENTIC_ASSIGNER and AGENTIC_SWITCH nodes
-            for node in flow_data.nodes:
-                if isinstance(node, AgenticAssignerNode):
-                    if node.agentic_inputs:
-                        node.agentic_inputs = [key if k == old_key else k for k in node.agentic_inputs]
-                    if node.agentic_outputs:
-                        node.agentic_outputs = [key if k == old_key else k for k in node.agentic_outputs]
-                    if node.prompt:
-                        node.prompt = node.prompt.replace(f"{{{old_key}}}", f"{{{key}}}")
-                elif isinstance(node, AgenticSwitchNode):
-                    if node.agentic_input == old_key:
-                        node.agentic_input = key
-
-            # 4. Update INTERRUPT payload_vars and resume_var
-            for node in flow_data.nodes:
-                if isinstance(node, InterruptNode):
-                    if node.payload_vars:
-                        node.payload_vars = [key if k == old_key else k for k in node.payload_vars]
-                    if node.resume_var == old_key:
-                        node.resume_var = key
+                rename_node_variable_references(node, old_key, key)
 
     return flow_data
 
@@ -506,56 +424,9 @@ def _delete_state_var(flow_data: GraphFlowData, op: DeleteStateVarOp) -> GraphFl
         return flow_data
 
     # Check dependencies to block delete
-    # 1. Check LOGICAL_ASSIGNER assignments target_var_key & expression
     for node in flow_data.nodes:
-        if isinstance(node, LogicalAssignerNode):
-            for asgn in node.assignments:
-                if asgn.target_var_key == var_key:
-                    raise ValidationError(
-                        f"Cannot delete variable '{var_key}' because it is referenced as assignment target in Assigner node '{node.id}'."
-                    )
-                if asgn.expression and is_variable_referenced_in_expression(asgn.expression, var_key):
-                    raise ValidationError(
-                        f"Cannot delete variable '{var_key}' because it is referenced in assignment expression in Assigner node '{node.id}'."
-                    )
-
-    # 2. Check LOGICAL_SWITCH slot expressions
-    for node in flow_data.nodes:
-        if isinstance(node, LogicalSwitchNode):
-            for slot in node.slots:
-                if slot.expression and is_variable_referenced_in_expression(slot.expression, var_key):
-                    raise ValidationError(
-                        f"Cannot delete variable '{var_key}' because it is referenced in Switch node '{node.id}' option '{slot.raw_string}'."
-                    )
-
-    # 3. Check AGENTIC_ASSIGNER and AGENTIC_SWITCH inputs/outputs
-    for node in flow_data.nodes:
-        if isinstance(node, AgenticAssignerNode):
-            if node.agentic_inputs and var_key in node.agentic_inputs:
-                raise ValidationError(
-                    f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic node '{node.id}'."
-                )
-            if node.agentic_outputs and var_key in node.agentic_outputs:
-                raise ValidationError(
-                    f"Cannot delete variable '{var_key}' because it is referenced as an output in Agentic Assigner node '{node.id}'."
-                )
-        elif isinstance(node, AgenticSwitchNode):
-            if node.agentic_input == var_key:
-                raise ValidationError(
-                    f"Cannot delete variable '{var_key}' because it is referenced as an input in Agentic node '{node.id}'."
-                )
-
-    # 4. Check INTERRUPT node
-    for node in flow_data.nodes:
-        if isinstance(node, InterruptNode):
-            if node.resume_var == var_key:
-                raise ValidationError(
-                    f"Cannot delete variable '{var_key}' because it is referenced as resume_var in Interrupt node '{node.id}'."
-                )
-            if node.payload_vars and var_key in node.payload_vars:
-                raise ValidationError(
-                    f"Cannot delete variable '{var_key}' because it is referenced in payload_vars in Interrupt node '{node.id}'."
-                )
+        if var_key in get_node_variable_references(node):
+            raise ValidationError(f"Cannot delete variable '{var_key}' because it is referenced in node '{node.id}'.")
 
     flow_data.state = [v for v in flow_data.state if v.key != var_key]
     return flow_data
