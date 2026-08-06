@@ -4,21 +4,25 @@ from app.exceptions import ValidationError
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
     AgenticAssignerNode,
+    BinaryOpExpression,
     DefinerVariableSchema,
     EdgeRead,
     EndNode,
     GraphFlowData,
+    LiteralExpression,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
+    NodeRead,
     SlotRead,
     StartNode,
+    StateRefExpression,
 )
 
 
 @pytest.fixture
 def base_flow() -> GraphFlowData:
-    nodes = [
+    nodes: list[NodeRead] = [
         StartNode(id="start"),
         LogicalSwitchNode(
             id="switch_1",
@@ -26,17 +30,17 @@ def base_flow() -> GraphFlowData:
                 SlotRead(
                     id="switch_1_option_a",
                     raw_string="option_a",
-                    expression={
-                        "kind": "binaryOp",
-                        "op": "==",
-                        "left": {"kind": "stateRef", "varKey": "x"},
-                        "right": {"kind": "literal", "value": 10},
-                    },
+                    expression=BinaryOpExpression(
+                        kind="binaryOp",
+                        op="==",
+                        left=StateRefExpression(kind="stateRef", varKey="x"),
+                        right=LiteralExpression(kind="literal", value=10),
+                    ),
                 ),
                 SlotRead(
                     id="switch_1_option_b",
                     raw_string="option_b",
-                    expression={"kind": "literal", "value": True},
+                    expression=LiteralExpression(kind="literal", value=True),
                 ),
             ],
         ),
@@ -47,12 +51,12 @@ def base_flow() -> GraphFlowData:
                     id="asgn_x",
                     target_var_key="x",
                     value_type="number",
-                    expression={
-                        "kind": "binaryOp",
-                        "op": "+",
-                        "left": {"kind": "stateRef", "varKey": "x"},
-                        "right": {"kind": "literal", "value": 1},
-                    },
+                    expression=BinaryOpExpression(
+                        kind="binaryOp",
+                        op="+",
+                        left=StateRefExpression(kind="stateRef", varKey="x"),
+                        right=LiteralExpression(kind="literal", value=1),
+                    ),
                 )
             ],
         ),
@@ -133,6 +137,7 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
     assert_flow_is_complete(base_flow)
 
     agentic_node = next(n for n in base_flow.nodes if n.id == "agentic_1")
+    assert isinstance(agentic_node, AgenticAssignerNode)
     original_prompt = agentic_node.prompt
     agentic_node.prompt = ""
     with pytest.raises(ValidationError, match="has an empty prompt"):

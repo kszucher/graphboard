@@ -1,18 +1,37 @@
 from __future__ import annotations
 
 import ast
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, TypeAdapter
 
 from app.exceptions import ValidationError
+from app.graphs.schemas import (
+    BinaryOpExpression,
+    Expression,
+    LiteralExpression,
+    StateRefExpression,
+    UnaryOpExpression,
+)
 
 
-def parse_expression(expr_str_or_dict: str | dict[str, Any] | None) -> dict[str, Any] | None:
-    """Parses a Python expression string into the custom AST dictionary schema.
+def parse_expression(expr_str_or_dict: str | dict[str, Any] | Expression | None) -> Expression | None:
+    """Parses a Python expression string into the custom AST Expression schema.
 
-    If given a dictionary or None, returns it directly.
+    If given an Expression or None, returns it directly. If given a dictionary,
+    validates it using Pydantic.
     """
-    if expr_str_or_dict is None or isinstance(expr_str_or_dict, dict):
+    if expr_str_or_dict is None:
+        return None
+
+    if isinstance(expr_str_or_dict, BaseModel):
         return expr_str_or_dict
+
+    if isinstance(expr_str_or_dict, dict):
+        try:
+            return TypeAdapter(Expression).validate_python(expr_str_or_dict)
+        except Exception as e:
+            raise ValidationError(f"Invalid expression dictionary structure: {e}")
 
     clean_str = expr_str_or_dict.strip()
     if not clean_str:
@@ -27,22 +46,22 @@ def parse_expression(expr_str_or_dict: str | dict[str, Any] | None) -> dict[str,
         raise ValidationError(str(e))
 
 
-def _convert_node(node: ast.AST) -> dict[str, Any]:
+def _convert_node(node: ast.AST) -> Expression:
     if isinstance(node, ast.Constant):
-        return {"kind": "literal", "value": node.value}
+        return LiteralExpression(kind="literal", value=node.value)
 
     elif isinstance(node, ast.Name):
         # Handle booleans / None (just in case they are parsed as Names depending on Python version/context)
         if node.id == "True":
-            return {"kind": "literal", "value": True}
+            return LiteralExpression(kind="literal", value=True)
         elif node.id == "False":
-            return {"kind": "literal", "value": False}
+            return LiteralExpression(kind="literal", value=False)
         elif node.id == "None":
-            return {"kind": "literal", "value": None}
-        return {"kind": "stateRef", "varKey": node.id}
+            return LiteralExpression(kind="literal", value=None)
+        return StateRefExpression(kind="stateRef", varKey=node.id)
 
     elif isinstance(node, ast.BinOp):
-        bin_op_map: dict[type[ast.operator], str] = {
+        bin_op_map: dict[type[ast.operator], Literal["+", "-", "*", "/"]] = {
             ast.Add: "+",
             ast.Sub: "-",
             ast.Mult: "*",
@@ -51,15 +70,15 @@ def _convert_node(node: ast.AST) -> dict[str, Any]:
         bin_op_type = type(node.op)
         if bin_op_type not in bin_op_map:
             raise ValidationError(f"Unsupported mathematical operator: {bin_op_type.__name__}")
-        return {
-            "kind": "binaryOp",
-            "op": bin_op_map[bin_op_type],
-            "left": _convert_node(node.left),
-            "right": _convert_node(node.right),
-        }
+        return BinaryOpExpression(
+            kind="binaryOp",
+            op=bin_op_map[bin_op_type],
+            left=_convert_node(node.left),
+            right=_convert_node(node.right),
+        )
 
     elif isinstance(node, ast.Compare):
-        cmp_op_map: dict[type[ast.cmpop], str] = {
+        cmp_op_map: dict[type[ast.cmpop], Literal["==", "!=", "<", "<=", ">", ">="]] = {
             ast.Eq: "==",
             ast.NotEq: "!=",
             ast.Lt: "<",
@@ -72,25 +91,25 @@ def _convert_node(node: ast.AST) -> dict[str, Any]:
         cmp_op_type = type(node.ops[0])
         if cmp_op_type not in cmp_op_map:
             raise ValidationError(f"Unsupported comparison operator: {cmp_op_type.__name__}")
-        return {
-            "kind": "binaryOp",
-            "op": cmp_op_map[cmp_op_type],
-            "left": _convert_node(node.left),
-            "right": _convert_node(node.comparators[0]),
-        }
+        return BinaryOpExpression(
+            kind="binaryOp",
+            op=cmp_op_map[cmp_op_type],
+            left=_convert_node(node.left),
+            right=_convert_node(node.comparators[0]),
+        )
 
     elif isinstance(node, ast.UnaryOp):
-        unary_op_map: dict[type[ast.unaryop], str] = {
+        unary_op_map: dict[type[ast.unaryop], Literal["not"]] = {
             ast.Not: "not",
         }
         unary_op_type = type(node.op)
         if unary_op_type not in unary_op_map:
             raise ValidationError(f"Unsupported unary operator: {unary_op_type.__name__}")
-        return {
-            "kind": "unaryOp",
-            "op": unary_op_map[unary_op_type],
-            "expr": _convert_node(node.operand),
-        }
+        return UnaryOpExpression(
+            kind="unaryOp",
+            op=unary_op_map[unary_op_type],
+            expr=_convert_node(node.operand),
+        )
 
     else:
         raise ValidationError(f"Unsupported expression construct: {type(node).__name__}")

@@ -1,34 +1,35 @@
 from __future__ import annotations
 
-from typing import Any
-
 from app.exceptions import ValidationError
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
+    BinaryOpExpression,
+    Expression,
     GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
     LogicalSwitchNode,
     StartNode,
+    StateRefExpression,
+    UnaryOpExpression,
 )
 
 
-def _find_invalid_state_refs(expr_node: dict[str, Any] | None, valid_keys: set[str]) -> set[str]:
-    if not expr_node or not isinstance(expr_node, dict):
+def _find_invalid_state_refs(expr_node: Expression | None, valid_keys: set[str]) -> set[str]:
+    if not expr_node:
         return set()
 
     invalid = set()
-    kind = expr_node.get("kind")
-    if kind == "stateRef":
-        var_key = expr_node.get("varKey")
+    if isinstance(expr_node, StateRefExpression):
+        var_key = expr_node.varKey
         if var_key and var_key not in valid_keys:
             invalid.add(var_key)
-    elif kind == "binaryOp":
-        invalid.update(_find_invalid_state_refs(expr_node.get("left"), valid_keys))
-        invalid.update(_find_invalid_state_refs(expr_node.get("right"), valid_keys))
-    elif kind == "unaryOp":
-        invalid.update(_find_invalid_state_refs(expr_node.get("expr"), valid_keys))
+    elif isinstance(expr_node, BinaryOpExpression):
+        invalid.update(_find_invalid_state_refs(expr_node.left, valid_keys))
+        invalid.update(_find_invalid_state_refs(expr_node.right, valid_keys))
+    elif isinstance(expr_node, UnaryOpExpression):
+        invalid.update(_find_invalid_state_refs(expr_node.expr, valid_keys))
 
     return invalid
 

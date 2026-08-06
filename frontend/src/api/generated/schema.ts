@@ -255,6 +255,23 @@ export interface components {
        */
       agentic_input: string;
     };
+    /** BinaryOpExpression */
+    BinaryOpExpression: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "binaryOp";
+      /**
+       * Op
+       * @enum {string}
+       */
+      op: "+" | "-" | "*" | "/" | "==" | "!=" | "<" | "<=" | ">" | ">=";
+      /** Left */
+      left: components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"];
+      /** Right */
+      right: components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"];
+    };
     /** DefinerVariableSchema */
     DefinerVariableSchema: {
       /**
@@ -379,6 +396,16 @@ export interface components {
        */
       resume_var: string;
     };
+    /** LiteralExpression */
+    LiteralExpression: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "literal";
+      /** Value */
+      value: unknown;
+    };
     /** LogicalAssignerNode */
     LogicalAssignerNode: {
       /** Id */
@@ -406,9 +433,7 @@ export interface components {
       /** Value */
       value?: unknown;
       /** Expression */
-      expression?: {
-        [key: string]: unknown;
-      } | null;
+      expression?: (components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"]) | null;
     };
     /** LogicalSwitchNode */
     LogicalSwitchNode: {
@@ -448,9 +473,7 @@ export interface components {
        */
       raw_string: string;
       /** Expression */
-      expression?: {
-        [key: string]: unknown;
-      } | null;
+      expression?: (components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"]) | null;
       /** Target Var Key */
       target_var_key?: string | null;
     };
@@ -463,6 +486,31 @@ export interface components {
        * @enum {string}
        */
       node_type: "START";
+    };
+    /** StateRefExpression */
+    StateRefExpression: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "stateRef";
+      /** Varkey */
+      varKey: string;
+    };
+    /** UnaryOpExpression */
+    UnaryOpExpression: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "unaryOp";
+      /**
+       * Op
+       * @constant
+       */
+      op: "not";
+      /** Expr */
+      expr: components["schemas"]["LiteralExpression"] | components["schemas"]["StateRefExpression"] | components["schemas"]["BinaryOpExpression"] | components["schemas"]["UnaryOpExpression"];
     };
     /** UserCreate */
     UserCreate: {

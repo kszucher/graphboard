@@ -16,14 +16,19 @@ from typing import Any
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
+    BinaryOpExpression,
     DefinerVariableSchema,
     EndNode,
+    Expression,
     GraphFlowData,
     InterruptNode,
+    LiteralExpression,
     LogicalAssignerNode,
     LogicalSwitchNode,
     NodeRead,
     StartNode,
+    StateRefExpression,
+    UnaryOpExpression,
 )
 
 try:
@@ -45,24 +50,23 @@ def get_executor() -> ProcessPoolExecutor:
     return _execution_executor
 
 
-def ast_expr_to_code(node: dict[str, Any] | None, fallback: str = "True") -> str:
-    """Converts a visual AST expression dict to Python code string."""
+def ast_expr_to_code(node: Expression | None, fallback: str = "True") -> str:
+    """Converts a visual AST expression to Python code string."""
     if not node:
         return fallback
 
-    kind = node.get("kind")
-    if kind == "literal":
-        return repr(node.get("value"))
-    if kind == "stateRef":
-        return f"state.get({repr(node.get('varKey', ''))})"
-    if kind == "binaryOp":
-        op = node.get("op", "==")
-        left = ast_expr_to_code(node.get("left"), fallback)
-        right = ast_expr_to_code(node.get("right"), fallback)
+    if isinstance(node, LiteralExpression):
+        return repr(node.value)
+    if isinstance(node, StateRefExpression):
+        return f"state.get({repr(node.varKey)})"
+    if isinstance(node, BinaryOpExpression):
+        op = node.op
+        left = ast_expr_to_code(node.left, fallback)
+        right = ast_expr_to_code(node.right, fallback)
         return f"({left} {op} {right})"
-    if kind == "unaryOp":
-        op_str = node.get("op", "not")
-        expr_str = ast_expr_to_code(node.get("expr"), fallback)
+    if isinstance(node, UnaryOpExpression):
+        op_str = node.op
+        expr_str = ast_expr_to_code(node.expr, fallback)
         return f"({op_str} {expr_str})"
 
     return fallback
@@ -171,7 +175,7 @@ class DirectLangGraphCompiler:
             for idx, slot in enumerate(node.slots):
                 raw = slot.raw_string or f"Slot {idx + 1}"
                 expr = slot.expression
-                if idx == len(node.slots) - 1 and expr and expr.get("kind") == "literal" and expr.get("value") is True:
+                if idx == len(node.slots) - 1 and isinstance(expr, LiteralExpression) and expr.value is True:
                     if_branches.append(f"    else:\n        return {repr(raw)}")
                 else:
                     cond_code = ast_expr_to_code(expr, fallback="False")

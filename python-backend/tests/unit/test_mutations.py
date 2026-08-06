@@ -4,6 +4,7 @@ from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import mutations
 from app.graphs.schemas import (
+    BinaryOpExpression,
     ConnectOp,
     DefinerVariableSchema,
     DeleteStateVarOp,
@@ -11,6 +12,7 @@ from app.graphs.schemas import (
     LogicalAssignerNode,
     LogicalSwitchNode,
     StartNode,
+    StateRefExpression,
     UpsertNodeOp,
     UpsertStateVarOp,
 )
@@ -70,7 +72,9 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.slots) == 2
     assert node.slots[0].raw_string == "option_a"
-    assert node.slots[0].expression["op"] == "=="
+    expr = node.slots[0].expression
+    assert isinstance(expr, BinaryOpExpression)
+    assert expr.op == "=="
 
 
 def test_apply_patch_connect_disconnect() -> None:
@@ -125,8 +129,10 @@ def test_apply_patch_state_var_cascade() -> None:
             )
         ],
     )
-    assert len(flow.nodes[0].assignments) == 1
-    assert flow.nodes[0].assignments[0].target_var_key == "old_key"
+    node = flow.nodes[0]
+    assert isinstance(node, LogicalAssignerNode)
+    assert len(node.assignments) == 1
+    assert node.assignments[0].target_var_key == "old_key"
 
     # 3. Rename the Variable to "new_key" by providing same ID but different key
     flow = mutations.apply_patch(
@@ -135,8 +141,13 @@ def test_apply_patch_state_var_cascade() -> None:
 
     # Check cascading updates
     assigner = flow.nodes[0]
+    assert isinstance(assigner, LogicalAssignerNode)
     assert assigner.assignments[0].target_var_key == "new_key"
-    assert assigner.assignments[0].expression["left"]["varKey"] == "new_key"
+    expr = assigner.assignments[0].expression
+    assert isinstance(expr, BinaryOpExpression)
+    left_expr = expr.left
+    assert isinstance(left_expr, StateRefExpression)
+    assert left_expr.varKey == "new_key"
 
 
 def test_apply_patch_delete_var_blocked_if_referenced() -> None:

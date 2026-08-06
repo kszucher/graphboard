@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
+from app.graphs.expressions import parse_expression
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
+    BinaryOpExpression,
     ConnectOp,
     DefinerVariableSchema,
     DeleteNodeOp,
@@ -16,6 +19,7 @@ from app.graphs.schemas import (
     DisconnectOp,
     EdgeRead,
     EndNode,
+    Expression,
     GraphFlowData,
     GraphOperation,
     InterruptNode,
@@ -25,6 +29,8 @@ from app.graphs.schemas import (
     NodeRead,
     SlotRead,
     StartNode,
+    StateRefExpression,
+    UnaryOpExpression,
     UpsertNodeOp,
     UpsertStateVarOp,
 )
@@ -73,55 +79,49 @@ SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
 # ----------------------------------------------------
 # AST Expression & Validation Helpers
 # ----------------------------------------------------
-def check_expression_variables(expr: dict | None, valid_keys: set[str]) -> bool:
+def check_expression_variables(expr: Expression | None, valid_keys: set[str]) -> bool:
     """Recursively checks if all state references in the expression exist in valid_keys."""
-    if not expr or not isinstance(expr, dict):
+    if not expr:
         return True
 
-    kind = expr.get("kind")
-    if kind == "stateRef":
-        var_key = expr.get("varKey")
-        return var_key in valid_keys
-    elif kind == "binaryOp":
-        return check_expression_variables(expr.get("left"), valid_keys) and check_expression_variables(
-            expr.get("right"), valid_keys
-        )
-    elif kind == "unaryOp":
-        return check_expression_variables(expr.get("expr"), valid_keys)
+    if isinstance(expr, StateRefExpression):
+        return expr.varKey in valid_keys
+    elif isinstance(expr, BinaryOpExpression):
+        return check_expression_variables(expr.left, valid_keys) and check_expression_variables(expr.right, valid_keys)
+    elif isinstance(expr, UnaryOpExpression):
+        return check_expression_variables(expr.expr, valid_keys)
 
     return True
 
 
-def rename_expression_variables(expr: dict | None, old_key: str, new_key: str) -> None:
+def rename_expression_variables(expr: Expression | None, old_key: str, new_key: str) -> None:
     """Recursively walks the expression and renames all matching state reference keys."""
-    if not expr or not isinstance(expr, dict):
+    if not expr:
         return
 
-    kind = expr.get("kind")
-    if kind == "stateRef":
-        if expr.get("varKey") == old_key:
-            expr["varKey"] = new_key
-    elif kind == "binaryOp":
-        rename_expression_variables(expr.get("left"), old_key, new_key)
-        rename_expression_variables(expr.get("right"), old_key, new_key)
-    elif kind == "unaryOp":
-        rename_expression_variables(expr.get("expr"), old_key, new_key)
+    if isinstance(expr, StateRefExpression):
+        if expr.varKey == old_key:
+            expr.varKey = new_key
+    elif isinstance(expr, BinaryOpExpression):
+        rename_expression_variables(expr.left, old_key, new_key)
+        rename_expression_variables(expr.right, old_key, new_key)
+    elif isinstance(expr, UnaryOpExpression):
+        rename_expression_variables(expr.expr, old_key, new_key)
 
 
-def is_variable_referenced_in_expression(expr: dict | None, var_key: str) -> bool:
+def is_variable_referenced_in_expression(expr: Expression | None, var_key: str) -> bool:
     """Recursively checks if the expression references the given variable key."""
-    if not expr or not isinstance(expr, dict):
+    if not expr:
         return False
 
-    kind = expr.get("kind")
-    if kind == "stateRef":
-        return expr.get("varKey") == var_key
-    elif kind == "binaryOp":
-        return is_variable_referenced_in_expression(expr.get("left"), var_key) or is_variable_referenced_in_expression(
-            expr.get("right"), var_key
+    if isinstance(expr, StateRefExpression):
+        return expr.varKey == var_key
+    elif isinstance(expr, BinaryOpExpression):
+        return is_variable_referenced_in_expression(expr.left, var_key) or is_variable_referenced_in_expression(
+            expr.right, var_key
         )
-    elif kind == "unaryOp":
-        return is_variable_referenced_in_expression(expr.get("expr"), var_key)
+    elif isinstance(expr, UnaryOpExpression):
+        return is_variable_referenced_in_expression(expr.expr, var_key)
 
     return False
 
@@ -149,7 +149,7 @@ def validate_default_value_type(var_type: str, val: Any) -> Any:
 # ----------------------------------------------------
 # Main Patch Executor
 # ----------------------------------------------------
-def apply_patch(flow_data: GraphFlowData, patch: list[GraphOperation]) -> GraphFlowData:
+def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> GraphFlowData:
     """Applies a list of patch operations transactionally on the given GraphFlowData."""
     for op in patch:
         if op.op == "upsert_node":
@@ -237,7 +237,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
         for s in slots_data:
             s_id = s.get("id") or f"{node_id}_option_{uuid.uuid4().hex[:6]}"
             raw_str = s.get("raw_string") or ""
-            expr = s.get("expression")
+            expr = parse_expression(s.get("expression"))
             target_var = s.get("target_var_key")
 
             # Validate slot expression variables
@@ -263,7 +263,7 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
             target_var = a.get("target_var_key", "").strip()
             val_type = a.get("value_type", "string")
             val = a.get("value")
-            expr = a.get("expression")
+            expr = parse_expression(a.get("expression"))
 
             if not any(v.key == target_var for v in flow_data.state):
                 raise ValidationError(f"Assignment target variable '{target_var}' is not defined in state schema.")

@@ -1,11 +1,46 @@
+from __future__ import annotations
+
 import uuid
-from typing import Annotated, Any, Literal, TypeAlias, TypedDict
+from typing import Annotated, Any, Literal, TypeAlias, TypedDict, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.constants import NodeType
 
 VariableType: TypeAlias = Literal["boolean", "string", "number", "float"]
+
+
+class LiteralExpression(BaseModel):
+    kind: Literal["literal"]
+    value: Any
+
+
+class StateRefExpression(BaseModel):
+    kind: Literal["stateRef"]
+    varKey: str
+
+
+class BinaryOpExpression(BaseModel):
+    kind: Literal["binaryOp"]
+    op: Literal["+", "-", "*", "/", "==", "!=", "<", "<=", ">", ">="]
+    left: Expression
+    right: Expression
+
+
+class UnaryOpExpression(BaseModel):
+    kind: Literal["unaryOp"]
+    op: Literal["not"]
+    expr: Expression
+
+
+Expression: TypeAlias = Annotated[
+    Union["LiteralExpression", "StateRefExpression", "BinaryOpExpression", "UnaryOpExpression"],
+    Field(discriminator="kind"),
+]
+
+
+BinaryOpExpression.model_rebuild()
+UnaryOpExpression.model_rebuild()
 
 
 class DefinerVariableUpdates(TypedDict, total=False):
@@ -19,7 +54,7 @@ class LogicalAssignmentUpdates(TypedDict, total=False):
     target_var_key: str
     value_type: VariableType
     value: Any
-    expression: dict[str, Any] | None
+    expression: Expression | None
 
 
 class OrmModel(BaseModel):
@@ -50,13 +85,13 @@ class LogicalAssignmentSchema(BaseModel):
     target_var_key: str
     value_type: VariableType = "string"
     value: Any = None
-    expression: dict[str, Any] | None = None
+    expression: Expression | None = None
 
 
 class SlotRead(BaseModel):
     id: str = ""
     raw_string: str = ""
-    expression: dict[str, Any] | None = None
+    expression: Expression | None = None
     target_var_key: str | None = None
 
 

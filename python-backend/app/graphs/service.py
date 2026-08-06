@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from app.constants import EventName
@@ -192,7 +193,7 @@ async def redo_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID) -> dict:
 async def apply_patch(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
-    patch: list[GraphOperation],
+    patch: Sequence[GraphOperation],
 ) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
