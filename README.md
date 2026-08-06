@@ -5,11 +5,9 @@
 Instead of writing complex state machine code manually, Graphboard provides a visual canvas where you design logic using connected nodes and simple conditional rules. Graphboard automatically generates clean, executable Python scripts in real time and validates them instantly on the backend.
 
 ### 🚀 Project Status & R&D Evolution
-This repository serves as a personal, non-commercial full-stack R&D exploration and engineering showcase for full-stack AI system design. It builds directly upon ideas from a previous project (**Mapboard**), introducing two core architectural evolutions:
-* **Backend Stack:** Migrated from Nest.js/Node.js to a Python/FastAPI ecosystem.
-* **Execution Strategy:** Direct 1-Layer Node-to-LangGraph AST translation mapping visual primitives 1:1 to executable LangGraph state machines.
-
-*This project serves as a showcase of advanced conversational state control, real-time visual-to-code translation layer design, and complex React/FastAPI architecture.*
+This repository serves as a personal, non-commercial R&D exploration and engineering showcase for full-stack AI system design. It builds directly upon ideas from a previous project (**Mapboard**), introducing two core architectural evolutions:
+* **Backend Stack:** Migrated from Nest.js/Node.js to a Python/FastAPI/SQLAlchemy ecosystem.
+* **Evolution of R&D Focus**: The project has migrated away from client-side graph builder capabilities to a **Backend-Only AI-driven mutation model**. The graph structure is edited programmatically via structured `GraphOperation` patches processed on the backend, preparing the pipeline for native AI Copilot-driven workflow orchestration.
 
 ---
 
@@ -19,10 +17,10 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ## 💡 How It Works
 
-1. **Build Visually**: Arrange execution nodes (`LOGICAL_ASSIGNER`, `AGENTIC_ASSIGNER`, `LOGICAL_SWITCH`, `AGENTIC_SWITCH`, `INTERRUPT`, `START`, `END`) on an auto-layout canvas.
-2. **Define Logic via Expressions**: Assign AST expression conditions to decision slots and state updates to assigner nodes.
-3. **Inspect Generated Python Code**: Graphboard deterministically compiles your visual graph into clean Python code using standard `LangGraph` primitive calls (`StateGraph`, `add_node`, `add_conditional_edges`) and `TypedDict` state definitions.
-4. **Strict Schema Integrity & Topological Guard**: State variable renames cascade automatically to all referencing nodes/expressions, and variable deletions are strictly blocked if they are referenced. A pre-execution guard validates topological completeness (unset expressions or unconnected nodes) before running the graph.
+1. **Structured Mutations**: Visual graph modifications are processed via sequential `GraphOperation` patches (`upsert_node`, `delete_node`, `connect`, `disconnect`, `upsert_state_var`, `delete_state_var`) executed transactional-style on the backend.
+2. **Strict Schema Integrity Guard**: State variable renames cascade automatically to all referencing nodes and expressions, and variable deletions are strictly blocked if they are referenced.
+3. **LangGraph Code Compiler**: Graphboard compiles the visual graph into clean Python code using standard `LangGraph` primitive calls (`StateGraph`, `add_node`, `add_conditional_edges`) and `TypedDict` state definitions.
+4. **Subprocess Sandbox Execution**: Workflows run in an isolated subprocess (`ProcessPoolExecutor`) with execution timeouts to safely capture variables and diagnostics without crashing the server.
 
 ---
 
@@ -40,41 +38,21 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 
 ---
 
-## 📈 Project Progress Tracker (Incremental Phase Backstory)
+## 📈 R&D Progress Tracker
 
-### Phase 1: Auto-Layout Graph Canvas
-* **Programmatic Positioning**: Configured React Flow with disabled manual node dragging, delegating all coordinate calculations to the ELK (Eclipse Layout Kernel) engine.
-* **Detour Routing**: Programmatically detected back-edges (feedback loops) and routed connections around node borders to avoid layout distortion.
-* **Dynamic Slot Rendering**: Implemented reactive output handles on Switch nodes that sync dynamically via `updateNodeInternals` when slot structures change.
+### Phase 1: Auto-Layout Canvas & Persistence
+* **ELK-Driven Positioning**: Configured React Flow with programmatically managed node coordinates driven by the ELK (Eclipse Layout Kernel) layout engine.
+* **Unified Persistence**: Integrated a FastAPI Unit of Work transaction manager that saves graph snapshots sequentially to support persistent database-backed undo/redo history.
 
-### Phase 2: Specialized Node Operations & State Schemas
-* **State Schema Definitions**: Managed workflow state definitions via a dedicated Radix UI state schema editor.
-* **Extensible Operations Containers**: Structured execution nodes using decoupled domain models (`definer`, `logical`, `agentic`, `switch`) linked by reference IDs.
+### Phase 2: Direct 1-Layer Compiler & Sandbox
+* **Discriminated Union Schema**: Structured `NodeRead` into per-type models discriminated by `node_type`, containing only relevant primitive properties.
+* **Direct AST Synthesis**: Created a python AST compiler mapping visual nodes directly into Python statements.
+* **Subprocess Isolation**: Configured process-pool execution for compiled scripts to prevent infinite loops from hanging the main API thread.
 
-### Phase 3: Server Persistence & WebSocket Sync
-* **TanStack Query Sync**: Synchronized visual node mutations and layout states with the FastAPI database asynchronously.
-* **Unit of Work Event Buffering**: Implemented a FastAPI Unit of Work transaction manager that buffers WebSocket updates to prevent broadcasting data before database commits complete.
-* **Canvas Snapshot History**: Added sequential snapshot models to database history rows enabling persistent, server-backed undo/redo actions.
-
-### Phase 4: LangGraph Code Compiler & Runtime
-* **Deterministic Code Synthesis**: Created a python AST compilation engine that parses visual nodes and slots into native LangGraph code (`StateGraph`, `START`, `END`, conditional routing).
-* **Safe Sandbox Runtime**: Configured a process pool executor to safely execute compiled python workflows on the FastAPI backend, returning terminal execution results.
-
-### Phase 5: Interactive Code Inspector & Strict State Integrity
-* **Bidirectional AST Selection**: Traversed CodeMirror 6 and visual canvas nodes to highlight code functions when clicking nodes, and select visual elements when clicking code regions.
-* **Strict State Integrity**: Implemented cascading variable renames and blocked deletes of variables referenced in expressions, slots, and assignments.
-* **Pre-Execution Completeness Guard**: Refactored the validation system to verify topological completeness (unconnected slots/nodes and unset expressions) only right before running the graph.
-* **Read-Only Editor Lock**: Secured generated code viewer in CodeMirror to be read-only while keeping AST-based folding and navigation fully interactive.
-
-### Phase 6: Direct 1-Layer 7-Primitive Compiler Simplification
-* **Pydantic Discriminated Union Schema**: Refactored `NodeRead` into per-type models discriminated by `node_type`, containing strictly the 7 1:1 primitive node types (`START`, `END`, `LOGICAL_ASSIGNER`, `AGENTIC_ASSIGNER`, `LOGICAL_SWITCH`, `AGENTIC_SWITCH`, `INTERRUPT`).
-* **Direct 1-Layer Compiler**: Simplified code generation into a single-pass `DirectLangGraphCompiler` mapping visual nodes directly into native Python AST statements (`StateGraph`, `add_node`, `add_conditional_edges`).
-* **Clean Default Example Map**: Redesigned default trivia workflow to strictly showcase these 7 primitive node types.
-* **Offline Spec Generator**: Automated `npm run generate:api` to extract OpenAPI JSON in-memory via `uv` without requiring a live server process.
-
-### Phase 7: Consolidated Primitives & Copilot-Driven Patch mutations
-* **Consolidated mutations Module**: Merged the decoupled `topology.py` and `operations.py` engines into a single `mutations.py` to prevent split configurations.
-* **Batch Patch Processing**: Introduced a unified `apply_patch(...)` entrypoint processing lists of coarse-grained, discriminated union operations (`upsert_node`, `delete_node`, `connect`, `disconnect`, `upsert_state_var`, `delete_state_var`) in a single transactional pass.
+### Phase 3: Coarse-Grained Patch Mutations & Type Safety
+* **Consolidated mutations**: Unified topology and operations alterations under a single `mutations.py` module.
+* **Discriminator Config Union**: Refactored `UpsertNodeOp` configuration payloads to be dynamically parsed and validated into strongly-typed config models (`LogicalAssignerConfig`, etc.) via Pydantic model validators.
+* **AST Expressions Consolidation**: Centralized expression-to-code, variable tracking, and cascading renames into the expression module, deleting duplicate recursive traversals across the codebase.
 
 ---
 
@@ -83,16 +61,23 @@ This repository serves as a personal, non-commercial full-stack R&D exploration 
 ```mermaid
 graph TD
     Copilot[AI Copilot Agent] -- "apply_patch(list[GraphOperation])" --> Mutations[Unified mutations.py]
-    Mutations -- "1. Enforces Structural Integrity" --> History[UoW / Snapshot History]
-    Mutations -- "2. Updates State Schema & Nodes" --> History
-    History -- "Triggers /code regeneration" --> Compiler[Direct AST Generator]
-    Compiler -- "Synthesized Script" --> UI[Visual React Flow Canvas]
+    Mutations -- "Updates flow state" --> History[UoW / Snapshot History]
+    History -- "Triggers /code regeneration" --> Compiler[Direct AST Compiler]
+    
+    subgraph Frontend Client
+        UI[Visual React Flow Canvas]
+        Code[Interactive Code Inspector]
+        
+        UI <--> |Bidirectional AST Highlight| Code
+    end
+    
+    History -- "Syncs Flow JSON" --> UI
+    Compiler -- "Sends Synthesized Script" --> Code
 ```
 
-### Key Technical Choices
-* **Transaction-Level Integrity**: Structural and referential constraints (e.g. key cascading and deletion blocks) are validated on every patch. Topological completeness (e.g. unconnected handles) is deferred to compile-time/execution to allow the copilot to build workflows iteratively.
-* **Auto-Layout ONLY (No Drag-and-Drop)**: Coordinates `(x, y)` are computed on the fly by ELK in two phases: unmeasured initial load and deferred measuring on node dimension resizes.
-* **String-Based Identifiers**: Node and slot IDs use human-readable strings (e.g. `"step_1"`, `"option_a"`), matching the execution keys in compiled LangGraph workflows.
+### Key Technical Constraints
+* **Transaction-Level Integrity**: Variable referential constraints are validated on every patch. Topological completeness (e.g., unconnected slots) is deferred to execution-time to allow users and AI agents to build graphs incrementally.
+* **UoW Transaction Timing**: Endpoints mutating data must manage transaction boundaries using `async with uow:` blocks to ensure SQL writes and event brokers finish before returning HTTP responses.
 
 ---
 
@@ -100,16 +85,3 @@ graph TD
 
 * **Frontend**: React 19, TypeScript, React Flow (@xyflow/react), ELKjs, CodeMirror 6, TanStack Query v5, Radix UI.
 * **Backend**: Python 3.12+, FastAPI, LangGraph, SQLAlchemy 2.0, Pydantic v2.
-
----
-
-## 📌 Implementation Gotchas & Quirks
-
-* **Handle Lifecycle (`updateNodeInternals`)**: When slots are added or removed dynamically on switch nodes, React Flow's cached handle locations become stale. We listen to `node.slots` changes in `FlowNode.tsx` to trigger `updateNodeInternals(id)` whenever slot structure updates.
-* **CodeMirror Read-Only Guard**: Setting `EditorState.readOnly.of(true)` across CodeMirror locks typing while allowing `@codemirror/language` AST syntax tree iteration to continue driving bidirectional node highlighting and code folding.
-* **Cascading Rename & Blocked Delete**: Renaming a defined variable key (accomplished by matching IDs in `UpsertStateVarOp`) cascades renames to all referencing expressions (Switch slot expressions, logical assignments, and agentic inputs/outputs). Deleting a defined variable is strictly blocked with a ValidationError if any references remain.
-* **State Schema Integration**: State schema variables are declared in a dedicated `state` section of the JSON graph data separate from the nodes/edges, allowing for a cleaner compilation from visual topology to executable LangGraph code.
-* **UoW Transaction Timing & Context Manager**: FastAPI dependency teardown (after `yield`) runs after the HTTP response has been sent. To prevent race conditions where the client refetches data (like generated code) before the database commit completes, all mutating route endpoints must explicitly manage transaction boundaries using `async with uow:` context blocks to guarantee commits are complete before returning the response.
-* **Discriminated Union Node Read Schema**: Node instances use a Pydantic `Annotated` discriminated union (`NodeRead = Annotated[StartNode | EndNode | LogicalAssignerNode | ..., Field(discriminator='node_type')]`). Each concrete type carries only relevant fields without nullables or sparse fields, and `slots` are strictly absent on sequential step types.
-* **Direct 1-Layer Compiler Pipeline**: Compilation maps visual node models (`GraphFlowData`) directly to Python AST statements (`StateGraph`, `add_node`, `add_conditional_edges`). Node-to-Langgraph mapping is 1:1 without intermediate canonical transformations.
-* **Generated OpenAPI Artifact (`openapi.json`)**: `openapi.json` is a transient intermediate artifact generated on the fly via `uv` during `npm run generate:api` to produce TypeScript definitions (`src/api/generated/schema.ts`). Never read, edit, or commit `openapi.json` manually; it is untracked in `.gitignore`.
