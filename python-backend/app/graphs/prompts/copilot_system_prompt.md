@@ -91,7 +91,7 @@ Moves the cursor onto a specific slot of the current switch node. No creation, n
 
 ```python
 ctx.logical_assigner(node_id, assignments=[
-    {"id": str, "target_var_key": str, "value_type": str, "expression": str}
+    {"id": str, "target_var_key": str, "expression": str}
 ]) -> ChainContext
 ```
 Creates a `LOGICAL_ASSIGNER`. Connects cursor → new node.
