@@ -60,11 +60,14 @@ async def generate_and_apply_copilot_patch(
     try:
         from typing import cast
         from groq.types.chat import ChatCompletionNamedToolChoiceParam
+
         completion = await client.chat.completions.create(
             model="llama-3.1-70b-versatile",
             messages=messages,  # type: ignore
             tools=[PATCH_GRAPH_TOOL],  # type: ignore
-            tool_choice=cast(ChatCompletionNamedToolChoiceParam, {"type": "function", "function": {"name": "patch_graph"}}),
+            tool_choice=cast(
+                ChatCompletionNamedToolChoiceParam, {"type": "function", "function": {"name": "patch_graph"}}
+            ),
             temperature=0.0,
         )
     except Exception as e:
@@ -98,4 +101,5 @@ async def generate_and_apply_copilot_patch(
 
     # Import prepare response helper from graph service to return consistent response layout
     from app.graphs.service import _prepare_response_flow
+
     return await _prepare_response_flow(uow, graph_id, mutated, next_seq)

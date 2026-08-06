@@ -137,7 +137,9 @@ def serialize_graph_to_tool_calls(flow: GraphFlowData) -> str:
             assignments = []
             for a in getattr(node, "assignments", []):
                 # Represent expressions back as strings or simple structures
-                expr_val = getattr(a.expression, "value", None) if getattr(a.expression, "kind", None) == "literal" else None
+                expr_val = (
+                    getattr(a.expression, "value", None) if getattr(a.expression, "kind", None) == "literal" else None
+                )
                 expr_str = repr(expr_val) if expr_val is not None else "..."
                 assignments.append({"target_var_key": a.target_var_key, "expression": expr_str})
             lines.append(f"add_assigner(node_id={repr(node.id)}, assignments={assignments})")

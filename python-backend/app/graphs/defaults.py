@@ -2,165 +2,172 @@ from __future__ import annotations
 
 from app.constants import NodeType
 from app.graphs import mutations
-from app.graphs.builder import GraphBuilder
 from app.graphs.schemas import GraphFlowData
+from app.copilot.tools import translate_tool_call_to_operations, sort_operations_by_dependency
 
 
 def build_default_trivia_graph_flow_data() -> GraphFlowData:
     flow = GraphFlowData(nodes=[], edges=[], state=[])
 
-    b = GraphBuilder()
-
-    # 1. State Variables
-    b.state("score", "number", 0, id="v1")
-    b.state("more_questions", "boolean", True, id="v2")
-    b.state("current_question", "string", "", id="v3")
-    b.state("user_answer", "string", "", id="v4")
-    b.state("parsed_answer", "string", "", id="v5")
-    b.state("is_correct", "boolean", False, id="v6")
-    b.state("correct_answer", "string", "A", id="v7")
-    b.state("audience_poll_result", "string", "", id="v8")
-    b.state("phone_call_advice", "string", "", id="v9")
-
-    # 2. Nodes & Connections
-    start = b.start_chain("start", NodeType.START)
-
-    init_game = start.logical_assigner(
-        "init_game",
-        [
+    args = {
+        "operations": [
+            # 1. State Variables (use actual types for default_value)
+            {"op": "upsert_state_var", "key": "score", "type": "number", "default_value": 0, "id": "v1"},
+            {"op": "upsert_state_var", "key": "more_questions", "type": "boolean", "default_value": True, "id": "v2"},
+            {"op": "upsert_state_var", "key": "current_question", "type": "string", "default_value": "", "id": "v3"},
+            {"op": "upsert_state_var", "key": "user_answer", "type": "string", "default_value": "", "id": "v4"},
+            {"op": "upsert_state_var", "key": "parsed_answer", "type": "string", "default_value": "", "id": "v5"},
+            {"op": "upsert_state_var", "key": "is_correct", "type": "boolean", "default_value": False, "id": "v6"},
+            {"op": "upsert_state_var", "key": "correct_answer", "type": "string", "default_value": "A", "id": "v7"},
             {
-                "id": "init_score",
-                "target_var_key": "score",
-                "expression": "0",
+                "op": "upsert_state_var",
+                "key": "audience_poll_result",
+                "type": "string",
+                "default_value": "",
+                "id": "v8",
+            },
+            {"op": "upsert_state_var", "key": "phone_call_advice", "type": "string", "default_value": "", "id": "v9"},
+            # 2. Nodes
+            {"op": "upsert_node", "node_id": "start", "node_type": "START"},
+            {"op": "upsert_node", "node_id": "end", "node_type": "END"},
+            {
+                "op": "upsert_node",
+                "node_id": "init_game",
+                "node_type": "LOGICAL_ASSIGNER",
+                "config": {
+                    "assignments": [
+                        {"target_var_key": "score", "expression": "0"},
+                        {"target_var_key": "more_questions", "expression": "True"},
+                        {"target_var_key": "correct_answer", "expression": "'A'"},
+                    ]
+                },
             },
             {
-                "id": "init_more",
-                "target_var_key": "more_questions",
-                "expression": "True",
+                "op": "upsert_node",
+                "node_id": "loop_questions",
+                "node_type": "LOGICAL_SWITCH",
+                "config": {
+                    "slots": [
+                        {"raw_string": "Yes", "expression": "more_questions"},
+                        {"raw_string": "No", "expression": "not more_questions"},
+                    ]
+                },
             },
             {
-                "id": "init_correct_answer",
-                "target_var_key": "correct_answer",
-                "expression": "'A'",
-            },
-        ],
-    )
-
-    loop_questions = init_game.logical_switch(
-        "loop_questions",
-        [
-            {
-                "raw_string": "Yes",
-                "expression": "more_questions",
+                "op": "upsert_node",
+                "node_id": "gen_question",
+                "node_type": "AGENTIC_ASSIGNER",
+                "config": {
+                    "prompt": "Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D.",
+                    "agentic_inputs": [],
+                    "agentic_outputs": ["current_question", "correct_answer"],
+                },
             },
             {
-                "raw_string": "No",
-                "expression": "not more_questions",
-            },
-        ],
-    )
-
-    # loop_questions No -> end
-    loop_questions.case("No").then_node("end", NodeType.END)
-
-    # loop_questions Yes -> gen_question
-    gen_question = loop_questions.case("Yes").agentic_assigner(
-        "gen_question",
-        prompt="Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D.",
-        outputs=["current_question", "correct_answer"],
-    )
-
-    ask_question = gen_question.interrupt(
-        "ask_question",
-        payload_vars=["current_question"],
-        resume_var="user_answer",
-    )
-
-    parse_answer = ask_question.logical_assigner(
-        "parse_answer",
-        [
-            {
-                "id": "parse_extract",
-                "target_var_key": "parsed_answer",
-                "expression": "user_answer",
-            }
-        ],
-    )
-
-    lifeline_switch = parse_answer.agentic_switch(
-        "lifeline_switch",
-        agentic_input="user_answer",
-        slots=[
-            {"raw_string": "Submit"},
-            {"raw_string": "Lifeline"},
-        ],
-    )
-
-    # lifeline_switch Lifeline -> choose_lifeline
-    choose_lifeline = lifeline_switch.case("Lifeline").agentic_switch(
-        "choose_lifeline",
-        agentic_input="user_answer",
-        slots=[
-            {"raw_string": "Audience"},
-            {"raw_string": "Phone"},
-        ],
-    )
-
-    # choose_lifeline Audience -> audience_votes -> ask_question
-    choose_lifeline.case("Audience").agentic_assigner(
-        "audience_votes",
-        prompt="Poll audience for advice on question: '{current_question}'.",
-        inputs=["current_question"],
-        outputs=["audience_poll_result"],
-    ).then_to("ask_question")
-
-    # choose_lifeline Phone -> phone_advice -> ask_question
-    choose_lifeline.case("Phone").agentic_assigner(
-        "phone_advice",
-        prompt="Call a friend for advice on question: '{current_question}'.",
-        inputs=["current_question"],
-        outputs=["phone_call_advice"],
-    ).then_to("ask_question")
-
-    # lifeline_switch Submit -> check_correct
-    check_correct = lifeline_switch.case("Submit").logical_assigner(
-        "check_correct",
-        [
-            {
-                "id": "validate_check",
-                "target_var_key": "is_correct",
-                "expression": "parsed_answer == correct_answer",
-            }
-        ],
-    )
-
-    result_switch = check_correct.logical_switch(
-        "result_switch",
-        [
-            {
-                "raw_string": "correct",
-                "expression": "is_correct",
+                "op": "upsert_node",
+                "node_id": "ask_question",
+                "node_type": "INTERRUPT",
+                "config": {
+                    "payload_vars": ["current_question"],
+                    "resume_var": "user_answer",
+                },
             },
             {
-                "raw_string": "wrong",
-                "expression": "not is_correct",
+                "op": "upsert_node",
+                "node_id": "parse_answer",
+                "node_type": "LOGICAL_ASSIGNER",
+                "config": {"assignments": [{"target_var_key": "parsed_answer", "expression": "user_answer"}]},
             },
-        ],
-    )
-
-    # result_switch wrong -> end
-    result_switch.case("wrong").then_to("end")
-
-    # result_switch correct -> increment_score -> loop_questions
-    result_switch.case("correct").logical_assigner(
-        "increment_score",
-        [
             {
-                "id": "add_score",
-                "target_var_key": "score",
-                "expression": "score + 1",
-            }
-        ],
-    ).then_to("loop_questions")
+                "op": "upsert_node",
+                "node_id": "lifeline_switch",
+                "node_type": "AGENTIC_SWITCH",
+                "config": {
+                    "agentic_input": "user_answer",
+                    "slots": [
+                        {"raw_string": "Submit"},
+                        {"raw_string": "Lifeline"},
+                    ],
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "choose_lifeline",
+                "node_type": "AGENTIC_SWITCH",
+                "config": {
+                    "agentic_input": "user_answer",
+                    "slots": [
+                        {"raw_string": "Audience"},
+                        {"raw_string": "Phone"},
+                    ],
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "audience_votes",
+                "node_type": "AGENTIC_ASSIGNER",
+                "config": {
+                    "prompt": "Poll audience for advice on question: '{current_question}'.",
+                    "agentic_inputs": ["current_question"],
+                    "agentic_outputs": ["audience_poll_result"],
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "phone_advice",
+                "node_type": "AGENTIC_ASSIGNER",
+                "config": {
+                    "prompt": "Call a friend for advice on question: '{current_question}'.",
+                    "agentic_inputs": ["current_question"],
+                    "agentic_outputs": ["phone_call_advice"],
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "check_correct",
+                "node_type": "LOGICAL_ASSIGNER",
+                "config": {
+                    "assignments": [{"target_var_key": "is_correct", "expression": "parsed_answer == correct_answer"}]
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "result_switch",
+                "node_type": "LOGICAL_SWITCH",
+                "config": {
+                    "slots": [
+                        {"raw_string": "correct", "expression": "is_correct"},
+                        {"raw_string": "wrong", "expression": "not is_correct"},
+                    ]
+                },
+            },
+            {
+                "op": "upsert_node",
+                "node_id": "increment_score",
+                "node_type": "LOGICAL_ASSIGNER",
+                "config": {"assignments": [{"target_var_key": "score", "expression": "score + 1"}]},
+            },
+            # 3. Connections
+            {"op": "connect", "source": "start", "target": "init_game"},
+            {"op": "connect", "source": "init_game", "target": "loop_questions"},
+            {"op": "connect", "source": "loop_questions", "case": "No", "target": "end"},
+            {"op": "connect", "source": "loop_questions", "case": "Yes", "target": "gen_question"},
+            {"op": "connect", "source": "gen_question", "target": "ask_question"},
+            {"op": "connect", "source": "ask_question", "target": "parse_answer"},
+            {"op": "connect", "source": "parse_answer", "target": "lifeline_switch"},
+            {"op": "connect", "source": "lifeline_switch", "case": "Lifeline", "target": "choose_lifeline"},
+            {"op": "connect", "source": "lifeline_switch", "case": "Submit", "target": "check_correct"},
+            {"op": "connect", "source": "choose_lifeline", "case": "Audience", "target": "audience_votes"},
+            {"op": "connect", "source": "choose_lifeline", "case": "Phone", "target": "phone_advice"},
+            {"op": "connect", "source": "audience_votes", "target": "ask_question"},
+            {"op": "connect", "source": "phone_advice", "target": "ask_question"},
+            {"op": "connect", "source": "check_correct", "target": "result_switch"},
+            {"op": "connect", "source": "result_switch", "case": "wrong", "target": "end"},
+            {"op": "connect", "source": "result_switch", "case": "correct", "target": "increment_score"},
+            {"op": "connect", "source": "increment_score", "target": "loop_questions"},
+        ]
+    }
 
-    return mutations.apply_patch(flow, b.patch)
+    ops = translate_tool_call_to_operations(args)
+    sorted_ops = sort_operations_by_dependency(ops)
+    return mutations.apply_patch(flow, sorted_ops)

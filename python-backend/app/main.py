@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
         )
 
     from app import copilot
+
     app.include_router(users.router)
     app.include_router(graphs.router)
     app.include_router(ws.router)
