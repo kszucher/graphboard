@@ -24,6 +24,10 @@ SUBMIT_PLAN_TOOL = {
         "parameters": {
             "type": "object",
             "properties": {
+                "graph_analysis": {
+                    "type": "string",
+                    "description": "Step-by-step reasoning explaining the existing graph topology, switch choices, and where the new logic logically integrates.",
+                },
                 "steps": {
                     "type": "array",
                     "items": {
@@ -46,7 +50,7 @@ SUBMIT_PLAN_TOOL = {
                     },
                 }
             },
-            "required": ["steps"],
+            "required": ["graph_analysis", "steps"],
         },
     },
 }
@@ -148,15 +152,35 @@ PATCH_GRAPH_TOOL = {
 }
 
 
-def serialize_graph_to_tool_calls(flow: GraphFlowData) -> str:
-    """Serializes GraphFlowData to readable pseudocode matching tool schemas (Format C)."""
+
+def format_expression_as_string(node: Any) -> str:
+    """Converts a visual AST Expression back into a clean python expression string."""
+    if not node:
+        return ""
+    kind = getattr(node, "kind", None)
+    if kind == "literal":
+        return repr(getattr(node, "value", None))
+    if kind == "stateRef":
+        return getattr(node, "varKey", "")
+    if kind == "binaryOp":
+        left = format_expression_as_string(getattr(node, "left", None))
+        right = format_expression_as_string(getattr(node, "right", None))
+        return f"({left} {getattr(node, 'op', '')} {right})"
+    if kind == "unaryOp":
+        expr = format_expression_as_string(getattr(node, "expr", None))
+        return f"({getattr(node, 'op', '')} {expr})"
+    return ""
+
+
+def serialize_flow_to_code(flow: GraphFlowData) -> str:
+    """Serializes GraphFlowData into a human-readable mock Python representation for LLMs."""
     lines = []
 
     # 1. State Variables
     for var in flow.state:
-        default_str = f", default_value={repr(var.default_value)}" if var.default_value is not None else ""
         desc_str = f", description={repr(var.description)}" if var.description else ""
-        lines.append(f"declare_state(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})")
+        default_str = f", default_value={repr(var.default_value)}" if var.default_value is not None else ""
+        lines.append(f"declare_variable(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})")
 
     if flow.state:
         lines.append("")
@@ -164,19 +188,13 @@ def serialize_graph_to_tool_calls(flow: GraphFlowData) -> str:
     # 2. Nodes
     for node in flow.nodes:
         if node.node_type == NodeType.START:
-            # Skip serializing START/END nodes as standard calls since they always exist,
-            # but we can list them as existing.
-            continue
+            lines.append(f"add_start(node_id={repr(node.id)})")
         elif node.node_type == NodeType.END:
-            continue
+            lines.append(f"add_end(node_id={repr(node.id)})")
         elif node.node_type == NodeType.LOGICAL_ASSIGNER:
             assignments = []
             for a in getattr(node, "assignments", []):
-                # Represent expressions back as strings or simple structures
-                expr_val = (
-                    getattr(a.expression, "value", None) if getattr(a.expression, "kind", None) == "literal" else None
-                )
-                expr_str = repr(expr_val) if expr_val is not None else "..."
+                expr_str = format_expression_as_string(a.expression)
                 assignments.append({"target_var_key": a.target_var_key, "expression": expr_str})
             lines.append(f"add_assigner(node_id={repr(node.id)}, assignments={assignments})")
         elif node.node_type == NodeType.AGENTIC_ASSIGNER:
@@ -187,7 +205,8 @@ def serialize_graph_to_tool_calls(flow: GraphFlowData) -> str:
         elif node.node_type == NodeType.LOGICAL_SWITCH:
             slots = []
             for s in getattr(node, "slots", []):
-                slots.append({"raw_string": s.raw_string, "expression": "..."})
+                expr_str = format_expression_as_string(s.expression)
+                slots.append({"raw_string": s.raw_string, "expression": expr_str})
             lines.append(f"add_switch(node_id={repr(node.id)}, slots={slots})")
         elif node.node_type == NodeType.AGENTIC_SWITCH:
             slots = [{"raw_string": s.raw_string} for s in getattr(node, "slots", [])]

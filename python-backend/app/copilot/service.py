@@ -8,7 +8,7 @@ from langgraph.types import Command
 
 from app.context import UnitOfWork
 from app.copilot.tools import (
-    serialize_graph_to_tool_calls,
+    serialize_flow_to_code,
     sort_operations_by_dependency,
     translate_tool_call_to_operations,
 )
@@ -56,7 +56,7 @@ async def initiate_copilot_workflow(
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
-    serialized_state = serialize_graph_to_tool_calls(flow_data)
+    serialized_state = serialize_flow_to_code(flow_data)
 
     config = cast(RunnableConfig, {"configurable": {"thread_id": str(graph_id)}})
 

@@ -1,23 +1,25 @@
 from app.constants import NodeType
+from app.copilot.tools import (
+    serialize_flow_to_code,
+    sort_operations_by_dependency,
+    translate_tool_call_to_operations,
+)
+from app.graphs.expressions import LiteralExpression
 from app.graphs.schemas import (
-    GraphFlowData,
+    ConnectOp,
     DefinerVariableSchema,
+    EdgeRead,
+    GraphFlowData,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     SlotRead,
-    EdgeRead,
+    UpsertNodeOp,
+    UpsertStateVarOp,
 )
-from app.graphs.expressions import LiteralExpression
-from app.copilot.tools import (
-    serialize_graph_to_tool_calls,
-    sort_operations_by_dependency,
-    translate_tool_call_to_operations,
-)
-from app.graphs.schemas import UpsertStateVarOp, UpsertNodeOp, ConnectOp
 
 
-def test_serialize_graph_to_tool_calls() -> None:
+def test_serialize_flow_to_code() -> None:
     flow = GraphFlowData(
         state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
         nodes=[
@@ -49,8 +51,8 @@ def test_serialize_graph_to_tool_calls() -> None:
         ],
     )
 
-    serialized = serialize_graph_to_tool_calls(flow)
-    assert "declare_state(key='score', type='number', default_value=10)" in serialized
+    serialized = serialize_flow_to_code(flow)
+    assert "declare_variable(key='score', type='number', default_value=10)" in serialized
     assert "add_assigner(node_id='init'" in serialized
     assert "add_switch(node_id='check'" in serialized
     assert "connect(source='start', target='init')" in serialized
