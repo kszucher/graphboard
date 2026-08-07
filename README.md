@@ -3,7 +3,7 @@
 A personal R&D project: a visual canvas and AI Copilot for designing, compiling, and running **LangGraph** workflows in Python.
 
 ### 🚀 Project Evolution
-Second iteration of this idea, building directly on **Mapboard** (a previous client-side visual graph builder in Nest.js/Node.js). Graphboard shifts to a backend-first architecture — the graph is owned and mutated exclusively by the server, with the AI Copilot as the primary interface for modifications: multi-stage planning, dry-run validation, and human-in-the-loop checkpoints before committing any changes.
+Second iteration of this idea, building directly on **Mapboard** (a previous client-side visual graph builder in Nest.js/Node.js). Graphboard shifts to a backend-first architecture — the graph is owned and mutated exclusively by the server, with the AI Copilot as the primary interface for modifications: multi-stage planning, dry-run validation, and human-in-the-loop checkpoints before committing any changes. The visual canvas is now a read-only inspector; manual node editing has been removed in favour of the agentic model.
 
 ---
 
