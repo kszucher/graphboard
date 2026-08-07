@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.constants import NodeType
-from app.graphs.mutations import _make_slot_id
+from app.graphs.nodes import _make_slot_id
 from app.graphs.schemas import (
     ConnectOp,
     DeleteNodeOp,

@@ -111,6 +111,17 @@ NodeConfig: TypeAlias = (
 )
 
 
+NODE_CONFIG_MAP: dict[NodeType, type[BaseModel]] = {
+    NodeType.START: StartNodeConfig,
+    NodeType.END: EndNodeConfig,
+    NodeType.LOGICAL_ASSIGNER: LogicalAssignerConfig,
+    NodeType.AGENTIC_ASSIGNER: AgenticAssignerConfig,
+    NodeType.LOGICAL_SWITCH: LogicalSwitchConfig,
+    NodeType.AGENTIC_SWITCH: AgenticSwitchConfig,
+    NodeType.INTERRUPT: InterruptConfig,
+}
+
+
 class UpsertNodeOp(BaseModel):
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
@@ -121,30 +132,16 @@ class UpsertNodeOp(BaseModel):
     @model_validator(mode="after")
     def validate_config(self) -> UpsertNodeOp:
         if isinstance(self.config, dict):
-            if self.node_type == NodeType.START:
-                self.config = StartNodeConfig.model_validate(self.config)
-            elif self.node_type == NodeType.END:
-                self.config = EndNodeConfig.model_validate(self.config)
-            elif self.node_type == NodeType.LOGICAL_ASSIGNER:
-                from app.graphs.expressions import parse_expression
+            config_cls = NODE_CONFIG_MAP.get(self.node_type)
+            if config_cls is not None:
+                if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
+                    from app.graphs.expressions import parse_expression
 
-                for asgn in self.config.get("assignments", []):
-                    if isinstance(asgn.get("expression"), str):
-                        asgn["expression"] = parse_expression(asgn["expression"])
-                self.config = LogicalAssignerConfig.model_validate(self.config)
-            elif self.node_type == NodeType.AGENTIC_ASSIGNER:
-                self.config = AgenticAssignerConfig.model_validate(self.config)
-            elif self.node_type == NodeType.LOGICAL_SWITCH:
-                from app.graphs.expressions import parse_expression
-
-                for slot in self.config.get("slots", []):
-                    if isinstance(slot.get("expression"), str):
-                        slot["expression"] = parse_expression(slot["expression"])
-                self.config = LogicalSwitchConfig.model_validate(self.config)
-            elif self.node_type == NodeType.AGENTIC_SWITCH:
-                self.config = AgenticSwitchConfig.model_validate(self.config)
-            elif self.node_type == NodeType.INTERRUPT:
-                self.config = InterruptConfig.model_validate(self.config)
+                    items = self.config.get("assignments") or self.config.get("slots") or []
+                    for item in items:
+                        if isinstance(item.get("expression"), str):
+                            item["expression"] = parse_expression(item["expression"])
+                self.config = config_cls.model_validate(self.config)
         return self
 
 

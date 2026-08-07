@@ -1,16 +1,8 @@
 from __future__ import annotations
 
 from app.exceptions import ValidationError
-from app.graphs.nodes import (
-    AgenticAssignerNode,
-    AgenticSwitchNode,
-    InterruptNode,
-    LogicalSwitchNode,
-    StartNode,
-)
-from app.graphs.schemas import (
-    GraphFlowData,
-)
+from app.graphs.nodes import StartNode
+from app.graphs.schemas import GraphFlowData
 
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
@@ -21,22 +13,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
 
     # 1. Check Unset Expressions and Unconnected Slots on routing nodes
     for n in user_nodes:
-        if isinstance(n, LogicalSwitchNode):
-            for slot in n.slots:
-                if slot.expression is None:
-                    raise ValidationError(
-                        f"Logical Switch node '{n.id}' has an unset condition on option '{slot.raw_string}'."
-                    )
-                if (n.id, slot.id) not in edge_sources:
-                    raise ValidationError(
-                        f"Logical Switch option '{slot.raw_string}' on node '{n.id}' is not connected to any target node."
-                    )
-        elif isinstance(n, AgenticSwitchNode):
-            for aslot in n.slots:
-                if (n.id, aslot.id) not in edge_sources:
-                    raise ValidationError(
-                        f"Agentic Switch option '{aslot.raw_string}' on node '{n.id}' is not connected to any target node."
-                    )
+        n.validate_integrity(edge_sources)
 
     # 2. Check reachability of nodes from "start"
     # Build adjacency list: node_id -> set of target node_ids
@@ -82,13 +59,3 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
             raise ValidationError(
                 f"Invalid variable reference on node '{node_item.id}': variable(s) {', '.join(sorted(invalid_refs))} missing or deleted."
             )
-
-        # Specific structural checks
-        if isinstance(node_item, AgenticAssignerNode):
-            if not node_item.prompt or not node_item.prompt.strip():
-                raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
-            if not node_item.agentic_outputs:
-                raise ValidationError(f"Agentic Assigner node '{node_item.id}' must have at least one output variable.")
-        elif isinstance(node_item, InterruptNode):
-            if not node_item.resume_var:
-                raise ValidationError(f"Interrupt node '{node_item.id}' must have a valid resume_var.")
