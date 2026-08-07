@@ -7,7 +7,7 @@ Second iteration of this idea, building directly on **Mapboard** (a previous cli
 
 ---
 
-<img width="1980" height="1080" alt="Image" src="https://github.com/user-attachments/assets/f83949f9-f5f2-4886-b6d0-0b4648ebca08" />
+<img width="1980" height="1080" alt="Image" src="https://github.com/user-attachments/assets/f4f48fd8-b8b0-465b-b254-2f7efea56cd4" />
 
 ---
 
