@@ -73,3 +73,22 @@ async def apply_copilot_patch_endpoint(
             approved=payload.approved,
         )
     return CopilotStatusResponse.model_validate(result)
+
+
+class CopilotFeedbackRequest(BaseModel):
+    score: int  # e.g., 1 for success, 0 for failure
+    comment: str | None = None
+
+
+@router.post("/{graph_id}/feedback")
+async def copilot_feedback_endpoint(
+    graph_id: uuid.UUID,
+    payload: CopilotFeedbackRequest,
+) -> dict[str, Any]:
+    from app.copilot.logger import add_feedback_to_log
+
+    success = add_feedback_to_log(
+        graph_id=str(graph_id),
+        feedback_data=payload.model_dump(exclude_none=True),
+    )
+    return {"success": success}

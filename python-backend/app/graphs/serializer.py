@@ -11,7 +11,9 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     for var in flow.state:
         desc_str = f", description={repr(var.description)}" if var.description else ""
         default_str = f", default_value={repr(var.default_value)}" if var.default_value is not None else ""
-        lines.append(f"{PlannerAction.DECLARE_VARIABLE.value}(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})")
+        lines.append(
+            f"{PlannerAction.DECLARE_VARIABLE.value}(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})"
+        )
 
     if flow.state:
         lines.append("")
@@ -20,7 +22,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     for node in flow.nodes:
         # Declare the node
         lines.append(f"{PlannerAction.ADD_NODE.value}(node_id={repr(node.id)}, type={repr(node.node_type.value)})")
-        
+
         # Configure/decorate based on type
         if node.node_type == NodeType.LOGICAL_ASSIGNER:
             for a in getattr(node, "assignments", []):
@@ -66,7 +68,8 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                 case_val = slot.raw_string
 
         case_str = f", case={repr(case_val)}" if case_val else ""
-        lines.append(f"{PlannerAction.CONNECT_NODES.value}(source={repr(edge.source)}, target={repr(edge.target)}{case_str})")
+        lines.append(
+            f"{PlannerAction.CONNECT_NODES.value}(source={repr(edge.source)}, target={repr(edge.target)}{case_str})"
+        )
 
     return "\n".join(lines)
-

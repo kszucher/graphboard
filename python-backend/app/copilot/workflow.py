@@ -11,6 +11,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from app.copilot.executor_prompts import EXECUTOR_SYSTEM_PROMPT
+from app.copilot.logger import log_llm_call
 from app.copilot.planner_prompts import PLANNER_SYSTEM_PROMPT
 from app.copilot.tools import (
     PATCH_GRAPH_TOOL,
@@ -70,7 +71,21 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             max_tokens=1000,
             temperature=0.0,
         )
+        log_llm_call(
+            node_name="planner_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            response=planner_completion,
+            graph_id=state.get("graph_id"),
+        )
     except Exception as e:
+        log_llm_call(
+            node_name="planner_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            error=str(e),
+            graph_id=state.get("graph_id"),
+        )
         logger.exception("Failed calling Planner Groq LLM")
         raise ValidationError(f"Planner execution failed: {str(e)}")
 
@@ -138,7 +153,21 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
             max_tokens=1200,
             temperature=0.0,
         )
+        log_llm_call(
+            node_name="executor_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            response=executor_completion,
+            graph_id=state.get("graph_id"),
+        )
     except Exception as e:
+        log_llm_call(
+            node_name="executor_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            error=str(e),
+            graph_id=state.get("graph_id"),
+        )
         logger.exception("Failed calling Executor Groq LLM")
         raise ValidationError(f"Executor execution failed: {str(e)}")
 

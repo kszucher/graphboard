@@ -57,3 +57,18 @@ export const useApplyCopilotPatch = (graphId: string) => {
     },
   });
 };
+
+export const useSubmitCopilotFeedback = (graphId: string) => {
+  return useMutation({
+    mutationFn: async ({ score, comment }: { score: number; comment?: string }) => {
+      const res = await apiClient.POST('/copilot/{graph_id}/feedback', {
+        params: {
+          path: { graph_id: graphId },
+        },
+        body: { score, comment },
+      });
+      if ('error' in res) throw res.error;
+      return res.data;
+    },
+  });
+};

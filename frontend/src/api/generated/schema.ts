@@ -4,974 +4,1039 @@
  */
 
 export interface paths {
-    "/users/get-or-create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Get Or Create User */
-        post: operations["get_or_create_user_users_get_or_create_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/users/get-or-create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/users/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create User */
-        post: operations["create_user_users__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Get Or Create User */
+    post: operations["get_or_create_user_users_get_or_create_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/users/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/users/{user_id}/active-graph": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Active Graph Id */
-        get: operations["get_active_graph_id_users__user_id__active_graph_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Create User */
+    post: operations["create_user_users__post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/users/{user_id}/active-graph": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/users/set-active-graph": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Set Active Graph */
-        post: operations["set_active_graph_users_set_active_graph_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Active Graph Id */
+    get: operations["get_active_graph_id_users__user_id__active_graph_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/users/set-active-graph": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/graphs/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Graph */
-        post: operations["create_graph_graphs__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Set Active Graph */
+    post: operations["set_active_graph_users_set_active_graph_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/graphs/user/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Graphs */
-        get: operations["list_graphs_graphs_user__user_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Create Graph */
+    post: operations["create_graph_graphs__post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/user/{user_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/graphs/{graph_id}/flow": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Graph Flow */
-        get: operations["get_graph_flow_graphs__graph_id__flow_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List Graphs */
+    get: operations["list_graphs_graphs_user__user_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/{graph_id}/flow": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/graphs/{graph_id}/code": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Graph Code Endpoint */
-        get: operations["get_graph_code_endpoint_graphs__graph_id__code_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Graph Flow */
+    get: operations["get_graph_flow_graphs__graph_id__flow_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/{graph_id}/code": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/graphs/{graph_id}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Run Graph */
-        post: operations["run_graph_graphs__graph_id__run_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Graph Code Endpoint */
+    get: operations["get_graph_code_endpoint_graphs__graph_id__code_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/graphs/{graph_id}/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/copilot/{graph_id}/initiate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Initiate Copilot Endpoint */
-        post: operations["initiate_copilot_endpoint_copilot__graph_id__initiate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Run Graph */
+    post: operations["run_graph_graphs__graph_id__run_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/copilot/{graph_id}/initiate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/copilot/{graph_id}/approve-plan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve Plan Endpoint */
-        post: operations["approve_plan_endpoint_copilot__graph_id__approve_plan_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Initiate Copilot Endpoint */
+    post: operations["initiate_copilot_endpoint_copilot__graph_id__initiate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/copilot/{graph_id}/approve-plan": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/copilot/{graph_id}/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply Copilot Patch Endpoint */
-        post: operations["apply_copilot_patch_endpoint_copilot__graph_id__apply_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Approve Plan Endpoint */
+    post: operations["approve_plan_endpoint_copilot__graph_id__approve_plan_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/copilot/{graph_id}/apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Apply Copilot Patch Endpoint */
+    post: operations["apply_copilot_patch_endpoint_copilot__graph_id__apply_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/copilot/{graph_id}/feedback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    /** Copilot Feedback Endpoint */
+    post: operations["copilot_feedback_endpoint_copilot__graph_id__feedback_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Health */
+    get: operations["health_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
+
 export type webhooks = Record<string, never>;
+
 export interface components {
-    schemas: {
-        /** ActiveGraphResponse */
-        ActiveGraphResponse: {
-            /** Graph Id */
-            graph_id: string | null;
-        };
-        /** AgenticAssignerNode */
-        AgenticAssignerNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "AGENTIC_ASSIGNER";
-            /**
-             * Prompt
-             * @default
-             */
-            prompt: string;
-            /** Agentic Inputs */
-            agentic_inputs?: string[];
-            /** Agentic Outputs */
-            agentic_outputs?: string[];
-        };
-        /** AgenticSlotRead */
-        AgenticSlotRead: {
-            /**
-             * Id
-             * @default
-             */
-            id: string;
-            /**
-             * Raw String
-             * @default
-             */
-            raw_string: string;
-        };
-        /** AgenticSwitchNode */
-        AgenticSwitchNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "AGENTIC_SWITCH";
-            /** Slots */
-            slots?: components["schemas"]["AgenticSlotRead"][];
-            /**
-             * Agentic Input
-             * @default
-             */
-            agentic_input: string;
-        };
-        /** CopilotDecisionRequest */
-        CopilotDecisionRequest: {
-            /** Approved */
-            approved: boolean;
-        };
-        /** CopilotInitiateRequest */
-        CopilotInitiateRequest: {
-            /** Prompt */
-            prompt: string;
-        };
-        /** CopilotStatusResponse */
-        CopilotStatusResponse: {
-            /** Graph Id */
-            graph_id: string;
-            /** Status */
-            status: string;
-            /** Plan */
-            plan?: {
-                [key: string]: unknown;
-            }[] | null;
-            /** Operations */
-            operations?: {
-                [key: string]: unknown;
-            }[] | null;
-            /** Validation Error */
-            validation_error?: string | null;
-            /** Applied */
-            applied: boolean;
-            flow_data?: components["schemas"]["GraphFlowRead"] | null;
-        };
-        /** DefinerVariableSchema */
-        DefinerVariableSchema: {
-            /**
-             * Id
-             * @default
-             */
-            id: string;
-            /** Key */
-            key: string;
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "boolean" | "string" | "number" | "float";
-            /** Default Value */
-            default_value?: unknown;
-            /** Description */
-            description?: string | null;
-        };
-        /** EdgeRead */
-        EdgeRead: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id?: string;
-            /** Source */
-            source: string;
-            /** Source Handle */
-            source_handle?: string | null;
-            /** Target */
-            target: string;
-            /** Target Handle */
-            target_handle?: string | null;
-        };
-        /** EndNode */
-        EndNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "END";
-        };
-        /** GraphCodeRead */
-        GraphCodeRead: {
-            /** Code */
-            code: string;
-        };
-        /** GraphCreate */
-        GraphCreate: {
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /** Graph Name */
-            graph_name: string;
-        };
-        /** GraphFlowRead */
-        GraphFlowRead: {
-            /** Nodes */
-            nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"])[];
-            /** Edges */
-            edges: components["schemas"]["EdgeRead"][];
-            /** State */
-            state?: components["schemas"]["DefinerVariableSchema"][];
-            /** Versions */
-            versions?: components["schemas"]["GraphVersionRead"][];
-            /**
-             * Current Version
-             * @default 0
-             */
-            current_version: number;
-        };
-        /** GraphRead */
-        GraphRead: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-        };
-        /** GraphVersionRead */
-        GraphVersionRead: {
-            /** Sequence Number */
-            sequence_number: number;
-            /** Name */
-            name: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** InterruptNode */
-        InterruptNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "INTERRUPT";
-            /** Payload Vars */
-            payload_vars?: string[];
-            /**
-             * Resume Var
-             * @default
-             */
-            resume_var: string;
-        };
-        /** LogicalAssignerNode */
-        LogicalAssignerNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "LOGICAL_ASSIGNER";
-            /** Assignments */
-            assignments?: components["schemas"]["LogicalAssignmentSchema"][];
-        };
-        /** LogicalAssignmentSchema */
-        LogicalAssignmentSchema: {
-            /** Id */
-            id?: string;
-            /** Target Var Key */
-            target_var_key: string;
-            /** Expression */
-            expression?: string | null;
-        };
-        /** LogicalSwitchNode */
-        LogicalSwitchNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "LOGICAL_SWITCH";
-            /** Slots */
-            slots?: components["schemas"]["SlotRead"][];
-        };
-        /** SetActiveGraph */
-        SetActiveGraph: {
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /**
-             * Graph Id
-             * Format: uuid
-             */
-            graph_id: string;
-        };
-        /** SlotRead */
-        SlotRead: {
-            /**
-             * Id
-             * @default
-             */
-            id: string;
-            /**
-             * Raw String
-             * @default
-             */
-            raw_string: string;
-            /** Expression */
-            expression?: string | null;
-            /** Target Var Key */
-            target_var_key?: string | null;
-        };
-        /** StartNode */
-        StartNode: {
-            /** Id */
-            id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            node_type: "START";
-        };
-        /** UserCreate */
-        UserCreate: {
-            /** User Name */
-            user_name: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
+  schemas: {
+    /** ActiveGraphResponse */
+    ActiveGraphResponse: {
+      /** Graph Id */
+      graph_id: string | null;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AgenticAssignerNode */
+    AgenticAssignerNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "AGENTIC_ASSIGNER";
+      /**
+       * Prompt
+       * @default
+       */
+      prompt: string;
+      /** Agentic Inputs */
+      agentic_inputs?: string[];
+      /** Agentic Outputs */
+      agentic_outputs?: string[];
+    };
+    /** AgenticSlotRead */
+    AgenticSlotRead: {
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+      /**
+       * Raw String
+       * @default
+       */
+      raw_string: string;
+    };
+    /** AgenticSwitchNode */
+    AgenticSwitchNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "AGENTIC_SWITCH";
+      /** Slots */
+      slots?: components["schemas"]["AgenticSlotRead"][];
+      /**
+       * Agentic Input
+       * @default
+       */
+      agentic_input: string;
+    };
+    /** CopilotDecisionRequest */
+    CopilotDecisionRequest: {
+      /** Approved */
+      approved: boolean;
+    };
+    /** CopilotFeedbackRequest */
+    CopilotFeedbackRequest: {
+      /** Score */
+      score: number;
+      /** Comment */
+      comment?: string | null;
+    };
+    /** CopilotInitiateRequest */
+    CopilotInitiateRequest: {
+      /** Prompt */
+      prompt: string;
+    };
+    /** CopilotStatusResponse */
+    CopilotStatusResponse: {
+      /** Graph Id */
+      graph_id: string;
+      /** Status */
+      status: string;
+      /** Plan */
+      plan?: {
+        [key: string]: unknown;
+      }[] | null;
+      /** Operations */
+      operations?: {
+        [key: string]: unknown;
+      }[] | null;
+      /** Validation Error */
+      validation_error?: string | null;
+      /** Applied */
+      applied: boolean;
+      flow_data?: components["schemas"]["GraphFlowRead"] | null;
+    };
+    /** DefinerVariableSchema */
+    DefinerVariableSchema: {
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+      /** Key */
+      key: string;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: "boolean" | "string" | "number" | "float";
+      /** Default Value */
+      default_value?: unknown;
+      /** Description */
+      description?: string | null;
+    };
+    /** EdgeRead */
+    EdgeRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id?: string;
+      /** Source */
+      source: string;
+      /** Source Handle */
+      source_handle?: string | null;
+      /** Target */
+      target: string;
+      /** Target Handle */
+      target_handle?: string | null;
+    };
+    /** EndNode */
+    EndNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "END";
+    };
+    /** GraphCodeRead */
+    GraphCodeRead: {
+      /** Code */
+      code: string;
+    };
+    /** GraphCreate */
+    GraphCreate: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** Graph Name */
+      graph_name: string;
+    };
+    /** GraphFlowRead */
+    GraphFlowRead: {
+      /** Nodes */
+      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"])[];
+      /** Edges */
+      edges: components["schemas"]["EdgeRead"][];
+      /** State */
+      state?: components["schemas"]["DefinerVariableSchema"][];
+      /** Versions */
+      versions?: components["schemas"]["GraphVersionRead"][];
+      /**
+       * Current Version
+       * @default 0
+       */
+      current_version: number;
+    };
+    /** GraphRead */
+    GraphRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+    };
+    /** GraphVersionRead */
+    GraphVersionRead: {
+      /** Sequence Number */
+      sequence_number: number;
+      /** Name */
+      name: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /** InterruptNode */
+    InterruptNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "INTERRUPT";
+      /** Payload Vars */
+      payload_vars?: string[];
+      /**
+       * Resume Var
+       * @default
+       */
+      resume_var: string;
+    };
+    /** LogicalAssignerNode */
+    LogicalAssignerNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "LOGICAL_ASSIGNER";
+      /** Assignments */
+      assignments?: components["schemas"]["LogicalAssignmentSchema"][];
+    };
+    /** LogicalAssignmentSchema */
+    LogicalAssignmentSchema: {
+      /** Id */
+      id?: string;
+      /** Target Var Key */
+      target_var_key: string;
+      /** Expression */
+      expression?: string | null;
+    };
+    /** LogicalSwitchNode */
+    LogicalSwitchNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "LOGICAL_SWITCH";
+      /** Slots */
+      slots?: components["schemas"]["SlotRead"][];
+    };
+    /** SetActiveGraph */
+    SetActiveGraph: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /**
+       * Graph Id
+       * Format: uuid
+       */
+      graph_id: string;
+    };
+    /** SlotRead */
+    SlotRead: {
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+      /**
+       * Raw String
+       * @default
+       */
+      raw_string: string;
+      /** Expression */
+      expression?: string | null;
+      /** Target Var Key */
+      target_var_key?: string | null;
+    };
+    /** StartNode */
+    StartNode: {
+      /** Id */
+      id: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "START";
+    };
+    /** UserCreate */
+    UserCreate: {
+      /** User Name */
+      user_name: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
+
 export type $defs = Record<string, never>;
+
 export interface operations {
-    get_or_create_user_users_get_or_create_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  get_or_create_user_users_get_or_create_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
     };
-    create_user_users__post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserCreate"];
-            };
+        content: {
+          "application/json": string;
         };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    get_active_graph_id_users__user_id__active_graph_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActiveGraphResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  create_user_users__post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
     };
-    set_active_graph_users_set_active_graph_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetActiveGraph"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserCreate"];
+      };
     };
-    create_graph_graphs__post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GraphCreate"];
-            };
+        content: {
+          "application/json": string;
         };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    list_graphs_graphs_user__user_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GraphRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  get_active_graph_id_users__user_id__active_graph_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
     };
-    get_graph_flow_graphs__graph_id__flow_get: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GraphFlowRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ActiveGraphResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    get_graph_code_endpoint_graphs__graph_id__code_get: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GraphCodeRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  set_active_graph_users_set_active_graph_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
     };
-    run_graph_graphs__graph_id__run_post: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetActiveGraph"];
+      };
     };
-    initiate_copilot_endpoint_copilot__graph_id__initiate_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CopilotInitiateRequest"];
-            };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotStatusResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    approve_plan_endpoint_copilot__graph_id__approve_plan_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CopilotDecisionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotStatusResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  create_graph_graphs__post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
     };
-    apply_copilot_patch_endpoint_copilot__graph_id__apply_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-client-id"?: string | null;
-            };
-            path: {
-                graph_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CopilotDecisionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotStatusResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GraphCreate"];
+      };
     };
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
+        content: {
+          "application/json": string;
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
+  };
+  list_graphs_graphs_user__user_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphRead"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_graph_flow_graphs__graph_id__flow_get: {
+    parameters: {
+      query?: {
+        version?: number | null;
+      };
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphFlowRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_graph_code_endpoint_graphs__graph_id__code_get: {
+    parameters: {
+      query?: {
+        version?: number | null;
+      };
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GraphCodeRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_graph_graphs__graph_id__run_post: {
+    parameters: {
+      query?: {
+        version?: number | null;
+      };
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  initiate_copilot_endpoint_copilot__graph_id__initiate_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CopilotInitiateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CopilotStatusResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_plan_endpoint_copilot__graph_id__approve_plan_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CopilotDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CopilotStatusResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  apply_copilot_patch_endpoint_copilot__graph_id__apply_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-client-id"?: string | null;
+      };
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CopilotDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CopilotStatusResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  copilot_feedback_endpoint_copilot__graph_id__feedback_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        graph_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CopilotFeedbackRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  health_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
 }
