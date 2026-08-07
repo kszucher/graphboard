@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from app.exceptions import ValidationError
-from app.graphs.schemas import (
+from app.graphs.nodes import (
     AgenticAssignerNode,
     AgenticSwitchNode,
-    GraphFlowData,
     InterruptNode,
     LogicalSwitchNode,
     StartNode,
+)
+from app.graphs.schemas import (
+    GraphFlowData,
 )
 
 
@@ -86,10 +88,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
             if not node_item.prompt or not node_item.prompt.strip():
                 raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
             if not node_item.agentic_outputs:
-                raise ValidationError(
-                    f"Agentic Assigner node '{node_item.id}' must have at least one output variable."
-                )
+                raise ValidationError(f"Agentic Assigner node '{node_item.id}' must have at least one output variable.")
         elif isinstance(node_item, InterruptNode):
             if not node_item.resume_var:
                 raise ValidationError(f"Interrupt node '{node_item.id}' must have a valid resume_var.")
-

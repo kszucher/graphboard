@@ -1,15 +1,17 @@
 import ast
 
 from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
-from app.graphs.schemas import (
+from app.graphs.nodes import (
     AgenticAssignerNode,
-    DefinerVariableSchema,
-    EdgeRead,
-    GraphFlowData,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     SlotRead,
+)
+from app.graphs.schemas import (
+    DefinerVariableSchema,
+    EdgeRead,
+    GraphFlowData,
 )
 
 

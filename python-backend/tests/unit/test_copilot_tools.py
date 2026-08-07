@@ -4,15 +4,17 @@ from app.copilot.tools import (
     sort_operations_by_dependency,
     translate_tool_call_to_operations,
 )
+from app.graphs.nodes import (
+    LogicalAssignerNode,
+    LogicalAssignmentSchema,
+    LogicalSwitchNode,
+    SlotRead,
+)
 from app.graphs.schemas import (
     ConnectOp,
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    LogicalAssignerNode,
-    LogicalAssignmentSchema,
-    LogicalSwitchNode,
-    SlotRead,
     UpsertNodeOp,
     UpsertStateVarOp,
 )

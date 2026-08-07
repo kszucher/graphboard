@@ -8,31 +8,33 @@ from typing import Any
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs.expressions import get_expression_variables
-from app.graphs.schemas import (
-    AgenticAssignerConfig,
+from app.graphs.nodes import (
     AgenticAssignerNode,
     AgenticSlotRead,
-    AgenticSwitchConfig,
     AgenticSwitchNode,
+    EndNode,
+    InterruptNode,
+    LogicalAssignerNode,
+    LogicalAssignmentSchema,
+    LogicalSwitchNode,
+    NodeRead,
+    SlotRead,
+    StartNode,
+)
+from app.graphs.schemas import (
+    AgenticAssignerConfig,
+    AgenticSwitchConfig,
     ConnectOp,
     DefinerVariableSchema,
     DeleteNodeOp,
     DeleteStateVarOp,
     DisconnectOp,
     EdgeRead,
-    EndNode,
     GraphFlowData,
     GraphOperation,
     InterruptConfig,
-    InterruptNode,
     LogicalAssignerConfig,
-    LogicalAssignerNode,
-    LogicalAssignmentSchema,
     LogicalSwitchConfig,
-    LogicalSwitchNode,
-    NodeRead,
-    SlotRead,
-    StartNode,
     UpsertNodeOp,
     UpsertStateVarOp,
 )

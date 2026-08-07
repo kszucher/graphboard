@@ -7,20 +7,16 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
+from app.graphs.schemas import GraphCreate
 from app.repository import BaseRepository
-
-
-class GraphCreate(BaseModel):
-    user_id: uuid.UUID
-    name: str
 
 
 class GraphRepository(BaseRepository[models.Graph, GraphCreate, GraphCreate]):
     def __init__(self, session: AsyncSession):
         super().__init__(models.Graph, session)
 
-    async def create(self, user_id: uuid.UUID, name: str) -> models.Graph:  # type: ignore[override]
-        graph = models.Graph(user_id=user_id, name=name)
+    async def create(self, user_id: uuid.UUID, graph_name: str) -> models.Graph:  # type: ignore[override]
+        graph = models.Graph(user_id=user_id, name=graph_name)
         self.session.add(graph)
         await self.session.flush()
         return graph

@@ -3,15 +3,17 @@ import pytest
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import mutations
+from app.graphs.nodes import (
+    LogicalAssignerNode,
+    LogicalSwitchNode,
+    StartNode,
+)
 from app.graphs.schemas import (
     ConnectOp,
     DefinerVariableSchema,
     DeleteStateVarOp,
     DisconnectOp,
     GraphFlowData,
-    LogicalAssignerNode,
-    LogicalSwitchNode,
-    StartNode,
     UpsertNodeOp,
     UpsertStateVarOp,
 )

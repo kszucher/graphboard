@@ -22,7 +22,7 @@ async def create_graph(
     user_id: uuid.UUID,
     graph_name: str,
 ) -> uuid.UUID:
-    graph = await uow.graphs.create(user_id=user_id, name=graph_name)
+    graph = await uow.graphs.create(user_id=user_id, graph_name=graph_name)
 
     from app.graphs.defaults import build_default_trivia_graph_flow_data
 
@@ -49,8 +49,6 @@ async def list_graphs_by_user(uow: UnitOfWork, user_id: uuid.UUID) -> list:
 async def get_compiled_code(uow: UnitOfWork, graph_id: uuid.UUID, version: int | None = None) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"Graph {graph_id} not found")
 
     if version is not None:
@@ -59,8 +57,6 @@ async def get_compiled_code(uow: UnitOfWork, graph_id: uuid.UUID, version: int |
         snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
 
     if not snapshot:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(snapshot.flow_json or {})
@@ -111,8 +107,6 @@ async def reset_graph_history(uow: UnitOfWork, graph_id: uuid.UUID) -> None:
 async def get_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | None = None) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"Graph {graph_id} not found")
 
     if version is not None:
@@ -161,8 +155,6 @@ async def apply_patch(
 ) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"Graph {graph_id} not found")
 
     from app.graphs import mutations
@@ -170,8 +162,6 @@ async def apply_patch(
     # Mutations are always applied to the latest version
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
     if not latest_snapshot:
-        from app.exceptions import ValidationError
-
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
