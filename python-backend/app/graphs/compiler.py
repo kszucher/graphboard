@@ -10,7 +10,6 @@ from __future__ import annotations
 import ast
 import asyncio
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 from app.graphs.expressions import expression_to_code
@@ -35,17 +34,8 @@ except ImportError:
     black = None  # type: ignore[assignment]
 
 
-_execution_executor: ProcessPoolExecutor | None = None
-
 TYPE_MAP = {"number": "int", "float": "float", "boolean": "bool", "string": "str"}
 DEFAULT_VALUES: dict[str, Any] = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
-
-
-def get_executor() -> ProcessPoolExecutor:
-    global _execution_executor
-    if _execution_executor is None:
-        _execution_executor = ProcessPoolExecutor(max_workers=4, mp_context=multiprocessing.get_context("spawn"))
-    return _execution_executor
 
 
 class DirectLangGraphCompiler:
@@ -374,14 +364,40 @@ def _worker_execute_langgraph(code: str) -> dict[str, Any]:
         return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
 
 
+def _process_target(code: str, queue: multiprocessing.Queue[Any]) -> None:
+    result = _worker_execute_langgraph(code)
+    queue.put(result)
+
+
 async def compile_flow_with_langgraph(flow_data: GraphFlowData) -> dict[str, Any]:
     try:
         code = await generate_graph_code(flow_data)
-        return await asyncio.wait_for(
-            asyncio.get_running_loop().run_in_executor(get_executor(), _worker_execute_langgraph, code),
-            timeout=5.0,
-        )
-    except TimeoutError:
-        return {"variables": [], "error": "LangGraph execution timed out (possible infinite loop in visual graph)"}
+
+        # Run compilation execution in a separate Process to allow explicit termination on timeout
+        ctx = multiprocessing.get_context("spawn")
+        queue: multiprocessing.Queue[Any] = ctx.Queue()
+        process = ctx.Process(target=_process_target, args=(code, queue))
+        process.start()
+
+        loop = asyncio.get_running_loop()
+
+        # Run process.join asynchronously inside an executor thread
+        def join_with_timeout() -> None:
+            process.join(timeout=5.0)
+
+        await loop.run_in_executor(None, join_with_timeout)
+
+        if process.is_alive():
+            # Terminate immediately to free up CPU cores
+            process.terminate()
+            process.join()  # Clean up process resources
+            return {"variables": [], "error": "LangGraph execution timed out (possible infinite loop in visual graph)"}
+
+        if not queue.empty():
+            res = queue.get()
+            if isinstance(res, dict):
+                return res
+        return {"variables": [], "error": "LangGraph run did not return any result"}
+
     except Exception as e:
         return {"variables": [], "error": f"LangGraph runtime failed: {str(e)}"}
