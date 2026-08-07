@@ -52,6 +52,7 @@ export const useApplyCopilotPatch = (graphId: string) => {
     onSuccess: (data) => {
       if (data.applied) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.graphs.flow(graphId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.graphs.code(graphId) });
       }
     },
   });
