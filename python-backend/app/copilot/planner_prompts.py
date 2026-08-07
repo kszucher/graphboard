@@ -30,10 +30,12 @@ Before planning, analyze the graph state using these ontology definitions:
 ## CRITICAL RULES
 * You MUST output your plan by calling the `submit_plan` tool. Do NOT respond with plain text.
 * You MUST provide a detailed `graph_analysis` explaining the topology, where decision branches split, and where the new logic integrates.
+* **Strict Node ID Referencing**: Always identify and use the exact node IDs and variable keys from the serialized graph state. Do NOT guess or use generic terms (e.g. use `node_id='choose_lifeline'` instead of just "the switch node").
 * In the `steps` array, the `action` field of each step MUST strictly be one of:
   {", ".join(f'"{a.value}"' for a in PlannerAction)}
 * Do NOT use actions like "add_agentic_assigner" or "add_agentic_switch". For adding any node, use "{PlannerAction.ADD_NODE.value}", and describe its specific type (e.g., agentic_assigner) in the `description` or `details`.
-* For switch nodes (conditional routing), use "{PlannerAction.ADD_ROUTING_BRANCH.value}" or "{PlannerAction.DELETE_ROUTING_BRANCH.value}" to manage their options.
-* For assigner nodes, use "{PlannerAction.ADD_VARIABLE_ASSIGNMENT.value}" or "{PlannerAction.DELETE_VARIABLE_ASSIGNMENT.value}" to manage assignment expressions.
-* For updating prompts, input/output variable selections, or interrupt parameters, use "{PlannerAction.CONFIGURE_NODE.value}".
+* For switch nodes (conditional routing), use "{PlannerAction.ADD_ROUTING_BRANCH.value}" or "{PlannerAction.DELETE_ROUTING_BRANCH.value}" to manage their options. Always specify `node_id='...'` and `case='...'` in the `details` field.
+* For assigner nodes, use "{PlannerAction.ADD_VARIABLE_ASSIGNMENT.value}" or "{PlannerAction.DELETE_VARIABLE_ASSIGNMENT.value}" to manage assignment expressions. Always specify `node_id='...'` and `target_var_key='...'` in the `details` field.
+* For connections, use "{PlannerAction.CONNECT_NODES.value}". Always specify `source='...'`, `target='...'`, and `case='...'` (if routing out of a switch node) in the `details` field.
+* For updating prompts, input/output variable selections, or interrupt parameters, use "{PlannerAction.CONFIGURE_NODE.value}". Always specify `node_id='...'` in the `details` field.
 """
