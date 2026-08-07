@@ -69,7 +69,7 @@ async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | No
     if not graph:
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.graphs.compiler import compile_flow_with_langgraph
+    from app.graphs.executor import compile_flow_with_langgraph
 
     if version is not None:
         snapshot = await uow.graph_history.get_by_sequence(graph_id, version)
