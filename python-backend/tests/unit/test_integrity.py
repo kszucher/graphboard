@@ -139,10 +139,10 @@ def test_assert_flow_is_complete_agentic_assigner(base_flow: GraphFlowData) -> N
 
     original_inputs = agentic_node.agentic_inputs
     agentic_node.agentic_inputs = ["non_existent"]
-    with pytest.raises(ValidationError, match="Invalid input reference"):
+    with pytest.raises(ValidationError, match="Invalid variable reference"):
         assert_flow_is_complete(base_flow)
     agentic_node.agentic_inputs = original_inputs
 
     agentic_node.agentic_outputs = ["non_existent"]
-    with pytest.raises(ValidationError, match="Invalid output target"):
+    with pytest.raises(ValidationError, match="Invalid variable reference"):
         assert_flow_is_complete(base_flow)

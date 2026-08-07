@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from app.exceptions import ValidationError
-from app.graphs.expressions import get_expression_variables
 from app.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
     GraphFlowData,
     InterruptNode,
-    LogicalAssignerNode,
     LogicalSwitchNode,
     StartNode,
 )
@@ -76,51 +74,22 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
 
     for node_item in user_nodes:
-        if isinstance(node_item, LogicalAssignerNode):
-            for asgn in node_item.assignments:
-                if asgn.target_var_key and asgn.target_var_key not in valid_keys:
-                    raise ValidationError(
-                        f"Invalid assignment target: variable '{asgn.target_var_key}' is missing or deleted."
-                    )
-                if asgn.expression:
-                    invalid_refs = get_expression_variables(asgn.expression) - valid_keys
-                    if invalid_refs:
-                        raise ValidationError(
-                            f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
-                        )
-        elif isinstance(node_item, LogicalSwitchNode):
-            for slot in node_item.slots:
-                if slot.expression:
-                    invalid_refs = get_expression_variables(slot.expression) - valid_keys
-                    if invalid_refs:
-                        raise ValidationError(
-                            f"Invalid state reference: variable '{next(iter(invalid_refs))}' is missing or deleted."
-                        )
-        elif isinstance(node_item, (AgenticAssignerNode, AgenticSwitchNode)):
-            if isinstance(node_item, AgenticAssignerNode):
-                if not node_item.prompt or not node_item.prompt.strip():
-                    raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
-                if not node_item.agentic_outputs:
-                    raise ValidationError(
-                        f"Agentic Assigner node '{node_item.id}' must have at least one output variable."
-                    )
-                if node_item.agentic_inputs:
-                    for k in node_item.agentic_inputs:
-                        if k not in valid_keys:
-                            raise ValidationError(f"Invalid input reference: variable '{k}' is missing or deleted.")
-                if node_item.agentic_outputs:
-                    for k in node_item.agentic_outputs:
-                        if k not in valid_keys:
-                            raise ValidationError(f"Invalid output target: variable '{k}' is missing or deleted.")
-            elif isinstance(node_item, AgenticSwitchNode):
-                if node_item.agentic_input:
-                    if node_item.agentic_input not in valid_keys:
-                        raise ValidationError(
-                            f"Invalid input reference: variable '{node_item.agentic_input}' is missing or deleted."
-                        )
+        # Generic polymorphic check for missing state variables
+        invalid_refs = node_item.get_variable_references() - valid_keys
+        if invalid_refs:
+            raise ValidationError(
+                f"Invalid variable reference on node '{node_item.id}': variable(s) {', '.join(sorted(invalid_refs))} missing or deleted."
+            )
+
+        # Specific structural checks
+        if isinstance(node_item, AgenticAssignerNode):
+            if not node_item.prompt or not node_item.prompt.strip():
+                raise ValidationError(f"Node '{node_item.id}' has an empty prompt.")
+            if not node_item.agentic_outputs:
+                raise ValidationError(
+                    f"Agentic Assigner node '{node_item.id}' must have at least one output variable."
+                )
         elif isinstance(node_item, InterruptNode):
-            if not node_item.resume_var or node_item.resume_var not in valid_keys:
+            if not node_item.resume_var:
                 raise ValidationError(f"Interrupt node '{node_item.id}' must have a valid resume_var.")
-            for k in node_item.payload_vars:
-                if k not in valid_keys:
-                    raise ValidationError(f"Interrupt node '{node_item.id}' payload variable '{k}' is missing.")
+
