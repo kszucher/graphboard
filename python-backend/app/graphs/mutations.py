@@ -441,3 +441,23 @@ def _delete_state_var(flow_data: GraphFlowData, op: DeleteStateVarOp) -> GraphFl
 
     flow_data.state = [v for v in flow_data.state if v.key != var_key]
     return flow_data
+
+
+def sort_operations_by_dependency(ops: Sequence[GraphOperation]) -> list[GraphOperation]:
+    """Sorts operations: State declarations -> Node additions/deletes -> Connections/disconnects."""
+    state_ops = []
+    node_ops = []
+    connect_ops = []
+    delete_ops = []  # Run deletes first to avoid constraints
+
+    for op in ops:
+        if op.op in ("delete_node", "delete_state_var", "disconnect"):
+            delete_ops.append(op)
+        elif op.op == "upsert_state_var":
+            state_ops.append(op)
+        elif op.op == "upsert_node":
+            node_ops.append(op)
+        elif op.op == "connect":
+            connect_ops.append(op)
+
+    return delete_ops + state_ops + node_ops + connect_ops

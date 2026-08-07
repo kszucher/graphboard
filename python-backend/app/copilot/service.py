@@ -7,15 +7,11 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from app.context import UnitOfWork
-from app.copilot.tools import (
-    serialize_flow_to_code,
-    sort_operations_by_dependency,
-    translate_tool_call_to_operations,
-)
+from app.copilot.tools import translate_tool_call_to_operations
 from app.copilot.workflow import copilot_graph
 from app.exceptions import ValidationError
-from app.graphs import mutations
 from app.graphs.schemas import GraphFlowData
+from app.graphs.serializer import serialize_flow_to_code
 
 logger = logging.getLogger(__name__)
 
@@ -110,25 +106,12 @@ async def apply_copilot_patch(
 
     # If the user approved applying and validation passed, commit the mutations
     if approved and state_values.get("applied") and not state_values.get("validation_error"):
-        latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
-        if not latest_snapshot:
-            raise ValidationError(f"No version found for Graph {graph_id}")
+        import uuid
 
-        flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
+        from app.graphs import service as graphs_service
 
         ops = translate_tool_call_to_operations({"operations": state_values.get("operations") or []})
-        sorted_ops = sort_operations_by_dependency(ops)
-
-        mutated = mutations.apply_patch(flow_data, sorted_ops)
-
-        next_seq = latest_snapshot.sequence_number + 1
-        updated_flow_dict = mutated.model_dump(mode="json")
-        await uow.graph_history.save_snapshot(graph_id, updated_flow_dict, next_seq)
-        await uow.session.flush()
-
-        from app.graphs.service import _prepare_response_flow
-
-        flow_response = await _prepare_response_flow(uow, graph_id, mutated, next_seq)
+        flow_response = await graphs_service.apply_patch(uow, uuid.UUID(str(graph_id)), ops)
 
         response = format_copilot_response(state_values)
         response["flow_data"] = flow_response

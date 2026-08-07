@@ -158,6 +158,7 @@ async def apply_patch(
         raise ValidationError(f"Graph {graph_id} not found")
 
     from app.graphs import mutations
+    from app.graphs.mutations import sort_operations_by_dependency
 
     # Mutations are always applied to the latest version
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
@@ -165,7 +166,8 @@ async def apply_patch(
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
-    mutated = mutations.apply_patch(flow_data, patch)
+    sorted_patch = sort_operations_by_dependency(patch)
+    mutated = mutations.apply_patch(flow_data, sorted_patch)
 
     # Save as next version
     next_seq = latest_snapshot.sequence_number + 1

@@ -1,9 +1,6 @@
 from app.constants import NodeType
-from app.copilot.tools import (
-    serialize_flow_to_code,
-    sort_operations_by_dependency,
-    translate_tool_call_to_operations,
-)
+from app.copilot.tools import translate_tool_call_to_operations
+from app.graphs.mutations import sort_operations_by_dependency
 from app.graphs.nodes import (
     LogicalAssignerNode,
     LogicalAssignmentSchema,
@@ -18,6 +15,7 @@ from app.graphs.schemas import (
     UpsertNodeOp,
     UpsertStateVarOp,
 )
+from app.graphs.serializer import serialize_flow_to_code
 
 
 def test_serialize_flow_to_code() -> None:

@@ -14,11 +14,11 @@ from langgraph.types import interrupt
 from app.copilot.tools import (
     PATCH_GRAPH_TOOL,
     SUBMIT_PLAN_TOOL,
-    sort_operations_by_dependency,
     translate_tool_call_to_operations,
 )
 from app.exceptions import ValidationError
 from app.graphs import mutations
+from app.graphs.mutations import sort_operations_by_dependency
 from app.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)
