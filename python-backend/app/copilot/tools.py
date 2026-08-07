@@ -152,25 +152,6 @@ PATCH_GRAPH_TOOL = {
 }
 
 
-def format_expression_as_string(node: Any) -> str:
-    """Converts a visual AST Expression back into a clean python expression string."""
-    if not node:
-        return ""
-    kind = getattr(node, "kind", None)
-    if kind == "literal":
-        return repr(getattr(node, "value", None))
-    if kind == "stateRef":
-        return getattr(node, "varKey", "")
-    if kind == "binaryOp":
-        left = format_expression_as_string(getattr(node, "left", None))
-        right = format_expression_as_string(getattr(node, "right", None))
-        return f"({left} {getattr(node, 'op', '')} {right})"
-    if kind == "unaryOp":
-        expr = format_expression_as_string(getattr(node, "expr", None))
-        return f"({getattr(node, 'op', '')} {expr})"
-    return ""
-
-
 def serialize_flow_to_code(flow: GraphFlowData) -> str:
     """Serializes GraphFlowData into a human-readable mock Python representation for LLMs."""
     lines = []
@@ -193,8 +174,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
         elif node.node_type == NodeType.LOGICAL_ASSIGNER:
             assignments = []
             for a in getattr(node, "assignments", []):
-                expr_str = format_expression_as_string(a.expression)
-                assignments.append({"target_var_key": a.target_var_key, "expression": expr_str})
+                assignments.append({"target_var_key": a.target_var_key, "expression": a.expression or ""})
             lines.append(f"add_assigner(node_id={repr(node.id)}, assignments={assignments})")
         elif node.node_type == NodeType.AGENTIC_ASSIGNER:
             lines.append(
@@ -204,8 +184,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
         elif node.node_type == NodeType.LOGICAL_SWITCH:
             slots = []
             for s in getattr(node, "slots", []):
-                expr_str = format_expression_as_string(s.expression)
-                slots.append({"raw_string": s.raw_string, "expression": expr_str})
+                slots.append({"raw_string": s.raw_string, "expression": s.expression or ""})
             lines.append(f"add_switch(node_id={repr(node.id)}, slots={slots})")
         elif node.node_type == NodeType.AGENTIC_SWITCH:
             slots = [{"raw_string": s.raw_string} for s in getattr(node, "slots", [])]
