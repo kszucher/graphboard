@@ -97,7 +97,7 @@ class DirectLangGraphCompiler:
             pairs = []
             for i in valid_items:
                 expr = getattr(i, "expression", None)
-                val_code = expression_to_code(expr)
+                val_code = expression_to_code(expr, self.valid_keys)
                 pairs.append(f"{repr(i.target_var_key)}: {val_code}")
             return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
@@ -149,14 +149,10 @@ class DirectLangGraphCompiler:
             for idx, slot in enumerate(node.slots):
                 raw = slot.raw_string or f"Slot {idx + 1}"
                 expr = slot.expression
-                if (
-                    idx == len(node.slots) - 1
-                    and getattr(expr, "kind", None) == "literal"
-                    and getattr(expr, "value", None) is True
-                ):
+                if idx == len(node.slots) - 1 and expr == "True":
                     if_branches.append(f"    else:\n        return {repr(raw)}")
                 else:
-                    cond_code = expression_to_code(expr, fallback="False")
+                    cond_code = expression_to_code(expr, self.valid_keys, fallback="False")
                     keyword = "if" if idx == 0 else "elif"
                     if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
 

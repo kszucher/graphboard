@@ -4,19 +4,16 @@ from app.exceptions import ValidationError
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.schemas import (
     AgenticAssignerNode,
-    BinaryOpExpression,
     DefinerVariableSchema,
     EdgeRead,
     EndNode,
     GraphFlowData,
-    LiteralExpression,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     NodeRead,
     SlotRead,
     StartNode,
-    StateRefExpression,
 )
 
 
@@ -30,17 +27,12 @@ def base_flow() -> GraphFlowData:
                 SlotRead(
                     id="switch_1_option_a",
                     raw_string="option_a",
-                    expression=BinaryOpExpression(
-                        kind="binaryOp",
-                        op="==",
-                        left=StateRefExpression(kind="stateRef", varKey="x"),
-                        right=LiteralExpression(kind="literal", value=10),
-                    ),
+                    expression="x == 10",
                 ),
                 SlotRead(
                     id="switch_1_option_b",
                     raw_string="option_b",
-                    expression=LiteralExpression(kind="literal", value=True),
+                    expression="True",
                 ),
             ],
         ),
@@ -50,12 +42,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    expression=BinaryOpExpression(
-                        kind="binaryOp",
-                        op="+",
-                        left=StateRefExpression(kind="stateRef", varKey="x"),
-                        right=LiteralExpression(kind="literal", value=1),
-                    ),
+                    expression="x + 1",
                 )
             ],
         ),
@@ -65,7 +52,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_y",
                     target_var_key="y",
-                    expression=LiteralExpression(kind="literal", value=True),
+                    expression="True",
                 )
             ],
         ),

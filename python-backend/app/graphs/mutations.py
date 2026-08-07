@@ -8,7 +8,6 @@ from typing import Any
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs.expressions import get_expression_variables
-from app.graphs.node_helpers import get_node_variable_references, rename_node_variable_references
 from app.graphs.schemas import (
     AgenticAssignerConfig,
     AgenticAssignerNode,
@@ -422,7 +421,7 @@ def _upsert_state_var(flow_data: GraphFlowData, op: UpsertStateVarOp) -> GraphFl
 
         if key != old_key:
             for node in flow_data.nodes:
-                rename_node_variable_references(node, old_key, key)
+                node.rename_variable_references(old_key, key)
 
     return flow_data
 
@@ -435,7 +434,7 @@ def _delete_state_var(flow_data: GraphFlowData, op: DeleteStateVarOp) -> GraphFl
 
     # Check dependencies to block delete
     for node in flow_data.nodes:
-        if var_key in get_node_variable_references(node):
+        if var_key in node.get_variable_references():
             raise ValidationError(f"Cannot delete variable '{var_key}' because it is referenced in node '{node.id}'.")
 
     flow_data.state = [v for v in flow_data.state if v.key != var_key]

@@ -4,7 +4,6 @@ from app.copilot.tools import (
     sort_operations_by_dependency,
     translate_tool_call_to_operations,
 )
-from app.graphs.expressions import LiteralExpression
 from app.graphs.schemas import (
     ConnectOp,
     DefinerVariableSchema,
@@ -29,7 +28,7 @@ def test_serialize_flow_to_code() -> None:
                     LogicalAssignmentSchema(
                         id="a1",
                         target_var_key="score",
-                        expression=LiteralExpression(kind="literal", value=10),
+                        expression="10",
                     )
                 ],
             ),
@@ -39,7 +38,7 @@ def test_serialize_flow_to_code() -> None:
                     SlotRead(
                         id="check_yes",
                         raw_string="Yes",
-                        expression=LiteralExpression(kind="literal", value=True),
+                        expression="True",
                     )
                 ],
             ),

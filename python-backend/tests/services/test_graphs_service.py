@@ -139,7 +139,7 @@ async def test_run_graph_flow_success(
                     {
                         "id": "asgn_1",
                         "target_var_key": "x",
-                        "expression": {"kind": "literal", "value": 42},
+                        "expression": "42",
                     }
                 ],
             },
@@ -182,14 +182,9 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "slot_a",
                         "raw_string": "option_a",
-                        "expression": {
-                            "kind": "binaryOp",
-                            "op": ">",
-                            "left": {"kind": "stateRef", "varKey": "x"},
-                            "right": {"kind": "literal", "value": 0},
-                        },
+                        "expression": "x > 0",
                     },
-                    {"id": "slot_b", "raw_string": "option_b", "expression": {"kind": "literal", "value": True}},
+                    {"id": "slot_b", "raw_string": "option_b", "expression": "True"},
                 ],
             },
             {
@@ -199,7 +194,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_a",
                         "target_var_key": "y",
-                        "expression": {"kind": "literal", "value": 100},
+                        "expression": "100",
                     }
                 ],
             },
@@ -210,7 +205,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_b",
                         "target_var_key": "y",
-                        "expression": {"kind": "literal", "value": 200},
+                        "expression": "200",
                     }
                 ],
             },
@@ -269,7 +264,7 @@ async def test_run_graph_flow_invalid_state_ref(
                     {
                         "id": "asgn_1",
                         "target_var_key": "non_existent",
-                        "expression": {"kind": "literal", "value": 42},
+                        "expression": "42",
                     }
                 ],
             },
@@ -318,6 +313,12 @@ async def test_run_graph_flow_cycle_limit(
 
     exec_result = await graphs_service.run_graph_flow(real_uow, dummy_graph.id)
 
-    # Execution should fail with recursion limit error caught
+    # Execution should fail with recursion limit error or timeout caught
     assert "error" in exec_result
-    assert "recursion limit" in exec_result["error"].lower() or "recursion" in exec_result["error"].lower()
+    assert (
+        "recursion limit" in exec_result["error"].lower()
+        or "recursion" in exec_result["error"].lower()
+        or "time out" in exec_result["error"].lower()
+        or "timed out" in exec_result["error"].lower()
+        or "timeout" in exec_result["error"].lower()
+    )

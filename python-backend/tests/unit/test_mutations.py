@@ -4,7 +4,6 @@ from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import mutations
 from app.graphs.schemas import (
-    BinaryOpExpression,
     ConnectOp,
     DefinerVariableSchema,
     DeleteStateVarOp,
@@ -13,7 +12,6 @@ from app.graphs.schemas import (
     LogicalAssignerNode,
     LogicalSwitchNode,
     StartNode,
-    StateRefExpression,
     UpsertNodeOp,
     UpsertStateVarOp,
 )
@@ -52,16 +50,11 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
                 "slots": [
                     {
                         "raw_string": "option_a",
-                        "expression": {
-                            "kind": "binaryOp",
-                            "op": "==",
-                            "left": {"kind": "stateRef", "varKey": "x"},
-                            "right": {"kind": "literal", "value": 10},
-                        },
+                        "expression": "x == 10",
                     },
                     {
                         "raw_string": "option_b",
-                        "expression": {"kind": "literal", "value": True},
+                        "expression": "True",
                     },
                 ]
             },
@@ -74,8 +67,7 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
     assert len(node.slots) == 2
     assert node.slots[0].raw_string == "option_a"
     expr = node.slots[0].expression
-    assert isinstance(expr, BinaryOpExpression)
-    assert expr.op == "=="
+    assert expr == "x == 10"
 
 
 def test_apply_patch_connect_disconnect() -> None:
@@ -121,12 +113,7 @@ def test_apply_patch_state_var_cascade() -> None:
                     "assignments": [
                         {
                             "target_var_key": "old_key",
-                            "expression": {
-                                "kind": "binaryOp",
-                                "op": "+",
-                                "left": {"kind": "stateRef", "varKey": "old_key"},
-                                "right": {"kind": "literal", "value": " world"},
-                            },
+                            "expression": "old_key + ' world'",
                         }
                     ]
                 },
@@ -148,10 +135,7 @@ def test_apply_patch_state_var_cascade() -> None:
     assert isinstance(assigner, LogicalAssignerNode)
     assert assigner.assignments[0].target_var_key == "new_key"
     expr = assigner.assignments[0].expression
-    assert isinstance(expr, BinaryOpExpression)
-    left_expr = expr.left
-    assert isinstance(left_expr, StateRefExpression)
-    assert left_expr.varKey == "new_key"
+    assert expr == "new_key + ' world'"
 
 
 def test_apply_patch_delete_var_blocked_if_referenced() -> None:
@@ -174,7 +158,7 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
                     "assignments": [
                         {
                             "target_var_key": "x",
-                            "expression": {"kind": "literal", "value": 15},
+                            "expression": "15",
                         }
                     ]
                 },

@@ -3,16 +3,13 @@ import ast
 from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
 from app.graphs.schemas import (
     AgenticAssignerNode,
-    BinaryOpExpression,
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    LiteralExpression,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     SlotRead,
-    StateRefExpression,
 )
 
 
@@ -49,7 +46,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="status",
-                        expression=LiteralExpression(kind="literal", value="processed"),
+                        expression="'processed'",
                     ),
                 ],
             ),
@@ -79,12 +76,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
                     SlotRead(
                         id="slot_a",
                         raw_string="is_active",
-                        expression=BinaryOpExpression(
-                            kind="binaryOp",
-                            op="==",
-                            left=StateRefExpression(kind="stateRef", varKey="status"),
-                            right=LiteralExpression(kind="literal", value="active"),
-                        ),
+                        expression="status == 'active'",
                     )
                 ],
             ),
@@ -96,7 +88,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
     )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
-    assert 'if state.get("status") == "active":' in code
+    assert "if state.get('status') == 'active':" in code or 'if state.get("status") == "active":' in code
     assert 'return "is_active"' in code
     assert "workflow.add_conditional_edges(" in code
 

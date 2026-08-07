@@ -17,12 +17,12 @@ export type ApiNode =
   payload_vars?: string[] | null;
   resume_var?: string | null;
   max_attempts?: number | null;
-  valid_expression?: ASTExpression | null;
+  valid_expression?: string | null;
   traversalIndex?: number;
 };
 
 export type ApiSlot = Omit<components['schemas']['SlotRead'], 'expression'> & {
-  expression?: ASTExpression | null;
+  expression?: string | null;
   target_var_key?: string | null;
 };
 
@@ -46,19 +46,8 @@ export interface DefinerVariable {
 export interface LogicalAssignment {
   id: string;
   target_var_key: string;
-  expression?: ASTExpression | null;
+  expression?: string | null;
 }
-
-export type ASTExpression =
-  | { kind: 'literal'; value: string | number | boolean | null }
-  | { kind: 'stateRef'; varKey: string }
-  | {
-  kind: 'binaryOp';
-  op: '==' | '!=' | '>' | '<' | '>=' | '<=' | '+' | '-' | '*' | '/' | 'and' | 'or';
-  left: ASTExpression;
-  right: ASTExpression;
-}
-  | { kind: 'unaryOp'; op: 'not' | '-'; expr: ASTExpression };
 
 export type AppFlowNode = Node<{
   node: ApiNode;

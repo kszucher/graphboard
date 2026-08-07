@@ -48,7 +48,7 @@ SUBMIT_PLAN_TOOL = {
                         },
                         "required": ["action", "description"],
                     },
-                }
+                },
             },
             "required": ["graph_analysis", "steps"],
         },
@@ -150,7 +150,6 @@ PATCH_GRAPH_TOOL = {
         },
     },
 }
-
 
 
 def format_expression_as_string(node: Any) -> str:
