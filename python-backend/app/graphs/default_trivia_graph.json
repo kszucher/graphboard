@@ -1,0 +1,358 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "node_type": "START"
+    },
+    {
+      "id": "end",
+      "node_type": "END"
+    },
+    {
+      "id": "init_game",
+      "node_type": "LOGICAL_ASSIGNER",
+      "assignments": [
+        {
+          "id": "71619488-2cad-4f2a-aec7-fa322677f0ef",
+          "target_var_key": "score",
+          "expression": "0"
+        },
+        {
+          "id": "f36b92ee-8262-4456-a9bc-ff781a913dd4",
+          "target_var_key": "more_questions",
+          "expression": "True"
+        },
+        {
+          "id": "83fd3460-cbe0-4b6e-b5e9-4d8bc018934e",
+          "target_var_key": "correct_answer",
+          "expression": "'A'"
+        }
+      ]
+    },
+    {
+      "id": "loop_questions",
+      "node_type": "LOGICAL_SWITCH",
+      "slots": [
+        {
+          "id": "loop_questions_yes",
+          "raw_string": "Yes",
+          "expression": "more_questions",
+          "target_var_key": null
+        },
+        {
+          "id": "loop_questions_no",
+          "raw_string": "No",
+          "expression": "not more_questions",
+          "target_var_key": null
+        }
+      ]
+    },
+    {
+      "id": "gen_question",
+      "node_type": "AGENTIC_ASSIGNER",
+      "prompt": "Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D.",
+      "agentic_inputs": [],
+      "agentic_outputs": [
+        "current_question",
+        "correct_answer"
+      ]
+    },
+    {
+      "id": "ask_question",
+      "node_type": "INTERRUPT",
+      "payload_vars": [
+        "current_question"
+      ],
+      "resume_var": "user_answer"
+    },
+    {
+      "id": "parse_answer",
+      "node_type": "LOGICAL_ASSIGNER",
+      "assignments": [
+        {
+          "id": "706ca220-6b80-4178-8f78-c3d563448dde",
+          "target_var_key": "parsed_answer",
+          "expression": "user_answer"
+        }
+      ]
+    },
+    {
+      "id": "lifeline_switch",
+      "node_type": "AGENTIC_SWITCH",
+      "slots": [
+        {
+          "id": "lifeline_switch_submit",
+          "raw_string": "Submit"
+        },
+        {
+          "id": "lifeline_switch_lifeline",
+          "raw_string": "Lifeline"
+        }
+      ],
+      "agentic_input": "user_answer"
+    },
+    {
+      "id": "choose_lifeline",
+      "node_type": "AGENTIC_SWITCH",
+      "slots": [
+        {
+          "id": "choose_lifeline_audience",
+          "raw_string": "Audience"
+        },
+        {
+          "id": "choose_lifeline_phone",
+          "raw_string": "Phone"
+        }
+      ],
+      "agentic_input": "user_answer"
+    },
+    {
+      "id": "audience_votes",
+      "node_type": "AGENTIC_ASSIGNER",
+      "prompt": "Poll audience for advice on question: '{current_question}'.",
+      "agentic_inputs": [
+        "current_question"
+      ],
+      "agentic_outputs": [
+        "audience_poll_result"
+      ]
+    },
+    {
+      "id": "phone_advice",
+      "node_type": "AGENTIC_ASSIGNER",
+      "prompt": "Call a friend for advice on question: '{current_question}'.",
+      "agentic_inputs": [
+        "current_question"
+      ],
+      "agentic_outputs": [
+        "phone_call_advice"
+      ]
+    },
+    {
+      "id": "check_correct",
+      "node_type": "LOGICAL_ASSIGNER",
+      "assignments": [
+        {
+          "id": "0efbc2c0-af0e-409a-bfe0-982f1a2b7499",
+          "target_var_key": "is_correct",
+          "expression": "parsed_answer == correct_answer"
+        }
+      ]
+    },
+    {
+      "id": "result_switch",
+      "node_type": "LOGICAL_SWITCH",
+      "slots": [
+        {
+          "id": "result_switch_correct",
+          "raw_string": "correct",
+          "expression": "is_correct",
+          "target_var_key": null
+        },
+        {
+          "id": "result_switch_wrong",
+          "raw_string": "wrong",
+          "expression": "not is_correct",
+          "target_var_key": null
+        }
+      ]
+    },
+    {
+      "id": "increment_score",
+      "node_type": "LOGICAL_ASSIGNER",
+      "assignments": [
+        {
+          "id": "b2f8b45d-ff61-46e0-a3f7-b3a8f7e6cd03",
+          "target_var_key": "score",
+          "expression": "score + 1"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "1e510bb0-20da-4fa0-ac1d-8fb7d680c8f2",
+      "source": "start",
+      "source_handle": null,
+      "target": "init_game",
+      "target_handle": null
+    },
+    {
+      "id": "58819136-2de0-45af-b683-fe79ceab8b7b",
+      "source": "init_game",
+      "source_handle": null,
+      "target": "loop_questions",
+      "target_handle": null
+    },
+    {
+      "id": "4b077a93-a6b3-4925-8b07-35cd2fc9d235",
+      "source": "loop_questions",
+      "source_handle": "loop_questions_no",
+      "target": "end",
+      "target_handle": null
+    },
+    {
+      "id": "0e81b888-c391-42b7-8d40-204893029223",
+      "source": "loop_questions",
+      "source_handle": "loop_questions_yes",
+      "target": "gen_question",
+      "target_handle": null
+    },
+    {
+      "id": "5bcdd448-80f6-45d6-a5c2-af03cf32c77a",
+      "source": "gen_question",
+      "source_handle": null,
+      "target": "ask_question",
+      "target_handle": null
+    },
+    {
+      "id": "aa6bc877-b6e2-4c47-8d7d-5898055cbc63",
+      "source": "ask_question",
+      "source_handle": null,
+      "target": "parse_answer",
+      "target_handle": null
+    },
+    {
+      "id": "7a923025-fdcd-4412-b07d-4e85142d9476",
+      "source": "parse_answer",
+      "source_handle": null,
+      "target": "lifeline_switch",
+      "target_handle": null
+    },
+    {
+      "id": "74ba72d0-7f39-4a96-af79-7833c32bea03",
+      "source": "lifeline_switch",
+      "source_handle": "lifeline_switch_lifeline",
+      "target": "choose_lifeline",
+      "target_handle": null
+    },
+    {
+      "id": "3c21d228-b4bc-480d-b114-70968adfbb84",
+      "source": "lifeline_switch",
+      "source_handle": "lifeline_switch_submit",
+      "target": "check_correct",
+      "target_handle": null
+    },
+    {
+      "id": "e49d0542-96c5-4b1c-ad86-00171e7db65e",
+      "source": "choose_lifeline",
+      "source_handle": "choose_lifeline_audience",
+      "target": "audience_votes",
+      "target_handle": null
+    },
+    {
+      "id": "3042f489-080c-4072-bef0-f4bdb11af8ba",
+      "source": "choose_lifeline",
+      "source_handle": "choose_lifeline_phone",
+      "target": "phone_advice",
+      "target_handle": null
+    },
+    {
+      "id": "4512250a-e59d-4033-b629-c51c38b3e3eb",
+      "source": "audience_votes",
+      "source_handle": null,
+      "target": "ask_question",
+      "target_handle": null
+    },
+    {
+      "id": "b04256eb-cead-40ff-8a65-c3840e8fcc0f",
+      "source": "phone_advice",
+      "source_handle": null,
+      "target": "ask_question",
+      "target_handle": null
+    },
+    {
+      "id": "2a4f79b8-834f-4d94-9bd2-78eaece0572c",
+      "source": "check_correct",
+      "source_handle": null,
+      "target": "result_switch",
+      "target_handle": null
+    },
+    {
+      "id": "160257dc-5d68-4f88-9b79-c1e94fd28b86",
+      "source": "result_switch",
+      "source_handle": "result_switch_wrong",
+      "target": "end",
+      "target_handle": null
+    },
+    {
+      "id": "3ed82a78-76ce-4934-831c-06c867c869f1",
+      "source": "result_switch",
+      "source_handle": "result_switch_correct",
+      "target": "increment_score",
+      "target_handle": null
+    },
+    {
+      "id": "891f8652-973f-4958-aff6-ad2a17967cd7",
+      "source": "increment_score",
+      "source_handle": null,
+      "target": "loop_questions",
+      "target_handle": null
+    }
+  ],
+  "state": [
+    {
+      "id": "c6f4b715-5b3e-434b-878a-13ac5d7f09eb",
+      "key": "score",
+      "type": "number",
+      "default_value": 0,
+      "description": null
+    },
+    {
+      "id": "bdacffce-0edc-4b17-a148-17a43e836827",
+      "key": "more_questions",
+      "type": "boolean",
+      "default_value": true,
+      "description": null
+    },
+    {
+      "id": "462d1229-2c03-4cdd-9355-5ece594c9c4c",
+      "key": "current_question",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    },
+    {
+      "id": "cd3f9cf0-42ba-438d-b9f1-571f003e6c41",
+      "key": "user_answer",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    },
+    {
+      "id": "6d76ce38-2121-48f8-be57-7590dd1b3af3",
+      "key": "parsed_answer",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    },
+    {
+      "id": "1746dc6c-446d-44b2-b990-dfbaa8d4c0fe",
+      "key": "is_correct",
+      "type": "boolean",
+      "default_value": false,
+      "description": null
+    },
+    {
+      "id": "fdae498a-cc30-45ca-86d7-a490eedd8857",
+      "key": "correct_answer",
+      "type": "string",
+      "default_value": "A",
+      "description": null
+    },
+    {
+      "id": "76542600-60ef-4e0c-9b1f-e1a21623ffdd",
+      "key": "audience_poll_result",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    },
+    {
+      "id": "546b62c1-3530-4309-9934-2d62f7cbddbb",
+      "key": "phone_call_advice",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    }
+  ]
+}
