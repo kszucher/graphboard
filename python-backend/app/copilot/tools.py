@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from app.copilot.enums import PlannerAction
 from app.graphs.nodes import _make_slot_id
 from app.graphs.schemas import (
     GraphOperation,
@@ -29,7 +30,8 @@ SUBMIT_PLAN_TOOL = {
                         "properties": {
                             "action": {
                                 "type": "string",
-                                "description": "High-level operation type (e.g. declare_variable, add_node, connect_nodes).",
+                                "enum": [a.value for a in PlannerAction],
+                                "description": f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}.",
                             },
                             "description": {
                                 "type": "string",

@@ -5,12 +5,13 @@ import logging
 import os
 from typing import Any, Literal, TypedDict, cast
 
-import anyio
 from groq import AsyncGroq
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+from app.copilot.executor_prompts import EXECUTOR_SYSTEM_PROMPT
+from app.copilot.planner_prompts import PLANNER_SYSTEM_PROMPT
 from app.copilot.tools import (
     PATCH_GRAPH_TOOL,
     SUBMIT_PLAN_TOOL,
@@ -42,9 +43,6 @@ class CopilotState(TypedDict):
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
     """Invokes the Planner LLM to generate a high-level list of tasks."""
-    planner_prompt_path = os.path.join(os.path.dirname(__file__), "planner_system_prompt.md")
-    planner_system_prompt = await anyio.Path(planner_prompt_path).read_text(encoding="utf-8")
-
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise ValidationError("GROQ_API_KEY environment variable is not set.")
@@ -52,7 +50,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     client = AsyncGroq(api_key=api_key)
 
     messages = [
-        {"role": "system", "content": planner_system_prompt},
+        {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
         {
             "role": "user",
             "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
@@ -108,9 +106,6 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
     if not state.get("plan_approved"):
         return {}
 
-    executor_prompt_path = os.path.join(os.path.dirname(__file__), "executor_system_prompt.md")
-    executor_system_prompt = await anyio.Path(executor_prompt_path).read_text(encoding="utf-8")
-
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise ValidationError("GROQ_API_KEY environment variable is not set.")
@@ -119,7 +114,7 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
     steps_str = json.dumps(state.get("plan") or [], indent=2)
 
     messages = [
-        {"role": "system", "content": executor_system_prompt},
+        {"role": "system", "content": EXECUTOR_SYSTEM_PROMPT},
         {
             "role": "user",
             "content": (

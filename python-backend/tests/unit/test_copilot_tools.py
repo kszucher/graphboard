@@ -52,11 +52,13 @@ def test_serialize_flow_to_code() -> None:
 
     serialized = serialize_flow_to_code(flow)
     assert "declare_variable(key='score', type='number', default_value=10)" in serialized
-    assert "add_assigner(node_id='init'" in serialized
-    assert "add_switch(node_id='check'" in serialized
-    assert "connect(source='start', target='init')" in serialized
-    assert "connect(source='init', target='check')" in serialized
-    assert "connect(source='check', target='end', case='Yes')" in serialized
+    assert "add_node(node_id='init', type='LOGICAL_ASSIGNER')" in serialized
+    assert "add_variable_assignment(node_id='init', target_var_key='score', expression='10')" in serialized
+    assert "add_node(node_id='check', type='LOGICAL_SWITCH')" in serialized
+    assert "add_routing_branch(node_id='check', case='Yes', expression='True')" in serialized
+    assert "connect_nodes(source='start', target='init')" in serialized
+    assert "connect_nodes(source='init', target='check')" in serialized
+    assert "connect_nodes(source='check', target='end', case='Yes')" in serialized
 
 
 def test_sort_operations_by_dependency() -> None:

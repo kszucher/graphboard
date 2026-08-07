@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 from app.constants import NodeType
+from app.copilot.enums import PlannerAction
 from app.graphs.schemas import GraphFlowData
 
 
@@ -12,40 +11,46 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     for var in flow.state:
         desc_str = f", description={repr(var.description)}" if var.description else ""
         default_str = f", default_value={repr(var.default_value)}" if var.default_value is not None else ""
-        lines.append(f"declare_variable(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})")
+        lines.append(f"{PlannerAction.DECLARE_VARIABLE.value}(key={repr(var.key)}, type={repr(var.type)}{default_str}{desc_str})")
 
     if flow.state:
         lines.append("")
 
-    # 2. Nodes
+    # 2. Nodes and their settings/configurations
     for node in flow.nodes:
-        if node.node_type == NodeType.START:
-            lines.append(f"add_start(node_id={repr(node.id)})")
-        elif node.node_type == NodeType.END:
-            lines.append(f"add_end(node_id={repr(node.id)})")
-        elif node.node_type == NodeType.LOGICAL_ASSIGNER:
-            assignments = []
+        # Declare the node
+        lines.append(f"{PlannerAction.ADD_NODE.value}(node_id={repr(node.id)}, type={repr(node.node_type.value)})")
+        
+        # Configure/decorate based on type
+        if node.node_type == NodeType.LOGICAL_ASSIGNER:
             for a in getattr(node, "assignments", []):
-                assignments.append({"target_var_key": a.target_var_key, "expression": a.expression or ""})
-            lines.append(f"add_assigner(node_id={repr(node.id)}, assignments={assignments})")
+                lines.append(
+                    f"{PlannerAction.ADD_VARIABLE_ASSIGNMENT.value}(node_id={repr(node.id)}, "
+                    f"target_var_key={repr(a.target_var_key)}, expression={repr(a.expression or '')})"
+                )
         elif node.node_type == NodeType.AGENTIC_ASSIGNER:
             lines.append(
-                f"add_agentic_assigner(node_id={repr(node.id)}, prompt={repr(node.prompt)}, "
+                f"{PlannerAction.CONFIGURE_NODE.value}(node_id={repr(node.id)}, prompt={repr(node.prompt)}, "
                 f"inputs={node.agentic_inputs}, outputs={node.agentic_outputs})"
             )
         elif node.node_type == NodeType.LOGICAL_SWITCH:
-            slots = []
             for s in getattr(node, "slots", []):
-                slots.append({"raw_string": s.raw_string, "expression": s.expression or ""})
-            lines.append(f"add_switch(node_id={repr(node.id)}, slots={slots})")
+                lines.append(
+                    f"{PlannerAction.ADD_ROUTING_BRANCH.value}(node_id={repr(node.id)}, "
+                    f"case={repr(s.raw_string)}, expression={repr(s.expression or '')})"
+                )
         elif node.node_type == NodeType.AGENTIC_SWITCH:
-            slots = [{"raw_string": s.raw_string} for s in getattr(node, "slots", [])]
             lines.append(
-                f"add_agentic_switch(node_id={repr(node.id)}, agentic_input={repr(node.agentic_input)}, slots={slots})"
+                f"{PlannerAction.CONFIGURE_NODE.value}(node_id={repr(node.id)}, agentic_input={repr(node.agentic_input)})"
             )
+            for s in getattr(node, "slots", []):
+                lines.append(
+                    f"{PlannerAction.ADD_ROUTING_BRANCH.value}(node_id={repr(node.id)}, case={repr(s.raw_string)})"
+                )
         elif node.node_type == NodeType.INTERRUPT:
             lines.append(
-                f"add_interrupt(node_id={repr(node.id)}, payload_vars={node.payload_vars}, resume_var={repr(node.resume_var)})"
+                f"{PlannerAction.CONFIGURE_NODE.value}(node_id={repr(node.id)}, payload_vars={node.payload_vars}, "
+                f"resume_var={repr(node.resume_var)})"
             )
 
     if flow.nodes:
@@ -61,6 +66,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                 case_val = slot.raw_string
 
         case_str = f", case={repr(case_val)}" if case_val else ""
-        lines.append(f"connect(source={repr(edge.source)}, target={repr(edge.target)}{case_str})")
+        lines.append(f"{PlannerAction.CONNECT_NODES.value}(source={repr(edge.source)}, target={repr(edge.target)}{case_str})")
 
     return "\n".join(lines)
+
