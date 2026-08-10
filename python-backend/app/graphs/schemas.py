@@ -7,7 +7,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.constants import NodeType
-from app.graphs.nodes import AgenticSlotRead, LogicalAssignmentSchema, NodeRead, SlotRead
+from app.graphs.nodes import NodeRead
 
 
 class OrmModel(BaseModel):
@@ -68,60 +68,6 @@ class GraphFlowData(BaseModel):
     state: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
-class StartNodeConfig(BaseModel):
-    pass
-
-
-class EndNodeConfig(BaseModel):
-    pass
-
-
-class LogicalAssignerConfig(BaseModel):
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-
-class AgenticAssignerConfig(BaseModel):
-    prompt: str = ""
-    agentic_inputs: list[str] = Field(default_factory=list)
-    agentic_outputs: list[str] = Field(default_factory=list)
-
-
-class LogicalSwitchConfig(BaseModel):
-    slots: list[SlotRead] = Field(default_factory=list)
-
-
-class InterruptConfig(BaseModel):
-    payload_vars: list[str] = Field(default_factory=list)
-    resume_var: str = ""
-
-
-class AgenticSwitchConfig(BaseModel):
-    slots: list[AgenticSlotRead] = Field(default_factory=list)
-    agentic_input: str = ""
-
-
-NodeConfig: TypeAlias = (
-    StartNodeConfig
-    | EndNodeConfig
-    | LogicalAssignerConfig
-    | AgenticAssignerConfig
-    | LogicalSwitchConfig
-    | AgenticSwitchConfig
-    | InterruptConfig
-)
-
-
-NODE_CONFIG_MAP: dict[NodeType, type[BaseModel]] = {
-    NodeType.START: StartNodeConfig,
-    NodeType.END: EndNodeConfig,
-    NodeType.LOGICAL_ASSIGNER: LogicalAssignerConfig,
-    NodeType.AGENTIC_ASSIGNER: AgenticAssignerConfig,
-    NodeType.LOGICAL_SWITCH: LogicalSwitchConfig,
-    NodeType.AGENTIC_SWITCH: AgenticSwitchConfig,
-    NodeType.INTERRUPT: InterruptConfig,
-}
-
-
 class UpsertNodeOp(BaseModel):
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
@@ -132,8 +78,10 @@ class UpsertNodeOp(BaseModel):
     @model_validator(mode="after")
     def validate_config(self) -> UpsertNodeOp:
         if isinstance(self.config, dict):
-            config_cls = NODE_CONFIG_MAP.get(self.node_type)
-            if config_cls is not None:
+            from app.graphs.nodes import NODE_CLASS_MAP
+
+            node_cls = NODE_CLASS_MAP.get(self.node_type)
+            if node_cls is not None:
                 if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
                     from app.graphs.expressions import parse_expression
 
@@ -141,7 +89,10 @@ class UpsertNodeOp(BaseModel):
                     for item in items:
                         if isinstance(item.get("expression"), str):
                             item["expression"] = parse_expression(item["expression"])
-                self.config = config_cls.model_validate(self.config)
+
+                # Validate using the unified Node schema by passing a temporary dict with id and node_type
+                payload = {"id": self.node_id, "node_type": self.node_type, **self.config}
+                node_cls.model_validate(payload)
         return self
 
 

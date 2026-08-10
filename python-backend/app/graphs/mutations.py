@@ -8,14 +8,7 @@ from typing import Any
 from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs.nodes import (
-    AgenticAssignerNode,
-    AgenticSwitchNode,
-    EndNode,
-    InterruptNode,
-    LogicalAssignerNode,
-    LogicalSwitchNode,
     NodeRead,
-    StartNode,
 )
 from app.graphs.schemas import (
     ConnectOp,
@@ -131,55 +124,36 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     existing_node = next((n for n in nodes if n.id == node_id), None)
     target_node: NodeRead
 
+    from app.graphs.nodes import NODE_CLASS_MAP
+
+    node_cls = NODE_CLASS_MAP.get(node_type)
+    if not node_cls:
+        raise ValidationError(f"Unsupported node type: {node_type}")
+
+    # Build the full properties payload for dynamic validation and instantiation
+    config_dict = op.config if isinstance(op.config, dict) else op.config.model_dump()
+    node_payload = {"id": node_id, "node_type": node_type, **config_dict}
+
     # Instantiate or replace node
+    from typing import cast
+
     if existing_node is None:
-        new_node: NodeRead
-        if node_type == NodeType.START:
-            new_node = StartNode(id=node_id)
-        elif node_type == NodeType.END:
-            new_node = EndNode(id=node_id)
-        elif node_type == NodeType.LOGICAL_ASSIGNER:
-            new_node = LogicalAssignerNode(id=node_id, assignments=[])
-        elif node_type == NodeType.AGENTIC_ASSIGNER:
-            new_node = AgenticAssignerNode(id=node_id, prompt="", agentic_inputs=[], agentic_outputs=[])
-        elif node_type == NodeType.LOGICAL_SWITCH:
-            new_node = LogicalSwitchNode(id=node_id, slots=[])
-        elif node_type == NodeType.AGENTIC_SWITCH:
-            new_node = AgenticSwitchNode(id=node_id, slots=[], agentic_input="")
-        elif node_type == NodeType.INTERRUPT:
-            new_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
-        else:
-            raise ValidationError(f"Unsupported node type: {node_type}")
-        nodes.append(new_node)
-        target_node = new_node
+        target_node = cast(NodeRead, node_cls.model_validate(node_payload))
+        nodes.append(target_node)
     else:
-        # If type changed, we replace the node object
+        # If type changed or updating config, we replace or update the node object
         if existing_node.node_type != node_type:
             nodes.remove(existing_node)
-            if node_type == NodeType.START:
-                target_node = StartNode(id=node_id)
-            elif node_type == NodeType.END:
-                target_node = EndNode(id=node_id)
-            elif node_type == NodeType.LOGICAL_ASSIGNER:
-                target_node = LogicalAssignerNode(id=node_id, assignments=[])
-            elif node_type == NodeType.AGENTIC_ASSIGNER:
-                target_node = AgenticAssignerNode(id=node_id, prompt="", agentic_inputs=[], agentic_outputs=[])
-            elif node_type == NodeType.LOGICAL_SWITCH:
-                target_node = LogicalSwitchNode(id=node_id, slots=[])
-            elif node_type == NodeType.AGENTIC_SWITCH:
-                target_node = AgenticSwitchNode(id=node_id, slots=[], agentic_input="")
-            elif node_type == NodeType.INTERRUPT:
-                target_node = InterruptNode(id=node_id, payload_vars=[], resume_var="")
-            else:
-                raise ValidationError(f"Unsupported node type: {node_type}")
+            target_node = cast(NodeRead, node_cls.model_validate(node_payload))
             nodes.append(target_node)
         else:
+            # Overwrite fields with validated data from payload
+            validated = node_cls.model_validate(node_payload)
+            for k, v in validated.model_dump(exclude={"id", "node_type"}).items():
+                setattr(existing_node, k, v)
             target_node = existing_node
 
-    # Apply configuration
-    target_node.apply_config(op.config, flow_data.state)
-
-    # 5. Handle potential Node ID Rename
+    # Handle potential Node ID Rename
     new_id = op.new_id
     if new_id and new_id != node_id:
         # Verify new ID is unique
