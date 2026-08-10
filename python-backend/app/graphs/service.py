@@ -22,7 +22,7 @@ async def create_graph(
     user_id: uuid.UUID,
     graph_name: str,
 ) -> uuid.UUID:
-    graph = await uow.graphs.create(user_id=user_id, graph_name=graph_name)
+    graph = await uow.graphs.create_graph(user_id=user_id, graph_name=graph_name)
 
     from app.graphs.defaults import build_default_trivia_graph_flow_data
 

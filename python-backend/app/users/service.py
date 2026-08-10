@@ -11,13 +11,13 @@ async def get_or_create_user(uow: UnitOfWork) -> uuid.UUID:
     user = await uow.users.get_first()
     if user:
         return user.id
-    created = await uow.users.create(name="User")
+    created = await uow.users.create_user(name="User")
     await uow.session.flush()
     return created.id
 
 
 async def create_user(uow: UnitOfWork, user_name: str) -> uuid.UUID:
-    user = await uow.users.create(name=user_name)
+    user = await uow.users.create_user(name=user_name)
     await uow.session.flush()
     return user.id
 

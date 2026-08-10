@@ -22,7 +22,7 @@ class UserRepository(BaseRepository[models.User, UserCreate, UserCreate]):
         result = await self.session.execute(select(models.User).limit(1))
         return result.scalar_one_or_none()
 
-    async def create(self, name: str) -> models.User:  # type: ignore[override]
+    async def create_user(self, name: str) -> models.User:
         user = models.User(name=name)
         self.session.add(user)
         await self.session.flush()
