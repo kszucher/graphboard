@@ -59,9 +59,10 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         },
     ]
 
-    try:
-        from groq.types.chat import ChatCompletionNamedToolChoiceParam
+    from groq import RateLimitError
+    from groq.types.chat import ChatCompletionNamedToolChoiceParam
 
+    try:
         planner_completion = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,  # type: ignore
@@ -79,6 +80,16 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             response=planner_completion,
             graph_id=state.get("graph_id"),
         )
+    except RateLimitError as e:
+        log_llm_call(
+            node_name="planner_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            error=str(e),
+            graph_id=state.get("graph_id"),
+        )
+        logger.warning("Groq rate limit exceeded in Planner")
+        raise ValidationError("Groq LLM rate limit exceeded. Please wait a moment before trying again.")
     except Exception as e:
         log_llm_call(
             node_name="planner_node",
@@ -146,9 +157,10 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
         },
     ]
 
-    try:
-        from groq.types.chat import ChatCompletionNamedToolChoiceParam
+    from groq import RateLimitError
+    from groq.types.chat import ChatCompletionNamedToolChoiceParam
 
+    try:
         executor_completion = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,  # type: ignore
@@ -166,6 +178,16 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
             response=executor_completion,
             graph_id=state.get("graph_id"),
         )
+    except RateLimitError as e:
+        log_llm_call(
+            node_name="executor_node",
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            error=str(e),
+            graph_id=state.get("graph_id"),
+        )
+        logger.warning("Groq rate limit exceeded in Executor")
+        raise ValidationError("Groq LLM rate limit exceeded. Please wait a moment before trying again.")
     except Exception as e:
         log_llm_call(
             node_name="executor_node",
