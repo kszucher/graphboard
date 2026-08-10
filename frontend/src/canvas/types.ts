@@ -3,11 +3,11 @@ import type { ElkEdgeSection } from 'elkjs';
 import type { components } from '../api/generated/schema';
 
 export type ApiNode =
-  Omit<components['schemas']['GraphFlowRead']['nodes'][number], 'variables' | 'assignments' | 'slots'>
+  Omit<components['schemas']['GraphFlowRead']['nodes'][number], 'variables' | 'assignments' | 'branches'>
   & {
   is_input: boolean;
   is_output: boolean;
-  slots?: ApiSlot[] | null;
+  branches?: ApiSlot[] | null;
   variables?: DefinerVariable[] | null;
   assignments?: LogicalAssignment[] | null;
   prompt?: string | null;
@@ -21,7 +21,9 @@ export type ApiNode =
   traversalIndex?: number;
 };
 
-export type ApiSlot = Omit<components['schemas']['SlotRead'], 'expression'> & {
+export type ApiSlot = {
+  id: string;
+  label: string;
   expression?: string | null;
   target_var_key?: string | null;
 };

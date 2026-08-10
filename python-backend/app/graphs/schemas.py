@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Literal, TypeAlias, cast
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
-from app.graphs.nodes import NodeRead
+from app.graphs.nodes import Branch, LogicalAssignmentSchema, NodeRead
 
 
 class OrmModel(BaseModel):
@@ -69,51 +70,52 @@ class GraphFlowData(BaseModel):
 
 
 class UpsertNodeOp(BaseModel):
+    """Flat node upsert operation.
+
+    All node-type-specific fields live at the top level alongside node_id and node_type.
+    The relevant subset of fields depends on node_type:
+      - LOGICAL_ASSIGNER  → assignments
+      - AGENTIC_ASSIGNER  → prompt, agentic_inputs, agentic_outputs
+      - LOGICAL_SWITCH    → branches (each branch needs a label + expression)
+      - AGENTIC_SWITCH    → agentic_input, branches (each branch needs only a label)
+      - INTERRUPT         → payload_vars, resume_var
+    """
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
     node_type: NodeType
     new_id: str | None = None
-    config: NodeRead
 
-    @model_validator(mode="before")
-    @classmethod
-    def populate_config_node_type(cls, values: Any) -> Any:
-        if isinstance(values, dict):
-            config = values.get("config")
-            node_type = values.get("node_type")
-            node_id = values.get("node_id")
-            if node_type:
-                if config is None:
-                    config = {}
-                if isinstance(config, dict):
-                    if "node_type" not in config:
-                        config["node_type"] = node_type
-                    if "id" not in config:
-                        config["id"] = node_id or ""
-                values["config"] = config
-        return values
+    # LOGICAL_ASSIGNER
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+
+    # AGENTIC_ASSIGNER
+    prompt: str = ""
+    agentic_inputs: list[str] = Field(default_factory=list)
+    agentic_outputs: list[str] = Field(default_factory=list)
+
+    # LOGICAL_SWITCH & AGENTIC_SWITCH — unified branch type
+    branches: list[Branch] = Field(default_factory=list)
+
+    # AGENTIC_SWITCH
+    agentic_input: str = ""
+
+    # INTERRUPT
+    payload_vars: list[str] = Field(default_factory=list)
+    resume_var: str = ""
 
     @model_validator(mode="after")
-    def validate_config(self) -> UpsertNodeOp:
-        config_dict = self.config if isinstance(self.config, dict) else self.config.model_dump()
+    def parse_branch_and_assignment_expressions(self) -> UpsertNodeOp:
+        if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
+            from app.graphs.expressions import parse_expression
 
-        from app.graphs.nodes import NODE_CLASS_MAP
-
-        node_cls = NODE_CLASS_MAP.get(self.node_type)
-        if node_cls is not None:
-            if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
-                from app.graphs.expressions import parse_expression
-
-                items = config_dict.get("assignments") or config_dict.get("slots") or []
-                for item in items:
-                    if isinstance(item.get("expression"), str):
-                        item["expression"] = parse_expression(item["expression"])
-
-            # Validate and store the canonical, normalised node instance.
-            # node_id is the authoritative id; config.id is overridden to match.
-            payload = {"id": self.node_id, "node_type": self.node_type, **config_dict}
-            self.config = cast(NodeRead, node_cls.model_validate(payload))
+            for assignment in self.assignments:
+                if isinstance(assignment.expression, str):
+                    assignment.expression = parse_expression(assignment.expression)
+            for branch in self.branches:
+                if isinstance(branch.expression, str):
+                    branch.expression = parse_expression(branch.expression)
         return self
 
 
@@ -146,9 +148,9 @@ class ConnectOp(BaseModel):
     model_config = ConfigDict(extra="forbid")
     op: Literal["connect"] = "connect"
     source: str
-    source_handle: str | None = None
+    source_handle: SkipJsonSchema[str | None] = None
     target: str
-    target_handle: str | None = None
+    target_handle: SkipJsonSchema[str | None] = None
     case: str | None = None
 
     @model_validator(mode="after")
@@ -161,9 +163,9 @@ class DisconnectOp(BaseModel):
     model_config = ConfigDict(extra="forbid")
     op: Literal["disconnect"] = "disconnect"
     source: str
-    source_handle: str | None = None
+    source_handle: SkipJsonSchema[str | None] = None
     target: str
-    target_handle: str | None = None
+    target_handle: SkipJsonSchema[str | None] = None
     case: str | None = None
 
     @model_validator(mode="after")
@@ -191,4 +193,24 @@ class DeleteStateVarOp(BaseModel):
 GraphOperation: TypeAlias = Annotated[
     UpsertNodeOp | DeleteNodeOp | ConnectOp | DisconnectOp | UpsertStateVarOp | DeleteStateVarOp,
     Field(discriminator="op"),
+]
+
+# Re-export cast for use in other modules
+__all__ = [
+    "GraphCreate",
+    "GraphRead",
+    "GraphFlowRead",
+    "GraphCodeRead",
+    "GraphFlowData",
+    "DefinerVariableSchema",
+    "EdgeRead",
+    "GraphVersionRead",
+    "VariableType",
+    "UpsertNodeOp",
+    "DeleteNodeOp",
+    "ConnectOp",
+    "DisconnectOp",
+    "UpsertStateVarOp",
+    "DeleteStateVarOp",
+    "GraphOperation",
 ]

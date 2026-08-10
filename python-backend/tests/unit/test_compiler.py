@@ -3,10 +3,10 @@ import ast
 from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
 from app.graphs.nodes import (
     AgenticAssignerNode,
+    Branch,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
-    SlotRead,
 )
 from app.graphs.schemas import (
     DefinerVariableSchema,
@@ -74,10 +74,10 @@ async def test_generate_graph_code_with_switch_node() -> None:
         nodes=[
             LogicalSwitchNode(
                 id="switch_1",
-                slots=[
-                    SlotRead(
+                branches=[
+                    Branch(
                         id="switch_1_is_active",
-                        raw_string="is_active",
+                        label="is_active",
                         expression="status == 'active'",
                     )
                 ],

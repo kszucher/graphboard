@@ -12,18 +12,24 @@ Your job is to take the **Current Graph State** and a **High-Level Change Plan**
   - For example, if adding a node and configuring it with a prompt, output exactly one `upsert_node` with the config filled, not one empty and one configured.
 
 ### 2. Node Schema vs Actions
-- **LOGICAL_ASSIGNER**: Uses the `assignments` list config (`[{"target_var_key": ..., "expression": ...}]`). It does NOT support agentic prompt/input/output configurations.
-- **AGENTIC_ASSIGNER**: Uses `prompt`, `agentic_inputs`, and `agentic_outputs` config. It does NOT support `assignments`.
-- **LOGICAL_SWITCH** & **AGENTIC_SWITCH**: Use `slots`. To add a branch (`add_routing_branch`), append to the existing slots in a single `upsert_node` call.
+- **LOGICAL_ASSIGNER**: Uses the `assignments` list (`[{"target_var_key": ..., "expression": ...}]`). It does NOT support agentic prompt/input/output configurations.
+- **AGENTIC_ASSIGNER**: Uses `prompt`, `agentic_inputs`, and `agentic_outputs`. It does NOT support `assignments`.
+- **LOGICAL_SWITCH** & **AGENTIC_SWITCH**: Use `branches`. Each branch must be `{"label": "LabelHere"}`. For LOGICAL_SWITCH, each branch also requires `"expression": "..."`.
+  - Example AGENTIC_SWITCH: `"branches": [{"label": "Submit"}, {"label": "Lifeline"}]`
+  - Example LOGICAL_SWITCH: `"branches": [{"label": "Yes", "expression": "score > 0"}, {"label": "No", "expression": "not score > 0"}]`
+  - To add a branch, include ALL existing branches plus the new one in a single `upsert_node` call — omitting a branch deletes it.
 - **INTERRUPT**: Uses `payload_vars` and `resume_var`.
 
 ### 3. Modifying Existing Nodes (Retain Configuration)
-- Whenever you modify an existing node (e.g., adding a routing branch to a switch, or adding an assignment to an assigner), you MUST specify all existing slots/assignments/prompts/variables you want to retain. Omitting them deletes them.
+- Whenever you modify an existing node (e.g., adding a routing branch to a switch, or adding an assignment to an assigner), you MUST specify all existing branches/assignments/prompts/variables you want to retain. Omitting them deletes them.
 
-### 4. State Variables & References
-- State variables must be declared (`upsert_state_var`) before they are referenced in node configs.
+### 4. State Variables & References (CRITICAL)
+- **Every variable key used anywhere in node configs must be declared via `upsert_state_var` first.**
+- This includes `agentic_outputs`, `agentic_inputs`, `payload_vars`, `resume_var`, and `target_var_key`.
+- If a plan step introduces a new output variable, you MUST emit an `upsert_state_var` for it **before** the `upsert_node` that references it.
+- Do NOT skip this step — missing declarations will cause a runtime error.
 
 ### 5. Connections
-- Emit `connect` or `disconnect` operations. In your `connect` or `disconnect` operations, always pass the simple human label (e.g. "Submit", "yes", "no") in the `case` field for switch nodes.
+- Emit `connect` or `disconnect` operations. Always pass the simple human label (e.g. "Submit", "yes", "no") in the `case` field for switch nodes.
 - Permanent sentinel nodes ("start" and "end") must never be deleted.
 """

@@ -13,8 +13,8 @@ export const fromApiPayload = (
 ): { nodes: AppFlowNode[]; edges: AppFlowEdge[] } => {
   const slotToNodeId: Record<string, string> = {};
   nodes.forEach(n => {
-    ('slots' in n && Array.isArray(n.slots) ? n.slots : []).forEach((s: components['schemas']['SlotRead']) => {
-      slotToNodeId[s.id] = n.id;
+    ((n as any).branches || []).forEach((b: ApiSlot) => {
+      slotToNodeId[b.id] = n.id;
     });
   });
 
@@ -26,10 +26,10 @@ export const fromApiPayload = (
     const prevNode = getPrevNode(n.id);
     const is_input = n.node_type !== 'START';
     const is_output = n.node_type !== 'END' && !['LOGICAL_SWITCH', 'AGENTIC_SWITCH'].includes(n.node_type);
-    // Cast the raw node to ApiNode — slots/expressions are cast here at the boundary
+    // Cast the raw node to ApiNode — branches/expressions are cast here at the boundary
     const apiNode: ApiNode = {
       ...(n as ApiNode),
-      slots: ('slots' in n && Array.isArray(n.slots) ? n.slots : []) as ApiSlot[],
+      branches: ('branches' in n && Array.isArray(n.branches) ? n.branches : []) as ApiSlot[],
       is_input,
       is_output,
     };

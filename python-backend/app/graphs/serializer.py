@@ -36,19 +36,17 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                 f"inputs={node.agentic_inputs}, outputs={node.agentic_outputs})"
             )
         elif node.node_type == NodeType.LOGICAL_SWITCH:
-            for s in getattr(node, "slots", []):
+            for b in getattr(node, "branches", []):
                 lines.append(
                     f"{PlannerAction.ADD_ROUTING_BRANCH.value}(node_id={repr(node.id)}, "
-                    f"case={repr(s.raw_string)}, expression={repr(s.expression or '')})"
+                    f"case={repr(b.label)}, expression={repr(b.expression or '')})"
                 )
         elif node.node_type == NodeType.AGENTIC_SWITCH:
             lines.append(
                 f"{PlannerAction.CONFIGURE_NODE.value}(node_id={repr(node.id)}, agentic_input={repr(node.agentic_input)})"
             )
-            for s in getattr(node, "slots", []):
-                lines.append(
-                    f"{PlannerAction.ADD_ROUTING_BRANCH.value}(node_id={repr(node.id)}, case={repr(s.raw_string)})"
-                )
+            for b in getattr(node, "branches", []):
+                lines.append(f"{PlannerAction.ADD_ROUTING_BRANCH.value}(node_id={repr(node.id)}, case={repr(b.label)})")
         elif node.node_type == NodeType.INTERRUPT:
             lines.append(
                 f"{PlannerAction.CONFIGURE_NODE.value}(node_id={repr(node.id)}, payload_vars={node.payload_vars}, "
@@ -62,10 +60,10 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     for edge in flow.edges:
         source_node = next((n for n in flow.nodes if n.id == edge.source), None)
         case_val = None
-        if source_node and hasattr(source_node, "slots") and edge.source_handle:
-            slot = next((s for s in getattr(source_node, "slots", []) if s.id == edge.source_handle), None)
-            if slot:
-                case_val = slot.raw_string
+        if source_node and hasattr(source_node, "branches") and edge.source_handle:
+            branch = next((b for b in getattr(source_node, "branches", []) if b.id == edge.source_handle), None)
+            if branch:
+                case_val = branch.label
 
         case_str = f", case={repr(case_val)}" if case_val else ""
         lines.append(

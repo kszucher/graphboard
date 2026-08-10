@@ -5,13 +5,14 @@ import uuid
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
 
 
-def _make_slot_id(node_id: str, raw_string: str) -> str:
-    """Deterministically generate a slot handle ID from node_id and raw_string label."""
-    slug = re.sub(r"[^a-z0-9]+", "_", raw_string.lower()).strip("_") or "slot"
+def _make_slot_id(node_id: str, label: str) -> str:
+    """Deterministically generate a branch handle ID from node_id and branch label."""
+    slug = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_") or "branch"
     return f"{node_id}_{slug}"
 
 
@@ -31,8 +32,8 @@ class BaseNode(BaseModel):
             elif isinstance(val, list):
                 refs.update(item for item in val if isinstance(item, str) and item)
 
-        # Scan nested lists (assignments, slots)
-        for field in ("assignments", "slots"):
+        # Scan nested lists (assignments, branches)
+        for field in ("assignments", "branches"):
             for item in getattr(self, field, []):
                 t_var = getattr(item, "target_var_key", None)
                 if t_var:
@@ -54,7 +55,7 @@ class BaseNode(BaseModel):
                 setattr(self, field, [new_key if k == old_key else k for k in val])
 
         # Rename in nested lists
-        for field in ("assignments", "slots"):
+        for field in ("assignments", "branches"):
             for item in getattr(self, field, []):
                 if getattr(item, "target_var_key", None) == old_key:
                     item.target_var_key = new_key
@@ -108,35 +109,42 @@ class AgenticAssignerNode(BaseNode):
             raise ValidationError(f"Agentic Assigner node '{self.id}' must have at least one output variable.")
 
 
-class SlotRead(BaseModel):
+class Branch(BaseModel):
+    """A routing branch on a switch node.
+
+    Invariant: `label` retains the original human-readable casing (e.g. 'Submit').
+    `id` is auto-generated from `label` via `_make_slot_id` and is not part of the
+    JSON schema exposed to the LLM — do NOT set it manually.
+    """
+
     model_config = ConfigDict(extra="forbid")
-    id: str = ""
-    raw_string: str = ""
-    expression: str | None = None
-    target_var_key: str | None = None
+    id: SkipJsonSchema[str] = ""
+    label: str  # required — the human-readable routing label
+    expression: str | None = None  # LogicalSwitch condition (Python expression)
+    target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
 class LogicalSwitchNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
-    slots: list[SlotRead] = Field(default_factory=list)
+    branches: list[Branch] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def populate_slot_ids(self) -> LogicalSwitchNode:
-        for slot in self.slots:
-            slot.id = _make_slot_id(self.id, slot.raw_string)
+    def populate_branch_ids(self) -> LogicalSwitchNode:
+        for branch in self.branches:
+            branch.id = _make_slot_id(self.id, branch.label)
         return self
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 
-        for slot in self.slots:
-            if slot.expression is None:
+        for branch in self.branches:
+            if branch.expression is None:
                 raise ValidationError(
-                    f"Logical Switch node '{self.id}' has an unset condition on option '{slot.raw_string}'."
+                    f"Logical Switch node '{self.id}' has an unset condition on option '{branch.label}'."
                 )
-            if (self.id, slot.id) not in edge_sources:
+            if (self.id, branch.id) not in edge_sources:
                 raise ValidationError(
-                    f"Logical Switch option '{slot.raw_string}' on node '{self.id}' is not connected to any target node."
+                    f"Logical Switch option '{branch.label}' on node '{self.id}' is not connected to any target node."
                 )
 
 
@@ -154,21 +162,15 @@ class InterruptNode(BaseNode):
             raise ValidationError(f"Interrupt node '{self.id}' must have a valid resume_var.")
 
 
-class AgenticSlotRead(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: str = ""
-    raw_string: str = ""
-
-
 class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
-    slots: list[AgenticSlotRead] = Field(default_factory=list)
+    branches: list[Branch] = Field(default_factory=list)
     agentic_input: str = ""
 
     @model_validator(mode="after")
-    def populate_slot_ids(self) -> AgenticSwitchNode:
-        for slot in self.slots:
-            slot.id = _make_slot_id(self.id, slot.raw_string)
+    def populate_branch_ids(self) -> AgenticSwitchNode:
+        for branch in self.branches:
+            branch.id = _make_slot_id(self.id, branch.label)
         return self
 
     _variable_fields = ["agentic_input"]
@@ -176,10 +178,10 @@ class AgenticSwitchNode(BaseNode):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 
-        for aslot in self.slots:
-            if (self.id, aslot.id) not in edge_sources:
+        for branch in self.branches:
+            if (self.id, branch.id) not in edge_sources:
                 raise ValidationError(
-                    f"Agentic Switch option '{aslot.raw_string}' on node '{self.id}' is not connected to any target node."
+                    f"Agentic Switch option '{branch.label}' on node '{self.id}' is not connected to any target node."
                 )
 
 

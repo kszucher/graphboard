@@ -2,10 +2,10 @@ from app.constants import NodeType
 from app.copilot.tools import translate_tool_call_to_operations
 from app.graphs.mutations import sort_operations_by_dependency
 from app.graphs.nodes import (
+    Branch,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
-    SlotRead,
 )
 from app.graphs.schemas import (
     ConnectOp,
@@ -34,10 +34,10 @@ def test_serialize_flow_to_code() -> None:
             ),
             LogicalSwitchNode(
                 id="check",
-                slots=[
-                    SlotRead(
+                branches=[
+                    Branch(
                         id="check_yes",
-                        raw_string="Yes",
+                        label="Yes",
                         expression="True",
                     )
                 ],
@@ -101,18 +101,15 @@ def test_strict_validation_forbids_extra_fields() -> None:
             op="upsert_node",
             node_id="test",
             node_type=NodeType.AGENTIC_SWITCH,
-            config={
-                "agentic_input": "user_answer",
-                "slots": [
-                    {"case": "Submit"}  # "case" is not valid, must be "raw_string"
-                ],
-            },
+            branches=[
+                {"case": "Submit"}  # "case" is not a valid field — must be "label"
+            ],
         )
 
     # Extra fields at operation root should also be forbidden
     with pytest.raises(ValidationError):
         UpsertNodeOp(
-            op="upsert_node", node_id="test", node_type=NodeType.START, config={}, some_invalid_extra_field="hello"
+            op="upsert_node", node_id="test", node_type=NodeType.START, some_invalid_extra_field="hello"
         )
 
 

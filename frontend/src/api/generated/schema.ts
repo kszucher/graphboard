@@ -275,19 +275,6 @@ export interface components {
       /** Agentic Outputs */
       agentic_outputs?: string[];
     };
-    /** AgenticSlotRead */
-    AgenticSlotRead: {
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-      /**
-       * Raw String
-       * @default
-       */
-      raw_string: string;
-    };
     /** AgenticSwitchNode */
     AgenticSwitchNode: {
       /**
@@ -300,13 +287,29 @@ export interface components {
        * @enum {string}
        */
       node_type: "AGENTIC_SWITCH";
-      /** Slots */
-      slots?: components["schemas"]["AgenticSlotRead"][];
+      /** Branches */
+      branches?: components["schemas"]["Branch"][];
       /**
        * Agentic Input
        * @default
        */
       agentic_input: string;
+    };
+    /**
+     * Branch
+     * @description A routing branch on a switch node.
+     *
+     *     Invariant: `label` retains the original human-readable casing (e.g. 'Submit').
+     *     `id` is auto-generated from `label` via `_make_slot_id` and is not part of the
+     *     JSON schema exposed to the LLM — do NOT set it manually.
+     */
+    Branch: {
+      /** Label */
+      label: string;
+      /** Expression */
+      expression?: string | null;
+      /** Target Var Key */
+      target_var_key?: string | null;
     };
     /** CopilotDecisionRequest */
     CopilotDecisionRequest: {
@@ -512,8 +515,8 @@ export interface components {
        * @enum {string}
        */
       node_type: "LOGICAL_SWITCH";
-      /** Slots */
-      slots?: components["schemas"]["SlotRead"][];
+      /** Branches */
+      branches?: components["schemas"]["Branch"][];
     };
     /** SetActiveGraph */
     SetActiveGraph: {
@@ -527,23 +530,6 @@ export interface components {
        * Format: uuid
        */
       graph_id: string;
-    };
-    /** SlotRead */
-    SlotRead: {
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-      /**
-       * Raw String
-       * @default
-       */
-      raw_string: string;
-      /** Expression */
-      expression?: string | null;
-      /** Target Var Key */
-      target_var_key?: string | null;
     };
     /** StartNode */
     StartNode: {

@@ -4,12 +4,12 @@ from app.exceptions import ValidationError
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.nodes import (
     AgenticAssignerNode,
+    Branch,
     EndNode,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     NodeRead,
-    SlotRead,
     StartNode,
 )
 from app.graphs.schemas import (
@@ -25,15 +25,15 @@ def base_flow() -> GraphFlowData:
         StartNode(id="start"),
         LogicalSwitchNode(
             id="switch_1",
-            slots=[
-                SlotRead(
+            branches=[
+                Branch(
                     id="switch_1_option_a",
-                    raw_string="option_a",
+                    label="option_a",
                     expression="x == 10",
                 ),
-                SlotRead(
+                Branch(
                     id="switch_1_option_b",
-                    raw_string="option_b",
+                    label="option_b",
                     expression="True",
                 ),
             ],
@@ -84,7 +84,7 @@ def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
 def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
     assert isinstance(switch_1, LogicalSwitchNode)
-    switch_1.slots[1].expression = None
+    switch_1.branches[1].expression = None
 
     with pytest.raises(ValidationError, match="unset condition"):
         assert_flow_is_complete(base_flow)

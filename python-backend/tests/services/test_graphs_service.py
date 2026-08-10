@@ -178,13 +178,13 @@ async def test_run_graph_flow_switch_routing(
             {
                 "id": "switch_1",
                 "node_type": "LOGICAL_SWITCH",
-                "slots": [
+                "branches": [
                     {
                         "id": "switch_1_option_a",
-                        "raw_string": "option_a",
+                        "label": "option_a",
                         "expression": "x > 0",
                     },
-                    {"id": "switch_1_option_b", "raw_string": "option_b", "expression": "True"},
+                    {"id": "switch_1_option_b", "label": "option_b", "expression": "True"},
                 ],
             },
             {

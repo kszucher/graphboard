@@ -158,10 +158,10 @@ class DirectLangGraphCompiler:
 
     def visit_logical_switch_node(self, node: LogicalSwitchNode) -> str:
         if_branches = []
-        for idx, slot in enumerate(node.slots):
-            raw = slot.raw_string or f"Slot {idx + 1}"
-            expr = slot.expression
-            if idx == len(node.slots) - 1 and expr == "True":
+        for idx, branch in enumerate(node.branches):
+            raw = branch.label or f"Branch {idx + 1}"
+            expr = branch.expression
+            if idx == len(node.branches) - 1 and expr == "True":
                 if_branches.append(f"    else:\n        return {repr(raw)}")
             else:
                 cond_code = expression_to_code(expr, self.valid_keys, fallback="False")
@@ -175,9 +175,9 @@ class DirectLangGraphCompiler:
         return f"def {node.id}(state: State) -> str:\n{branches_code}"
 
     def visit_agentic_switch_node(self, node: AgenticSwitchNode) -> str:
-        slot_labels = [s.raw_string for s in node.slots if s.raw_string]
+        branch_labels = [b.label for b in node.branches if b.label]
         enum_members = []
-        for idx, label in enumerate(slot_labels):
+        for idx, label in enumerate(branch_labels):
             slug = "".join(c if c.isalnum() else "_" for c in label).upper()
             slug = slug.strip("_")
             if not slug or slug[0].isdigit():
@@ -195,7 +195,7 @@ class DirectLangGraphCompiler:
         else:
             input_declarations.append("    input = None")
 
-        options_list_expr = ", ".join(repr(label) for label in slot_labels)
+        options_list_expr = ", ".join(repr(label) for label in branch_labels)
         input_declarations.append(f"    options = [{options_list_expr}]")
         declarations_code = "\n".join(input_declarations)
 
@@ -207,7 +207,7 @@ class DirectLangGraphCompiler:
         ]
         prompt_concatenation = "\n".join(prompt_lines)
 
-        fallback = slot_labels[0] if slot_labels else ""
+        fallback = branch_labels[0] if branch_labels else ""
         fallback_enum_expr = (
             f"{node.id}Option.{enum_members[0].split('=')[0].strip()}.value" if enum_members else repr(fallback)
         )
@@ -287,13 +287,13 @@ class DirectLangGraphCompiler:
         for n in self.executable_nodes:
             if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
                 slot_map: dict[str, str] = {}
-                for slot in n.slots:
-                    slot_edge = next(
-                        (e for e in self.flow_data.edges if e.source == n.id and e.source_handle == slot.id), None
+                for branch in n.branches:
+                    branch_edge = next(
+                        (e for e in self.flow_data.edges if e.source == n.id and e.source_handle == branch.id), None
                     )
-                    if slot_edge is not None:
-                        tgt = resolve_target(slot_edge.target)
-                        slot_map[slot.raw_string] = tgt
+                    if branch_edge is not None:
+                        tgt = resolve_target(branch_edge.target)
+                        slot_map[branch.label] = tgt
 
                 if slot_map:
                     sources = router_incoming_sources.get(n.id, [n.id])

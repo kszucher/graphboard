@@ -43,9 +43,9 @@ export const getNextDownstreamNodeId = (
   const currentNode = nodes.find(n => n.id === currentNodeId);
   if (!currentNode) return null;
 
-  const slots = currentNode.data.node.slots || [];
-  for (const slot of slots) {
-    const edge = edges.find(eg => eg.source === currentNodeId && eg.sourceHandle === slot.id);
+  const branches = currentNode.data.node.branches || [];
+  for (const branch of branches) {
+    const edge = edges.find(eg => eg.source === currentNodeId && eg.sourceHandle === branch.id);
     if (edge) return edge.target;
   }
 
@@ -86,15 +86,15 @@ export const getSiblingNodeId = (
   const mySlotId = getBranchOriginSlotId(currentNodeId);
   if (!mySlotId) return null;
 
-  // Sibling node candidates share the same parent node, but originate from a different slot
-  const parentNode = nodes.find(n => n.data?.node?.slots?.some(s => s.id === mySlotId));
-  const slots = parentNode?.data?.node?.slots || [];
-  const mySlotIndex = slots.findIndex(s => s.id === mySlotId);
+  // Sibling node candidates share the same parent node, but originate from a different branch
+  const parentNode = nodes.find(n => n.data?.node?.branches?.some(b => b.id === mySlotId));
+  const branches = parentNode?.data?.node?.branches || [];
+  const mySlotIndex = branches.findIndex(b => b.id === mySlotId);
 
   const candidates = nodes
     .map(node => {
       const slotId = getBranchOriginSlotId(node.id);
-      return { nodeId: node.id, slotIndex: slots.findIndex(s => s.id === slotId) };
+      return { nodeId: node.id, slotIndex: branches.findIndex(b => b.id === slotId) };
     })
     .filter(c => c.slotIndex !== -1 && c.slotIndex !== mySlotIndex);
 

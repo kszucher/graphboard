@@ -23,9 +23,9 @@ export const FlowNodeSlot = memo(({
   const rightHandle = true;
 
   const initialValue = (() => {
-    if (isStart) return slot.raw_string || 'Start Node (Output)';
-    if (isEnd) return slot.raw_string || 'End Node (Input)';
-    return slot.raw_string;
+    if (isStart) return slot.label || 'Start Node (Output)';
+    if (isEnd) return slot.label || 'End Node (Input)';
+    return slot.label;
   })();
 
   return (

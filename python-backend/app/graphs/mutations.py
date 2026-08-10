@@ -115,6 +115,24 @@ def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> Gr
 # ----------------------------------------------------
 # Core Operation Implementations
 # ----------------------------------------------------
+def _node_payload_from_op(op: UpsertNodeOp) -> dict[str, Any]:
+    """Extract node-type-specific fields from a flat UpsertNodeOp into a NodeRead-compatible dict."""
+    base: dict[str, Any] = {"id": op.node_id, "node_type": op.node_type}
+    nt = op.node_type
+    if nt == NodeType.LOGICAL_ASSIGNER:
+        return {**base, "assignments": [a.model_dump() for a in op.assignments]}
+    if nt == NodeType.AGENTIC_ASSIGNER:
+        return {**base, "prompt": op.prompt, "agentic_inputs": op.agentic_inputs, "agentic_outputs": op.agentic_outputs}
+    if nt == NodeType.LOGICAL_SWITCH:
+        return {**base, "branches": [b.model_dump() for b in op.branches]}
+    if nt == NodeType.AGENTIC_SWITCH:
+        return {**base, "agentic_input": op.agentic_input, "branches": [b.model_dump() for b in op.branches]}
+    if nt == NodeType.INTERRUPT:
+        return {**base, "payload_vars": op.payload_vars, "resume_var": op.resume_var}
+    # START, END
+    return base
+
+
 def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
@@ -130,9 +148,8 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     if not node_cls:
         raise ValidationError(f"Unsupported node type: {node_type}")
 
-    # Build the full properties payload for dynamic validation and instantiation
-    config_dict = op.config if isinstance(op.config, dict) else op.config.model_dump()
-    node_payload = {"id": node_id, "node_type": node_type, **config_dict}
+    # Build the node-type-specific payload from the flat UpsertNodeOp
+    node_payload = _node_payload_from_op(op)
 
     # Instantiate or replace node
     from typing import cast
@@ -163,11 +180,11 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
 
         target_node.id = new_id
 
-        # Update slots ID prefixes
-        if hasattr(target_node, "slots"):
-            for slot in getattr(target_node, "slots", []):
-                if slot.id.startswith(f"{node_id}_"):
-                    slot.id = slot.id.replace(f"{node_id}_", f"{new_id}_", 1)
+        # Update branch ID prefixes
+        if hasattr(target_node, "branches"):
+            for branch in getattr(target_node, "branches", []):
+                if branch.id.startswith(f"{node_id}_"):
+                    branch.id = branch.id.replace(f"{node_id}_", f"{new_id}_", 1)
 
         # Update edges targeting/sourcing this node
         for edge in edges:
@@ -219,8 +236,8 @@ def _connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
     if not target_node:
         raise ValidationError(f"Target Node '{op.target}' not found.")
 
-    if hasattr(source_node, "slots") and op.source_handle:
-        if not any(s.id == op.source_handle for s in getattr(source_node, "slots", [])):
+    if hasattr(source_node, "branches") and op.source_handle:
+        if not any(b.id == op.source_handle for b in getattr(source_node, "branches", [])):
             raise ValidationError(f"Source handle '{op.source_handle}' not found on node '{op.source}'.")
 
     # Remove existing edges from this specific source handle to maintain single outbound constraints

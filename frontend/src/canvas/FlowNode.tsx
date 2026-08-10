@@ -21,12 +21,12 @@ const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => 
 
   useEffect(() => {
     updateNodeInternals(id);
-  }, [id, updateNodeInternals, data?.node?.slots, data?.node?.node_type, data?.node?.is_input, data?.node?.is_output]);
+  }, [id, updateNodeInternals, data?.node?.branches, data?.node?.node_type, data?.node?.is_input, data?.node?.is_output]);
 
   if (!data) return null;
 
   const { node } = data;
-  const mySlots = node.slots || [];
+  const myBranches = node.branches || [];
   const isStart = node.node_type === 'START';
   const isEnd = node.node_type === 'END';
 
@@ -68,7 +68,7 @@ const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => 
         )}
       </Flex>
 
-      {mySlots.map((slot) => {
+      {myBranches.map((slot) => {
         const disabled = isStart || isEnd;
 
         return (

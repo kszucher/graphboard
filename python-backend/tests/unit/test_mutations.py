@@ -27,7 +27,6 @@ def test_apply_patch_upsert_node_basic() -> None:
             op="upsert_node",
             node_id="logical_assigner_1",
             node_type=NodeType.LOGICAL_ASSIGNER,
-            config={},
         ),
     ]
     updated = mutations.apply_patch(flow, patch)
@@ -42,33 +41,31 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
         edges=[],
         state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=10)],
     )
-    # Creating a switch node and immediately setting up its slots and expressions
+    # Creating a switch node and immediately setting up its branches and expressions
     patch = [
         UpsertNodeOp(
             op="upsert_node",
             node_id="switch_1",
             node_type=NodeType.LOGICAL_SWITCH,
-            config={
-                "slots": [
-                    {
-                        "raw_string": "option_a",
-                        "expression": "x == 10",
-                    },
-                    {
-                        "raw_string": "option_b",
-                        "expression": "True",
-                    },
-                ]
-            },
+            branches=[
+                {
+                    "label": "option_a",
+                    "expression": "x == 10",
+                },
+                {
+                    "label": "option_b",
+                    "expression": "True",
+                },
+            ],
         )
     ]
     updated = mutations.apply_patch(flow, patch)
     assert len(updated.nodes) == 1
     node = updated.nodes[0]
     assert isinstance(node, LogicalSwitchNode)
-    assert len(node.slots) == 2
-    assert node.slots[0].raw_string == "option_a"
-    expr = node.slots[0].expression
+    assert len(node.branches) == 2
+    assert node.branches[0].label == "option_a"
+    expr = node.branches[0].expression
     assert expr == "x == 10"
 
 
@@ -111,14 +108,12 @@ def test_apply_patch_state_var_cascade() -> None:
                 op="upsert_node",
                 node_id="assigner_1",
                 node_type=NodeType.LOGICAL_ASSIGNER,
-                config={
-                    "assignments": [
-                        {
-                            "target_var_key": "old_key",
-                            "expression": "old_key + ' world'",
-                        }
-                    ]
-                },
+                assignments=[
+                    {
+                        "target_var_key": "old_key",
+                        "expression": "old_key + ' world'",
+                    }
+                ],
             )
         ],
     )
@@ -156,14 +151,12 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
                 op="upsert_node",
                 node_id="assigner_1",
                 node_type=NodeType.LOGICAL_ASSIGNER,
-                config={
-                    "assignments": [
-                        {
-                            "target_var_key": "x",
-                            "expression": "15",
-                        }
-                    ]
-                },
+                assignments=[
+                    {
+                        "target_var_key": "x",
+                        "expression": "15",
+                    }
+                ],
             )
         ],
     )

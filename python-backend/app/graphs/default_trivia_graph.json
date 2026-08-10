@@ -32,16 +32,16 @@
     {
       "id": "loop_questions",
       "node_type": "LOGICAL_SWITCH",
-      "slots": [
+      "branches": [
         {
           "id": "loop_questions_yes",
-          "raw_string": "Yes",
+          "label": "Yes",
           "expression": "more_questions",
           "target_var_key": null
         },
         {
           "id": "loop_questions_no",
-          "raw_string": "No",
+          "label": "No",
           "expression": "not more_questions",
           "target_var_key": null
         }
@@ -79,14 +79,14 @@
     {
       "id": "lifeline_switch",
       "node_type": "AGENTIC_SWITCH",
-      "slots": [
+      "branches": [
         {
           "id": "lifeline_switch_submit",
-          "raw_string": "Submit"
+          "label": "Submit"
         },
         {
           "id": "lifeline_switch_lifeline",
-          "raw_string": "Lifeline"
+          "label": "Lifeline"
         }
       ],
       "agentic_input": "user_answer"
@@ -94,14 +94,14 @@
     {
       "id": "choose_lifeline",
       "node_type": "AGENTIC_SWITCH",
-      "slots": [
+      "branches": [
         {
           "id": "choose_lifeline_audience",
-          "raw_string": "Audience"
+          "label": "Audience"
         },
         {
           "id": "choose_lifeline_phone",
-          "raw_string": "Phone"
+          "label": "Phone"
         }
       ],
       "agentic_input": "user_answer"
@@ -142,16 +142,16 @@
     {
       "id": "result_switch",
       "node_type": "LOGICAL_SWITCH",
-      "slots": [
+      "branches": [
         {
           "id": "result_switch_correct",
-          "raw_string": "correct",
+          "label": "correct",
           "expression": "is_correct",
           "target_var_key": null
         },
         {
           "id": "result_switch_wrong",
-          "raw_string": "wrong",
+          "label": "wrong",
           "expression": "not is_correct",
           "target_var_key": null
         }
