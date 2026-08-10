@@ -19,10 +19,60 @@ class BaseNode(BaseModel):
     id: str
 
     def get_variable_references(self) -> set[str]:
-        return set()
+        from app.graphs.expressions import get_expression_variables
+
+        refs: set[str] = set()
+        # Scan fields dynamically
+        for field in getattr(self, "_variable_fields", []):
+            val = getattr(self, field, None)
+            if isinstance(val, str) and val:
+                refs.add(val)
+            elif isinstance(val, list):
+                refs.update(item for item in val if isinstance(item, str) and item)
+
+        for field in getattr(self, "_expression_fields", []):
+            val = getattr(self, field, None)
+            if isinstance(val, str) and val:
+                refs.update(get_expression_variables(val))
+
+        # Scan nested lists (assignments, slots)
+        for field in ("assignments", "slots"):
+            items = getattr(self, field, [])
+            for item in items:
+                t_var = getattr(item, "target_var_key", None)
+                if t_var:
+                    refs.add(t_var)
+                expr = getattr(item, "expression", None)
+                if expr:
+                    refs.update(get_expression_variables(expr))
+        return refs
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        pass
+        from app.graphs.expressions import rename_expression_variables
+
+        # Rename in direct variable fields
+        for field in getattr(self, "_variable_fields", []):
+            val = getattr(self, field, None)
+            if isinstance(val, str) and val == old_key:
+                setattr(self, field, new_key)
+            elif isinstance(val, list):
+                setattr(self, field, [new_key if k == old_key else k for k in val])
+
+        # Rename in expression fields
+        for field in getattr(self, "_expression_fields", []):
+            val = getattr(self, field, None)
+            if isinstance(val, str) and val:
+                setattr(self, field, rename_expression_variables(val, old_key, new_key))
+
+        # Rename in nested lists
+        for field in ("assignments", "slots"):
+            items = getattr(self, field, [])
+            for item in items:
+                if getattr(item, "target_var_key", None) == old_key:
+                    item.target_var_key = new_key
+                expr = getattr(item, "expression", None)
+                if expr:
+                    item.expression = rename_expression_variables(expr, old_key, new_key)
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         pass
@@ -46,29 +96,6 @@ class LogicalAssignerNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_ASSIGNER] = NodeType.LOGICAL_ASSIGNER
     assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
 
-    def get_variable_references(self) -> set[str]:
-        from app.graphs.expressions import get_expression_variables
-
-        refs = set()
-        for asgn in self.assignments:
-            if asgn.target_var_key:
-                refs.add(asgn.target_var_key)
-            if asgn.expression:
-                refs.update(get_expression_variables(asgn.expression))
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        from app.graphs.expressions import rename_expression_variables
-
-        for asgn in self.assignments:
-            if asgn.target_var_key == old_key:
-                asgn.target_var_key = new_key
-            if asgn.expression:
-                asgn.expression = rename_expression_variables(asgn.expression, old_key, new_key)
-
-    def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
-        pass
-
 
 class AgenticAssignerNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_ASSIGNER] = NodeType.AGENTIC_ASSIGNER
@@ -76,19 +103,10 @@ class AgenticAssignerNode(BaseNode):
     agentic_inputs: list[str] = Field(default_factory=list)
     agentic_outputs: list[str] = Field(default_factory=list)
 
-    def get_variable_references(self) -> set[str]:
-        refs = set()
-        if self.agentic_inputs:
-            refs.update(self.agentic_inputs)
-        if self.agentic_outputs:
-            refs.update(self.agentic_outputs)
-        return refs
+    _variable_fields = ["agentic_inputs", "agentic_outputs"]
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        if self.agentic_inputs:
-            self.agentic_inputs = [new_key if k == old_key else k for k in self.agentic_inputs]
-        if self.agentic_outputs:
-            self.agentic_outputs = [new_key if k == old_key else k for k in self.agentic_outputs]
+        super().rename_variable_references(old_key, new_key)
         if self.prompt:
             self.prompt = self.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
 
@@ -112,22 +130,6 @@ class LogicalSwitchNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
 
-    def get_variable_references(self) -> set[str]:
-        from app.graphs.expressions import get_expression_variables
-
-        refs = set()
-        for slot in self.slots:
-            if slot.expression:
-                refs.update(get_expression_variables(slot.expression))
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        from app.graphs.expressions import rename_expression_variables
-
-        for slot in self.slots:
-            if slot.expression:
-                slot.expression = rename_expression_variables(slot.expression, old_key, new_key)
-
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 
@@ -147,19 +149,7 @@ class InterruptNode(BaseNode):
     payload_vars: list[str] = Field(default_factory=list)
     resume_var: str = ""
 
-    def get_variable_references(self) -> set[str]:
-        refs = set()
-        if self.payload_vars:
-            refs.update(self.payload_vars)
-        if self.resume_var:
-            refs.add(self.resume_var)
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        if self.payload_vars:
-            self.payload_vars = [new_key if k == old_key else k for k in self.payload_vars]
-        if self.resume_var == old_key:
-            self.resume_var = new_key
+    _variable_fields = ["payload_vars", "resume_var"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
@@ -178,12 +168,7 @@ class AgenticSwitchNode(BaseNode):
     slots: list[AgenticSlotRead] = Field(default_factory=list)
     agentic_input: str = ""
 
-    def get_variable_references(self) -> set[str]:
-        return {self.agentic_input} if self.agentic_input else set()
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        if self.agentic_input == old_key:
-            self.agentic_input = new_key
+    _variable_fields = ["agentic_input"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

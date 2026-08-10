@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 
 from app.copilot.enums import PlannerAction
 from app.graphs.nodes import _make_slot_id
@@ -10,140 +10,45 @@ from app.graphs.schemas import (
     GraphOperation,
 )
 
-# The JSON tool schema defining the planner's structured output
+
+class PlannerStepSchema(BaseModel):
+    action: PlannerAction = Field(
+        description=f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}."
+    )
+    description: str = Field(description="Short human-readable summary of what this step does.")
+    details: str | None = Field(
+        default=None, description="Specific details (e.g. variable name, node type, source, target)."
+    )
+
+
+class SubmitPlanArgsSchema(BaseModel):
+    graph_analysis: str = Field(
+        description="Step-by-step reasoning explaining the existing graph topology, switch choices, and where the new logic logically integrates."
+    )
+    steps: list[PlannerStepSchema]
+
+
+class PatchGraphArgsSchema(BaseModel):
+    operations: list[GraphOperation] = Field(
+        description="Applies a set of operations to modify the graph variables, nodes, and connections."
+    )
+
+
 SUBMIT_PLAN_TOOL = {
     "type": "function",
     "function": {
         "name": "submit_plan",
         "description": "Submits a structured plan of operations to perform on the graph.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "graph_analysis": {
-                    "type": "string",
-                    "description": "Step-by-step reasoning explaining the existing graph topology, switch choices, and where the new logic logically integrates.",
-                },
-                "steps": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "action": {
-                                "type": "string",
-                                "enum": [a.value for a in PlannerAction],
-                                "description": f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}.",
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "Short human-readable summary of what this step does.",
-                            },
-                            "details": {
-                                "type": "string",
-                                "description": "Specific details (e.g. variable name, node type, source, target).",
-                            },
-                        },
-                        "required": ["action", "description"],
-                    },
-                },
-            },
-            "required": ["graph_analysis", "steps"],
-        },
+        "parameters": SubmitPlanArgsSchema.model_json_schema(),
     },
 }
 
-# The JSON tool schema defining the single `patch_graph` tool
 PATCH_GRAPH_TOOL = {
     "type": "function",
     "function": {
         "name": "patch_graph",
         "description": "Applies a set of operations to modify the graph variables, nodes, and connections.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "operations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "op": {
-                                "type": "string",
-                                "enum": [
-                                    "upsert_state_var",
-                                    "delete_state_var",
-                                    "upsert_node",
-                                    "delete_node",
-                                    "connect",
-                                    "disconnect",
-                                ],
-                            },
-                            # upsert_state_var
-                            "key": {"type": "string"},
-                            "type": {"type": "string", "enum": ["boolean", "string", "number", "float"]},
-                            "default_value": {"type": "string"},  # passed as python expression strings
-                            "description": {"type": "string"},
-                            # upsert_node
-                            "node_id": {"type": "string"},
-                            "node_type": {
-                                "type": "string",
-                                "enum": [
-                                    "START",
-                                    "END",
-                                    "LOGICAL_ASSIGNER",
-                                    "AGENTIC_ASSIGNER",
-                                    "LOGICAL_SWITCH",
-                                    "AGENTIC_SWITCH",
-                                    "INTERRUPT",
-                                ],
-                            },
-                            "config": {
-                                "type": "object",
-                                "properties": {
-                                    # LOGICAL_ASSIGNER
-                                    "assignments": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "target_var_key": {"type": "string"},
-                                                "expression": {"type": "string"},
-                                            },
-                                            "required": ["target_var_key", "expression"],
-                                        },
-                                    },
-                                    # AGENTIC_ASSIGNER
-                                    "prompt": {"type": "string"},
-                                    "agentic_inputs": {"type": "array", "items": {"type": "string"}},
-                                    "agentic_outputs": {"type": "array", "items": {"type": "string"}},
-                                    # LOGICAL_SWITCH / AGENTIC_SWITCH
-                                    "slots": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "raw_string": {"type": "string"},
-                                                "expression": {"type": "string"},
-                                            },
-                                            "required": ["raw_string"],
-                                        },
-                                    },
-                                    # AGENTIC_SWITCH
-                                    "agentic_input": {"type": "string"},
-                                    # INTERRUPT
-                                    "payload_vars": {"type": "array", "items": {"type": "string"}},
-                                    "resume_var": {"type": "string"},
-                                },
-                            },
-                            # connect / disconnect
-                            "source": {"type": "string"},
-                            "target": {"type": "string"},
-                            "case": {"type": "string"},  # human label representing source handle for switch nodes
-                        },
-                        "required": ["op"],
-                    },
-                }
-            },
-            "required": ["operations"],
-        },
+        "parameters": PatchGraphArgsSchema.model_json_schema(),
     },
 }
 
