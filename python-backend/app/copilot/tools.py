@@ -5,7 +5,6 @@ from typing import Any
 from pydantic import BaseModel, Field, TypeAdapter
 
 from app.copilot.enums import PlannerAction
-from app.graphs.nodes import _make_slot_id
 from app.graphs.schemas import (
     GraphOperation,
 )
@@ -63,12 +62,6 @@ def translate_tool_call_to_operations(tool_call_args: dict[str, Any]) -> list[Gr
     adapter: TypeAdapter[GraphOperation] = TypeAdapter(GraphOperation)
 
     for item in raw_ops:
-        op_type = item.get("op")
-        if op_type in ("connect", "disconnect"):
-            source = item.get("source")
-            case_label = item.get("case")
-            if source:
-                item["source_handle"] = _make_slot_id(source, case_label) if case_label else None
         translated.append(adapter.validate_python(item))
 
     return translated
