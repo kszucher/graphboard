@@ -180,11 +180,11 @@ async def test_run_graph_flow_switch_routing(
                 "node_type": "LOGICAL_SWITCH",
                 "slots": [
                     {
-                        "id": "slot_a",
+                        "id": "switch_1_option_a",
                         "raw_string": "option_a",
                         "expression": "x > 0",
                     },
-                    {"id": "slot_b", "raw_string": "option_b", "expression": "True"},
+                    {"id": "switch_1_option_b", "raw_string": "option_b", "expression": "True"},
                 ],
             },
             {
@@ -212,8 +212,8 @@ async def test_run_graph_flow_switch_routing(
         ],
         "edges": [
             {"source": "start", "target": "switch_1"},
-            {"source": "switch_1", "source_handle": "slot_a", "target": "assigner_a"},
-            {"source": "switch_1", "source_handle": "slot_b", "target": "assigner_b"},
+            {"source": "switch_1", "source_handle": "switch_1_option_a", "target": "assigner_a"},
+            {"source": "switch_1", "source_handle": "switch_1_option_b", "target": "assigner_b"},
             {"source": "assigner_a", "target": "end"},
             {"source": "assigner_b", "target": "end"},
         ],

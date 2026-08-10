@@ -121,8 +121,17 @@ def test_connect_op_case_resolution() -> None:
     op = ConnectOp(op="connect", source="switch_node", target="end", case="Submit")
     assert op.source_handle == "switch_node_submit"
 
+    # Verify that passing case in source_handle directly (without f"{source}_") gets normalized correctly
+    op2 = ConnectOp(op="connect", source="switch_node", target="end", source_handle="Submit")
+    assert op2.source_handle == "switch_node_submit"
+    assert op2.case == "Submit"
+
     # Verify DisconnectOp resolves case as well
     from app.graphs.schemas import DisconnectOp
 
     op_disc = DisconnectOp(op="disconnect", source="switch_node", target="end", case="Submit")
     assert op_disc.source_handle == "switch_node_submit"
+
+    op_disc2 = DisconnectOp(op="disconnect", source="switch_node", target="end", source_handle="Submit")
+    assert op_disc2.source_handle == "switch_node_submit"
+    assert op_disc2.case == "Submit"

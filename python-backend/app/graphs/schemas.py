@@ -134,10 +134,15 @@ class ConnectOp(BaseModel):
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> ConnectOp:
-        if self.case and not self.source_handle:
+        case_val = self.case
+        if not case_val and self.source_handle and not self.source_handle.startswith(f"{self.source}_"):
+            case_val = self.source_handle
+
+        if case_val:
             from app.graphs.nodes import _make_slot_id
 
-            self.source_handle = _make_slot_id(self.source, self.case)
+            self.source_handle = _make_slot_id(self.source, case_val)
+            self.case = case_val
         return self
 
 
@@ -152,10 +157,15 @@ class DisconnectOp(BaseModel):
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> DisconnectOp:
-        if self.case and not self.source_handle:
+        case_val = self.case
+        if not case_val and self.source_handle and not self.source_handle.startswith(f"{self.source}_"):
+            case_val = self.source_handle
+
+        if case_val:
             from app.graphs.nodes import _make_slot_id
 
-            self.source_handle = _make_slot_id(self.source, self.case)
+            self.source_handle = _make_slot_id(self.source, case_val)
+            self.case = case_val
         return self
 
 

@@ -76,14 +76,14 @@ async def test_generate_graph_code_with_switch_node() -> None:
                 id="switch_1",
                 slots=[
                     SlotRead(
-                        id="slot_a",
+                        id="switch_1_is_active",
                         raw_string="is_active",
                         expression="status == 'active'",
                     )
                 ],
             ),
         ],
-        edges=[EdgeRead(source="switch_1", source_handle="slot_a", target="end")],
+        edges=[EdgeRead(source="switch_1", source_handle="switch_1_is_active", target="end")],
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
         ],

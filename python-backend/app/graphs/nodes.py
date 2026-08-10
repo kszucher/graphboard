@@ -4,7 +4,7 @@ import re
 import uuid
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.constants import NodeType
 
@@ -120,6 +120,12 @@ class LogicalSwitchNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
     slots: list[SlotRead] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def populate_slot_ids(self) -> LogicalSwitchNode:
+        for slot in self.slots:
+            slot.id = _make_slot_id(self.id, slot.raw_string)
+        return self
+
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 
@@ -158,6 +164,12 @@ class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
     slots: list[AgenticSlotRead] = Field(default_factory=list)
     agentic_input: str = ""
+
+    @model_validator(mode="after")
+    def populate_slot_ids(self) -> AgenticSwitchNode:
+        for slot in self.slots:
+            slot.id = _make_slot_id(self.id, slot.raw_string)
+        return self
 
     _variable_fields = ["agentic_input"]
 
