@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -96,7 +96,6 @@ class UpsertNodeOp(BaseModel):
 
     @model_validator(mode="after")
     def validate_config(self) -> UpsertNodeOp:
-        # Normalize config to dict if it was parsed as a model
         config_dict = self.config if isinstance(self.config, dict) else self.config.model_dump()
 
         from app.graphs.nodes import NODE_CLASS_MAP
@@ -111,9 +110,10 @@ class UpsertNodeOp(BaseModel):
                     if isinstance(item.get("expression"), str):
                         item["expression"] = parse_expression(item["expression"])
 
-            # Validate using the unified Node schema by passing a temporary dict with id and node_type
+            # Validate and store the canonical, normalised node instance.
+            # node_id is the authoritative id; config.id is overridden to match.
             payload = {"id": self.node_id, "node_type": self.node_type, **config_dict}
-            node_cls.model_validate(payload)
+            self.config = cast(NodeRead, node_cls.model_validate(payload))
         return self
 
 
@@ -121,6 +121,25 @@ class DeleteNodeOp(BaseModel):
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
     node_id: str
+
+
+def _resolve_case_handle_fields(
+    source: str, case: str | None, source_handle: str | None
+) -> tuple[str | None, str | None]:
+    """Returns (resolved_source_handle, resolved_case) from whichever field the caller provided.
+
+    Invariant: `case` always retains the original human-readable casing (e.g. "Submit").
+    `source_handle` is always a slug produced by `_make_slot_id` (e.g. "node_submit").
+    Do NOT normalise `case` to lower-case — it is used as a display label in prompts and the UI.
+    """
+    case_val = case
+    if not case_val and source_handle and not source_handle.startswith(f"{source}_"):
+        case_val = source_handle
+    if case_val:
+        from app.graphs.nodes import _make_slot_id
+
+        return _make_slot_id(source, case_val), case_val
+    return source_handle, case
 
 
 class ConnectOp(BaseModel):
@@ -134,15 +153,7 @@ class ConnectOp(BaseModel):
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> ConnectOp:
-        case_val = self.case
-        if not case_val and self.source_handle and not self.source_handle.startswith(f"{self.source}_"):
-            case_val = self.source_handle
-
-        if case_val:
-            from app.graphs.nodes import _make_slot_id
-
-            self.source_handle = _make_slot_id(self.source, case_val)
-            self.case = case_val
+        self.source_handle, self.case = _resolve_case_handle_fields(self.source, self.case, self.source_handle)
         return self
 
 
@@ -157,15 +168,7 @@ class DisconnectOp(BaseModel):
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> DisconnectOp:
-        case_val = self.case
-        if not case_val and self.source_handle and not self.source_handle.startswith(f"{self.source}_"):
-            case_val = self.source_handle
-
-        if case_val:
-            from app.graphs.nodes import _make_slot_id
-
-            self.source_handle = _make_slot_id(self.source, case_val)
-            self.case = case_val
+        self.source_handle, self.case = _resolve_case_handle_fields(self.source, self.case, self.source_handle)
         return self
 
 

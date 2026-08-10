@@ -16,6 +16,7 @@ from app.copilot.planner_prompts import PLANNER_SYSTEM_PROMPT
 from app.copilot.tools import (
     PATCH_GRAPH_TOOL,
     SUBMIT_PLAN_TOOL,
+    SubmitPlanArgsSchema,
     translate_tool_call_to_operations,
 )
 from app.exceptions import ValidationError
@@ -99,8 +100,13 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     except Exception as e:
         raise ValidationError(f"Planner returned invalid JSON plan arguments: {str(e)}")
 
-    plan = planner_args.get("steps", [])
-    return {"plan": plan}
+    try:
+        plan_schema = SubmitPlanArgsSchema.model_validate(planner_args)
+    except Exception as e:
+        raise ValidationError(f"Planner returned invalid plan structure: {str(e)}")
+
+    logger.info("Planner graph_analysis: %s", plan_schema.graph_analysis)
+    return {"plan": [step.model_dump() for step in plan_schema.steps]}
 
 
 def wait_for_plan_node(state: CopilotState) -> dict[str, Any]:
@@ -181,8 +187,12 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
     except Exception as e:
         raise ValidationError(f"Executor returned invalid JSON patch arguments: {str(e)}")
 
-    ops = executor_args.get("operations", [])
-    return {"operations": ops}
+    try:
+        validated_ops = translate_tool_call_to_operations({"operations": executor_args.get("operations", [])})
+    except Exception as e:
+        raise ValidationError(f"Executor produced invalid operations: {str(e)}")
+
+    return {"operations": [op.model_dump(mode="json") for op in validated_ops]}
 
 
 def validation_node(state: CopilotState) -> dict[str, Any]:
@@ -199,7 +209,7 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         mutations.apply_patch(flow_data, sorted_ops)
         return {"validation_error": None}
     except Exception as e:
-        logger.exception("Executor operation dry-run validation failed")
+        logger.warning("Executor operation dry-run failed: %s", str(e))
         return {"validation_error": str(e)}
 
 

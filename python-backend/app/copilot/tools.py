@@ -5,9 +5,9 @@ from typing import Any
 from pydantic import BaseModel, Field, TypeAdapter
 
 from app.copilot.enums import PlannerAction
-from app.graphs.schemas import (
-    GraphOperation,
-)
+from app.graphs.schemas import GraphOperation
+
+_GRAPH_OPERATION_ADAPTER: TypeAdapter[GraphOperation] = TypeAdapter(GraphOperation)
 
 
 class PlannerStepSchema(BaseModel):
@@ -15,7 +15,7 @@ class PlannerStepSchema(BaseModel):
         description=f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}."
     )
     description: str = Field(description="Short human-readable summary of what this step does.")
-    details: dict[str, Any] | str | None = Field(
+    details: dict[str, Any] | None = Field(
         default=None, description="Specific details (e.g. variable name, node type, source, target)."
     )
 
@@ -57,11 +57,4 @@ PATCH_GRAPH_TOOL = {
 
 def translate_tool_call_to_operations(tool_call_args: dict[str, Any]) -> list[GraphOperation]:
     """Translates the structured operations from Groq's tool call back to app GraphOperations."""
-    raw_ops = tool_call_args.get("operations", [])
-    translated: list[GraphOperation] = []
-    adapter: TypeAdapter[GraphOperation] = TypeAdapter(GraphOperation)
-
-    for item in raw_ops:
-        translated.append(adapter.validate_python(item))
-
-    return translated
+    return [_GRAPH_OPERATION_ADAPTER.validate_python(item) for item in tool_call_args.get("operations", [])]

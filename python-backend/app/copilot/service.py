@@ -21,6 +21,8 @@ def format_copilot_response(values: dict[str, Any]) -> dict[str, Any]:
     status = "idle"
     if values.get("applied") is True:
         status = "applied"
+    elif values.get("apply_approved") is True and not values.get("applied"):
+        status = "apply_failed"
     elif values.get("apply_approved") is False:
         status = "apply_rejected"
     elif values.get("apply_approved") is None and values.get("operations") is not None:
