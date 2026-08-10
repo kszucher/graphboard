@@ -16,6 +16,7 @@ def _make_slot_id(node_id: str, raw_string: str) -> str:
 
 
 class BaseNode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: str = ""
 
     def get_variable_references(self) -> set[str]:

@@ -34,6 +34,9 @@ class PatchGraphArgsSchema(BaseModel):
     )
 
 
+PatchGraphArgsSchema.model_rebuild()
+
+
 SUBMIT_PLAN_TOOL = {
     "type": "function",
     "function": {

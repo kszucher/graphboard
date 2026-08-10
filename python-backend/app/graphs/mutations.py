@@ -149,8 +149,9 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
         else:
             # Overwrite fields with validated data from payload
             validated = node_cls.model_validate(node_payload)
-            for k, v in validated.model_dump(exclude={"id", "node_type"}).items():
-                setattr(existing_node, k, v)
+            for k in validated.model_fields.keys():
+                if k not in ("id", "node_type"):
+                    setattr(existing_node, k, getattr(validated, k))
             target_node = existing_node
 
     # Handle potential Node ID Rename
