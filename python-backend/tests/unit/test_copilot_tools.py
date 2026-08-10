@@ -62,7 +62,8 @@ def test_serialize_flow_to_code() -> None:
 
 
 def test_sort_operations_by_dependency() -> None:
-    ops = [
+    from app.graphs.schemas import GraphOperation
+    ops: list[GraphOperation] = [
         ConnectOp(op="connect", source="a", target="b"),
         UpsertNodeOp(op="upsert_node", node_id="a", node_type=NodeType.START),
         UpsertStateVarOp(op="upsert_state_var", key="x", type="number"),

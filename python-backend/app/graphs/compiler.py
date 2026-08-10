@@ -46,14 +46,8 @@ class DirectLangGraphCompiler:
         self.executable_nodes = [n for n in flow_data.nodes if not isinstance(n, (StartNode, EndNode))]
 
     def visit(self, node: NodeRead) -> Any:
-        """Dynamic visitor dispatcher based on Node type name converted to snake_case."""
-        class_name = node.__class__.__name__
-        # Convert CamelCase class name to snake_case (e.g. StartNode -> start_node)
-        import re
-
-        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", class_name)
-        snake_name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
+        """Dynamic visitor dispatcher based on Node type name."""
+        snake_name = f"{node.node_type.value.lower()}_node"
         method_name = f"visit_{snake_name}"
         visitor = getattr(self, method_name, self.generic_visit)
         return visitor(node)
@@ -64,12 +58,7 @@ class DirectLangGraphCompiler:
 
     def visit_imports(self, node: NodeRead) -> set[str]:
         """Query imports required by a specific node class."""
-        class_name = node.__class__.__name__
-        import re
-
-        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", class_name)
-        snake_name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
+        snake_name = f"{node.node_type.value.lower()}_node"
         method_name = f"imports_{snake_name}"
         from collections.abc import Callable
 

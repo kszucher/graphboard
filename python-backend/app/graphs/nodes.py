@@ -30,15 +30,9 @@ class BaseNode(BaseModel):
             elif isinstance(val, list):
                 refs.update(item for item in val if isinstance(item, str) and item)
 
-        for field in getattr(self, "_expression_fields", []):
-            val = getattr(self, field, None)
-            if isinstance(val, str) and val:
-                refs.update(get_expression_variables(val))
-
         # Scan nested lists (assignments, slots)
         for field in ("assignments", "slots"):
-            items = getattr(self, field, [])
-            for item in items:
+            for item in getattr(self, field, []):
                 t_var = getattr(item, "target_var_key", None)
                 if t_var:
                     refs.add(t_var)
@@ -58,16 +52,9 @@ class BaseNode(BaseModel):
             elif isinstance(val, list):
                 setattr(self, field, [new_key if k == old_key else k for k in val])
 
-        # Rename in expression fields
-        for field in getattr(self, "_expression_fields", []):
-            val = getattr(self, field, None)
-            if isinstance(val, str) and val:
-                setattr(self, field, rename_expression_variables(val, old_key, new_key))
-
         # Rename in nested lists
         for field in ("assignments", "slots"):
-            items = getattr(self, field, [])
-            for item in items:
+            for item in getattr(self, field, []):
                 if getattr(item, "target_var_key", None) == old_key:
                     item.target_var_key = new_key
                 expr = getattr(item, "expression", None)
