@@ -16,7 +16,7 @@ class PlannerStepSchema(BaseModel):
         description=f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}."
     )
     description: str = Field(description="Short human-readable summary of what this step does.")
-    details: str | None = Field(
+    details: dict[str, Any] | str | None = Field(
         default=None, description="Specific details (e.g. variable name, node type, source, target)."
     )
 

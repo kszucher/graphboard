@@ -89,3 +89,40 @@ def test_translate_tool_call_to_operations() -> None:
     assert isinstance(ops[1], UpsertNodeOp)
     assert isinstance(ops[2], ConnectOp)
     assert ops[2].source_handle == "test_node_yes"
+
+
+def test_strict_validation_forbids_extra_fields() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    # Extra/invalid fields on UpsertNodeOp should raise ValidationError
+    with pytest.raises(ValidationError):
+        UpsertNodeOp(
+            op="upsert_node",
+            node_id="test",
+            node_type=NodeType.AGENTIC_SWITCH,
+            config={
+                "agentic_input": "user_answer",
+                "slots": [
+                    {"case": "Submit"}  # "case" is not valid, must be "raw_string"
+                ],
+            },
+        )
+
+    # Extra fields at operation root should also be forbidden
+    with pytest.raises(ValidationError):
+        UpsertNodeOp(
+            op="upsert_node", node_id="test", node_type=NodeType.START, config={}, some_invalid_extra_field="hello"
+        )
+
+
+def test_connect_op_case_resolution() -> None:
+    # Verify that case field in ConnectOp gets resolved to source_handle
+    op = ConnectOp(op="connect", source="switch_node", target="end", case="Submit")
+    assert op.source_handle == "switch_node_submit"
+
+    # Verify DisconnectOp resolves case as well
+    from app.graphs.schemas import DisconnectOp
+
+    op_disc = DisconnectOp(op="disconnect", source="switch_node", target="end", case="Submit")
+    assert op_disc.source_handle == "switch_node_submit"

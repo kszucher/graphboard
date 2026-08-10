@@ -18,15 +18,8 @@ export const fromApiPayload = (
     });
   });
 
-  // Stitch renames: match added/removed nodes to map positions/dimensions
-  const newNodeIds = nodes.map(n => n.id);
-  const oldNodeIds = prevNodes.map(n => n.id);
-  const addedId = newNodeIds.find(id => !oldNodeIds.includes(id));
-  const removedId = oldNodeIds.find(id => !newNodeIds.includes(id));
-
   const getPrevNode = (nodeId: string) => {
-    const lookupId = nodeId === addedId ? removedId : nodeId;
-    return prevNodes.find(n => n.id === lookupId);
+    return prevNodes.find(n => n.id === nodeId);
   };
 
   const rfNodes: AppFlowNode[] = nodes.map(n => {

@@ -69,55 +69,98 @@ class GraphFlowData(BaseModel):
 
 
 class UpsertNodeOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
     node_type: NodeType
     new_id: str | None = None
-    config: Any = Field(default_factory=dict)
+    config: NodeRead
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_config_node_type(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            config = values.get("config")
+            node_type = values.get("node_type")
+            node_id = values.get("node_id")
+            if node_type:
+                if config is None:
+                    config = {}
+                if isinstance(config, dict):
+                    if "node_type" not in config:
+                        config["node_type"] = node_type
+                    if "id" not in config:
+                        config["id"] = node_id or ""
+                values["config"] = config
+        return values
 
     @model_validator(mode="after")
     def validate_config(self) -> UpsertNodeOp:
-        if isinstance(self.config, dict):
-            from app.graphs.nodes import NODE_CLASS_MAP
+        # Normalize config to dict if it was parsed as a model
+        config_dict = self.config if isinstance(self.config, dict) else self.config.model_dump()
 
-            node_cls = NODE_CLASS_MAP.get(self.node_type)
-            if node_cls is not None:
-                if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
-                    from app.graphs.expressions import parse_expression
+        from app.graphs.nodes import NODE_CLASS_MAP
 
-                    items = self.config.get("assignments") or self.config.get("slots") or []
-                    for item in items:
-                        if isinstance(item.get("expression"), str):
-                            item["expression"] = parse_expression(item["expression"])
+        node_cls = NODE_CLASS_MAP.get(self.node_type)
+        if node_cls is not None:
+            if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
+                from app.graphs.expressions import parse_expression
 
-                # Validate using the unified Node schema by passing a temporary dict with id and node_type
-                payload = {"id": self.node_id, "node_type": self.node_type, **self.config}
-                node_cls.model_validate(payload)
+                items = config_dict.get("assignments") or config_dict.get("slots") or []
+                for item in items:
+                    if isinstance(item.get("expression"), str):
+                        item["expression"] = parse_expression(item["expression"])
+
+            # Validate using the unified Node schema by passing a temporary dict with id and node_type
+            payload = {"id": self.node_id, "node_type": self.node_type, **config_dict}
+            node_cls.model_validate(payload)
         return self
 
 
 class DeleteNodeOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
     node_id: str
 
 
 class ConnectOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["connect"] = "connect"
     source: str
     source_handle: str | None = None
     target: str
     target_handle: str | None = None
+    case: str | None = None
+
+    @model_validator(mode="after")
+    def resolve_case_handle(self) -> ConnectOp:
+        if self.case and not self.source_handle:
+            from app.graphs.nodes import _make_slot_id
+
+            self.source_handle = _make_slot_id(self.source, self.case)
+        return self
 
 
 class DisconnectOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["disconnect"] = "disconnect"
     source: str
     source_handle: str | None = None
     target: str
     target_handle: str | None = None
+    case: str | None = None
+
+    @model_validator(mode="after")
+    def resolve_case_handle(self) -> DisconnectOp:
+        if self.case and not self.source_handle:
+            from app.graphs.nodes import _make_slot_id
+
+            self.source_handle = _make_slot_id(self.source, self.case)
+        return self
 
 
 class UpsertStateVarOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_state_var"] = "upsert_state_var"
     id: str | None = None
     key: str
@@ -127,6 +170,7 @@ class UpsertStateVarOp(BaseModel):
 
 
 class DeleteStateVarOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     op: Literal["delete_state_var"] = "delete_state_var"
     key: str
 

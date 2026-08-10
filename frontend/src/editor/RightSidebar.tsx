@@ -4,9 +4,10 @@ import { FullCodeEditor } from './FullCodeEditor';
 interface RightSidebarProps {
   graphId: string;
   version: number | null;
+  baseVersion: number | null;
 }
 
-export const RightSidebar = ({ graphId, version }: RightSidebarProps) => {
+export const RightSidebar = ({ graphId, version, baseVersion }: RightSidebarProps) => {
   return (
     <Box
       style={{
@@ -20,7 +21,7 @@ export const RightSidebar = ({ graphId, version }: RightSidebarProps) => {
         overflow: 'hidden',
       }}
     >
-      <FullCodeEditor graphId={graphId} version={version}/>
+      <FullCodeEditor graphId={graphId} version={version} baseVersion={baseVersion}/>
     </Box>
   );
 };

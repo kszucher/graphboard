@@ -4,7 +4,7 @@ import re
 import uuid
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.constants import NodeType
 
@@ -74,6 +74,7 @@ class EndNode(BaseNode):
 
 
 class LogicalAssignmentSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     target_var_key: str
     expression: str | None = None
@@ -107,6 +108,7 @@ class AgenticAssignerNode(BaseNode):
 
 
 class SlotRead(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: str = ""
     raw_string: str = ""
     expression: str | None = None
@@ -146,6 +148,7 @@ class InterruptNode(BaseNode):
 
 
 class AgenticSlotRead(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: str = ""
     raw_string: str = ""
 

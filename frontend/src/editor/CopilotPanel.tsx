@@ -231,7 +231,11 @@ export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
                     </Text>
                     {step.details && (
                       <Text as="p" size="1" color="teal" style={{ fontStyle: 'italic' }}>
-                        {step.details}
+                        {typeof step.details === 'object'
+                          ? Object.entries(step.details)
+                              .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`)
+                              .join(', ')
+                          : step.details}
                       </Text>
                     )}
                   </Box>

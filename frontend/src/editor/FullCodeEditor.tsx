@@ -7,11 +7,16 @@ import { useCodeMirror } from '../hooks/editor/useCodeMirror';
 interface FullCodeEditorProps {
   graphId: string;
   version: number | null;
+  baseVersion: number | null;
 }
 
-export const FullCodeEditor = ({ graphId, version }: FullCodeEditorProps) => {
+export const FullCodeEditor = ({ graphId, version, baseVersion }: FullCodeEditorProps) => {
   const { data: codeData } = useGraphCode(graphId, version);
   const code = codeData?.code || '';
+
+  const { data: baseCodeData } = useGraphCode(baseVersion !== null ? graphId : null, baseVersion);
+  const baseCode = baseCodeData?.code || '';
+
   const { setNodes } = useReactFlow();
   const nodes = useNodes();
 
@@ -31,6 +36,8 @@ export const FullCodeEditor = ({ graphId, version }: FullCodeEditorProps) => {
 
   const { containerRef } = useCodeMirror({
     code,
+    baseCode,
+    isDiffMode: baseVersion !== null,
     selectedNodeId,
     setSelectedNodeId,
   });

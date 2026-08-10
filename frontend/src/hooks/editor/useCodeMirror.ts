@@ -1,6 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { python } from '@codemirror/lang-python';
 import { foldGutter, indentUnit } from '@codemirror/language';
+import { unifiedMergeView } from '@codemirror/merge';
 import { EditorState, Range, StateEffect, StateField } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import type { DecorationSet } from '@codemirror/view';
@@ -83,16 +84,33 @@ const editorTheme = EditorView.theme({
     borderRightColor: 'var(--iris-9)',
     backgroundColor: 'rgba(59, 130, 246, 0.015) !important',
   },
+  '.cm-deletedLine': {
+    backgroundColor: 'rgba(239, 68, 68, 0.15) !important',
+    textDecoration: 'line-through',
+  },
+  '.cm-insertedLine': {
+    backgroundColor: 'rgba(34, 197, 94, 0.15) !important',
+  },
+  '.cm-deletedChunk': {
+    backgroundColor: 'rgba(239, 68, 68, 0.05) !important',
+  },
+  '.cm-insertedChunk': {
+    backgroundColor: 'rgba(34, 197, 94, 0.05) !important',
+  },
 });
 
 interface UseCodeMirrorProps {
   code: string;
+  baseCode: string;
+  isDiffMode: boolean;
   selectedNodeId: string | null;
   setSelectedNodeId: (nodeId: string | null) => void;
 }
 
 export function useCodeMirror({
   code,
+  baseCode,
+  isDiffMode,
   selectedNodeId,
   setSelectedNodeId,
 }: UseCodeMirrorProps) {
@@ -140,29 +158,35 @@ export function useCodeMirror({
       }
     });
 
+    const activeExtensions = [
+      EditorState.readOnly.of(true),
+      lineNumbers(),
+      history(),
+      keymap.of([
+        indentWithTab,
+        ...defaultKeymap,
+        ...historyKeymap,
+      ]),
+      python(),
+      drawSelection(),
+      oneDark,
+      foldGutter(),
+      selectionField,
+      readOnlyField,
+      updateListener,
+      EditorState.tabSize.of(4),
+      indentUnit.of('    '),
+      editorTheme,
+      EditorView.lineWrapping,
+    ];
+
+    if (isDiffMode) {
+      activeExtensions.push(unifiedMergeView({ original: baseCode, mergeControls: false }));
+    }
+
     const state = EditorState.create({
       doc: code,
-      extensions: [
-        EditorState.readOnly.of(true),
-        lineNumbers(),
-        history(),
-        keymap.of([
-          indentWithTab,
-          ...defaultKeymap,
-          ...historyKeymap,
-        ]),
-        python(),
-        drawSelection(),
-        oneDark,
-        foldGutter(),
-        selectionField,
-        readOnlyField,
-        updateListener,
-        EditorState.tabSize.of(4),
-        indentUnit.of('    '),
-        editorTheme,
-        EditorView.lineWrapping,
-      ],
+      extensions: activeExtensions,
     });
 
     const view = new EditorView({
@@ -172,17 +196,19 @@ export function useCodeMirror({
 
     viewRef.current = view;
 
-    const initialEffects = getFoldEffectsForFunctions(view.state, selectedNodeId);
+    const initialEffects = getFoldEffectsForFunctions(viewRef.current.state, selectedNodeId);
     if (initialEffects.length > 0) {
-      view.dispatch({ effects: initialEffects });
+      viewRef.current.dispatch({ effects: initialEffects });
     }
 
     return () => {
-      view.destroy();
-      viewRef.current = null;
+      if (viewRef.current) {
+        viewRef.current.destroy();
+        viewRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setSelectedNodeId]);
+  }, [setSelectedNodeId, isDiffMode, baseCode]);
 
   return {
     containerRef,

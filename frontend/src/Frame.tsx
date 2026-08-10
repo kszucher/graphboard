@@ -14,10 +14,12 @@ export const Frame = () => {
   const { data: selectedGraphId } = useActiveGraphId(userId ?? null);
   const [prevGraphId, setPrevGraphId] = useState(selectedGraphId);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
 
   if (selectedGraphId !== prevGraphId) {
     setPrevGraphId(selectedGraphId);
     setSelectedVersion(null);
+    setBaseVersion(null);
   }
 
   const { data: graphFlow } = useGraphQuery(selectedGraphId || '', selectedVersion);
@@ -52,6 +54,13 @@ export const Frame = () => {
   }, [graphFlow, selectedVersion]);
 
   const activeVersionName = currentVersionObj?.name ?? (graphFlow?.current_version !== undefined ? `v${graphFlow.current_version + 1}` : 'v1');
+
+  const baseVersionObj = useMemo(() => {
+    if (!graphFlow?.versions || baseVersion === null) return null;
+    return graphFlow.versions.find(v => v.sequence_number === baseVersion);
+  }, [graphFlow, baseVersion]);
+
+  const baseVersionName = baseVersionObj ? `Compare: ${baseVersionObj.name}` : 'Compare: None';
 
   const isGraphSelected = !!selectedGraphId;
 
@@ -113,30 +122,64 @@ export const Frame = () => {
           {/* Right */}
           <Flex align="center" gap="3">
             {isGraphSelected && graphFlow?.versions && (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Button variant="soft" color="gray" radius="full">
-                    {activeVersionName} <CaretDownIcon/>
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  <DropdownMenu.Label>Versions</DropdownMenu.Label>
-                  {graphFlow.versions.map(v => (
-                    <DropdownMenu.Item
-                      key={v.sequence_number}
-                      onClick={() => setSelectedVersion(v.sequence_number)}
-                    >
+              <Flex align="center" gap="2">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="soft" color="gray" radius="full">
+                      {activeVersionName} <CaretDownIcon/>
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.Label>Versions</DropdownMenu.Label>
+                    {graphFlow.versions.map(v => (
+                      <DropdownMenu.Item
+                        key={v.sequence_number}
+                        onClick={() => setSelectedVersion(v.sequence_number)}
+                      >
+                        <Flex align="center" gap="2">
+                          {v.sequence_number === (selectedVersion ?? graphFlow.current_version) && <CheckIcon/>}
+                          <Text>{v.name}</Text>
+                          <Text size="1" color="gray">
+                            ({new Date(v.created_at).toLocaleTimeString()})
+                          </Text>
+                        </Flex>
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="soft" color="gray" radius="full">
+                      {baseVersionName} <CaretDownIcon/>
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.Label>Compare Base Version</DropdownMenu.Label>
+                    <DropdownMenu.Item onClick={() => setBaseVersion(null)}>
                       <Flex align="center" gap="2">
-                        {v.sequence_number === (selectedVersion ?? graphFlow.current_version) && <CheckIcon/>}
-                        <Text>{v.name}</Text>
-                        <Text size="1" color="gray">
-                          ({new Date(v.created_at).toLocaleTimeString()})
-                        </Text>
+                        {baseVersion === null && <CheckIcon/>}
+                        <Text>None (No Diff)</Text>
                       </Flex>
                     </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+                    {graphFlow.versions.map(v => (
+                      <DropdownMenu.Item
+                        key={v.sequence_number}
+                        onClick={() => setBaseVersion(v.sequence_number)}
+                        disabled={v.sequence_number === (selectedVersion ?? graphFlow.current_version)}
+                      >
+                        <Flex align="center" gap="2">
+                          {v.sequence_number === baseVersion && <CheckIcon/>}
+                          <Text>{v.name}</Text>
+                          <Text size="1" color="gray">
+                            ({new Date(v.created_at).toLocaleTimeString()})
+                          </Text>
+                        </Flex>
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Flex>
             )}
 
             <IconButton
@@ -153,7 +196,7 @@ export const Frame = () => {
       </Box>
 
       {/* Main Workspace (Left Sidebar + Canvas + Right Sidebar) */}
-      <ReactFlowProvider key={selectedGraphId || 'no-graph'}>
+      <ReactFlowProvider key={`${selectedGraphId || 'no-graph'}-${selectedVersion ?? 'latest'}`}>
         <Flex
           style={{
             width: '100vw',
@@ -182,7 +225,7 @@ export const Frame = () => {
           </Box>
 
           {/* Right Sidebar Component */}
-          <RightSidebar graphId={selectedGraphId || ''} version={selectedVersion}/>
+          <RightSidebar graphId={selectedGraphId || ''} version={selectedVersion} baseVersion={baseVersion}/>
         </Flex>
       </ReactFlowProvider>
     </>
