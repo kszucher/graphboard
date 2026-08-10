@@ -255,7 +255,10 @@ export interface components {
     };
     /** AgenticAssignerNode */
     AgenticAssignerNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -287,7 +290,10 @@ export interface components {
     };
     /** AgenticSwitchNode */
     AgenticSwitchNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -376,7 +382,10 @@ export interface components {
     };
     /** EndNode */
     EndNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -449,7 +458,10 @@ export interface components {
     };
     /** InterruptNode */
     InterruptNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -466,7 +478,10 @@ export interface components {
     };
     /** LogicalAssignerNode */
     LogicalAssignerNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -487,7 +502,10 @@ export interface components {
     };
     /** LogicalSwitchNode */
     LogicalSwitchNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -529,7 +547,10 @@ export interface components {
     };
     /** StartNode */
     StartNode: {
-      /** Id */
+      /**
+       * Id
+       * @default
+       */
       id: string;
       /**
        * @description discriminator enum property added by openapi-typescript

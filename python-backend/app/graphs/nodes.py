@@ -16,7 +16,7 @@ def _make_slot_id(node_id: str, raw_string: str) -> str:
 
 
 class BaseNode(BaseModel):
-    id: str
+    id: str = ""
 
     def get_variable_references(self) -> set[str]:
         from app.graphs.expressions import get_expression_variables
