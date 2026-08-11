@@ -11,7 +11,6 @@ from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    UpsertLogicalAssignerOp,
     UpsertLogicalSwitchOp,
     UpsertStateVarOp,
 )
@@ -51,14 +50,14 @@ def test_serialize_flow_to_code() -> None:
     )
 
     serialized = serialize_flow_to_code(flow)
-    assert "declare_variable(key='score', type='number', default_value=10)" in serialized
-    assert "add_node(node_id='init', type='LOGICAL_ASSIGNER')" in serialized
-    assert "add_variable_assignment(node_id='init', target_var_key='score', expression='10')" in serialized
-    assert "add_node(node_id='check', type='LOGICAL_SWITCH')" in serialized
-    assert "add_routing_branch(node_id='check', case='Yes', expression='True')" in serialized
-    assert "connect_nodes(source='start', target='init')" in serialized
-    assert "connect_nodes(source='init', target='check')" in serialized
-    assert "connect_nodes(source='check', target='end', case='Yes')" in serialized
+    assert "- score: number [default: 10]" in serialized
+    assert "- init [LOGICAL_ASSIGNER]" in serialized
+    assert "score = 10" in serialized
+    assert "- check [LOGICAL_SWITCH]" in serialized
+    assert "branches: Yes (True)" in serialized
+    assert "- start -> init" in serialized
+    assert "- init -> check" in serialized
+    assert "- check -[Yes]-> end" in serialized
 
 
 def test_sort_operations_by_dependency() -> None:
@@ -93,16 +92,14 @@ def test_translate_tool_calls_to_operations() -> None:
 
     tool_calls = [
         MockToolCall("upsert_state_var", json.dumps({"key": "score", "type": "number", "default_value": 0})),
-        MockToolCall("upsert_logical_assigner", json.dumps({"node_id": "test_node", "assignments": []})),
         MockToolCall("connect", json.dumps({"source": "test_node", "target": "end", "case": "Yes"})),
     ]
 
     ops = translate_tool_calls_to_operations(tool_calls)
-    assert len(ops) == 3
+    assert len(ops) == 2
     assert isinstance(ops[0], UpsertStateVarOp)
-    assert isinstance(ops[1], UpsertLogicalAssignerOp)
-    assert isinstance(ops[2], ConnectOp)
-    assert ops[2].source_handle == "test_node_yes"
+    assert isinstance(ops[1], ConnectOp)
+    assert ops[1].source_handle == "test_node_yes"
 
 
 def test_strict_validation_forbids_extra_fields() -> None:

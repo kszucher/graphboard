@@ -26,12 +26,20 @@ def log_llm_call(
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
+        logged_messages = []
+        for msg in messages:
+            msg_copy = dict(msg)
+            content = msg_copy.get("content")
+            if isinstance(content, str) and "\n" in content:
+                msg_copy["content"] = content.split("\n")
+            logged_messages.append(msg_copy)
+
         log_entry: dict[str, Any] = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "graph_id": graph_id,
             "node_name": node_name,
             "model": model,
-            "messages": messages,
+            "messages": logged_messages,
             "error": error,
         }
 
@@ -42,17 +50,23 @@ def log_llm_call(
                 "content": choice.message.content,
             }
             if choice.message.tool_calls:
-                message_info["tool_calls"] = [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in choice.message.tool_calls
-                ]
+                message_info["tool_calls"] = []
+                for tc in choice.message.tool_calls:
+                    args_val = tc.function.arguments
+                    try:
+                        args_val = json.loads(tc.function.arguments)
+                    except Exception:
+                        pass
+                    message_info["tool_calls"].append(
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": args_val,
+                            },
+                        }
+                    )
 
             log_entry["response"] = message_info
 

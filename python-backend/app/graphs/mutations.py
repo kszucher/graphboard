@@ -146,21 +146,29 @@ def _upsert_node_generic(
     if not node_cls:
         raise ValidationError(f"Unsupported node type: {node_type}")
 
-    # Build flat dictionary payload for model_validate
-    node_payload = {"id": node_id, "node_type": node_type, **config_fields}
-
     from typing import cast
 
     if existing_node is None:
+        # Build flat dictionary payload for model_validate
+        node_payload = {"id": node_id, "node_type": node_type, **config_fields}
         target_node = cast(NodeRead, node_cls.model_validate(node_payload))
         nodes.append(target_node)
     else:
         if existing_node.node_type != node_type:
             nodes.remove(existing_node)
+            node_payload = {"id": node_id, "node_type": node_type, **config_fields}
             target_node = cast(NodeRead, node_cls.model_validate(node_payload))
             nodes.append(target_node)
         else:
-            validated = node_cls.model_validate(node_payload)
+            # Merge existing state with non-None configuration updates
+            non_none_config = {k: v for k, v in config_fields.items() if v is not None}
+            merged_payload = {
+                **existing_node.model_dump(mode="json"),
+                **non_none_config,
+                "id": node_id,
+                "node_type": node_type,
+            }
+            validated = node_cls.model_validate(merged_payload)
             for k in validated.model_fields.keys():
                 if k not in ("id", "node_type"):
                     setattr(existing_node, k, getattr(validated, k))

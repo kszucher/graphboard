@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
-
-from app.copilot.enums import PlannerAction
 from app.graphs.schemas import (
     ConnectOp,
     DeleteNodeOp,
@@ -18,33 +15,6 @@ from app.graphs.schemas import (
     UpsertLogicalSwitchOp,
     UpsertStateVarOp,
 )
-
-
-class PlannerStepSchema(BaseModel):
-    action: PlannerAction = Field(
-        description=f"High-level operation type. Must be one of: {', '.join(a.value for a in PlannerAction)}."
-    )
-    description: str = Field(description="Short human-readable summary of what this step does.")
-    details: dict[str, Any] | None = Field(
-        default=None, description="Specific details (e.g. variable name, node type, source, target)."
-    )
-
-
-class SubmitPlanArgsSchema(BaseModel):
-    graph_analysis: str = Field(
-        description="Step-by-step reasoning explaining the existing graph topology, switch choices, and where the new logic logically integrates."
-    )
-    steps: list[PlannerStepSchema]
-
-
-SUBMIT_PLAN_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "submit_plan",
-        "description": "Submits a structured plan of operations to perform on the graph.",
-        "parameters": SubmitPlanArgsSchema.model_json_schema(),
-    },
-}
 
 ALL_FLAT_TOOLS = {
     "upsert_logical_assigner": {
