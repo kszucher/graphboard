@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
-from app.graphs.nodes import Branch, LogicalAssignmentSchema, NodeRead
+from app.graphs.nodes import NodeConfig, NodeRead
 
 
 class OrmModel(BaseModel):
@@ -70,52 +70,31 @@ class GraphFlowData(BaseModel):
 
 
 class UpsertNodeOp(BaseModel):
-    """Flat node upsert operation.
-
-    All node-type-specific fields live at the top level alongside node_id and node_type.
-    The relevant subset of fields depends on node_type:
-      - LOGICAL_ASSIGNER  → assignments
-      - AGENTIC_ASSIGNER  → prompt, agentic_inputs, agentic_outputs
-      - LOGICAL_SWITCH    → branches (each branch needs a label + expression)
-      - AGENTIC_SWITCH    → agentic_input, branches (each branch needs only a label)
-      - INTERRUPT         → payload_vars, resume_var
-    """
+    """Node upsert operation with nested config."""
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_node"] = "upsert_node"
     node_id: str
     node_type: NodeType
     new_id: str | None = None
-
-    # LOGICAL_ASSIGNER
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-    # AGENTIC_ASSIGNER
-    prompt: str = ""
-    agentic_inputs: list[str] = Field(default_factory=list)
-    agentic_outputs: list[str] = Field(default_factory=list)
-
-    # LOGICAL_SWITCH & AGENTIC_SWITCH — unified branch type
-    branches: list[Branch] = Field(default_factory=list)
-
-    # AGENTIC_SWITCH
-    agentic_input: str = ""
-
-    # INTERRUPT
-    payload_vars: list[str] = Field(default_factory=list)
-    resume_var: str = ""
+    config: NodeConfig
 
     @model_validator(mode="after")
     def parse_branch_and_assignment_expressions(self) -> UpsertNodeOp:
+        if self.node_type != self.config.node_type:
+            raise ValueError(f"node_type '{self.node_type}' does not match config node_type '{self.config.node_type}'")
+
         if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
             from app.graphs.expressions import parse_expression
 
-            for assignment in self.assignments:
-                if isinstance(assignment.expression, str):
-                    assignment.expression = parse_expression(assignment.expression)
-            for branch in self.branches:
-                if isinstance(branch.expression, str):
-                    branch.expression = parse_expression(branch.expression)
+            if hasattr(self.config, "assignments"):
+                for assignment in self.config.assignments:
+                    if isinstance(assignment.expression, str):
+                        assignment.expression = parse_expression(assignment.expression)
+            if hasattr(self.config, "branches"):
+                for branch in self.config.branches:
+                    if isinstance(branch.expression, str):
+                        branch.expression = parse_expression(branch.expression)
         return self
 
 

@@ -67,12 +67,22 @@ class BaseNode(BaseModel):
         pass
 
 
-class StartNode(BaseNode):
+class StartConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.START] = NodeType.START
 
 
-class EndNode(BaseNode):
+class StartNode(BaseNode, StartConfig):
+    pass
+
+
+class EndConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.END] = NodeType.END
+
+
+class EndNode(BaseNode, EndConfig):
+    pass
 
 
 class LogicalAssignmentSchema(BaseModel):
@@ -82,17 +92,25 @@ class LogicalAssignmentSchema(BaseModel):
     expression: str | None = None
 
 
-class LogicalAssignerNode(BaseNode):
+class LogicalAssignerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.LOGICAL_ASSIGNER] = NodeType.LOGICAL_ASSIGNER
     assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
 
 
-class AgenticAssignerNode(BaseNode):
+class LogicalAssignerNode(BaseNode, LogicalAssignerConfig):
+    pass
+
+
+class AgenticAssignerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.AGENTIC_ASSIGNER] = NodeType.AGENTIC_ASSIGNER
     prompt: str = ""
     agentic_inputs: list[str] = Field(default_factory=list)
     agentic_outputs: list[str] = Field(default_factory=list)
 
+
+class AgenticAssignerNode(BaseNode, AgenticAssignerConfig):
     _variable_fields = ["agentic_inputs", "agentic_outputs"]
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
@@ -124,10 +142,13 @@ class Branch(BaseModel):
     target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
-class LogicalSwitchNode(BaseNode):
+class LogicalSwitchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
     branches: list[Branch] = Field(default_factory=list)
 
+
+class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
     @model_validator(mode="after")
     def populate_branch_ids(self) -> LogicalSwitchNode:
         for branch in self.branches:
@@ -148,11 +169,14 @@ class LogicalSwitchNode(BaseNode):
                 )
 
 
-class InterruptNode(BaseNode):
+class InterruptConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.INTERRUPT] = NodeType.INTERRUPT
     payload_vars: list[str] = Field(default_factory=list)
     resume_var: str = ""
 
+
+class InterruptNode(BaseNode, InterruptConfig):
     _variable_fields = ["payload_vars", "resume_var"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
@@ -162,11 +186,14 @@ class InterruptNode(BaseNode):
             raise ValidationError(f"Interrupt node '{self.id}' must have a valid resume_var.")
 
 
-class AgenticSwitchNode(BaseNode):
+class AgenticSwitchConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
     branches: list[Branch] = Field(default_factory=list)
     agentic_input: str = ""
 
+
+class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
     @model_validator(mode="after")
     def populate_branch_ids(self) -> AgenticSwitchNode:
         for branch in self.branches:
@@ -193,6 +220,17 @@ NodeRead: TypeAlias = Annotated[
     | InterruptNode
     | LogicalSwitchNode
     | AgenticSwitchNode,
+    Field(discriminator="node_type"),
+]
+
+NodeConfig: TypeAlias = Annotated[
+    StartConfig
+    | EndConfig
+    | LogicalAssignerConfig
+    | AgenticAssignerConfig
+    | InterruptConfig
+    | LogicalSwitchConfig
+    | AgenticSwitchConfig,
     Field(discriminator="node_type"),
 ]
 

@@ -1,6 +1,5 @@
-from app.copilot.enums import PlannerAction
 
-PLANNER_SYSTEM_PROMPT = f"""# GraphBoard Copilot — Planner Prompt
+PLANNER_SYSTEM_PROMPT = """# GraphBoard Copilot — Planner Prompt
 
 You are the **Planner** for GraphBoard, a visual graph editor that compiles to LangGraph workflows.
 Your job is to translate a user's natural language edit request into a structured, high-level plan using the `submit_plan` tool.

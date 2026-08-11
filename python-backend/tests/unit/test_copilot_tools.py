@@ -66,7 +66,7 @@ def test_sort_operations_by_dependency() -> None:
 
     ops: list[GraphOperation] = [
         ConnectOp(op="connect", source="a", target="b"),
-        UpsertNodeOp(op="upsert_node", node_id="a", node_type=NodeType.START),
+        UpsertNodeOp(op="upsert_node", node_id="a", node_type=NodeType.START, config={"node_type": NodeType.START}),
         UpsertStateVarOp(op="upsert_state_var", key="x", type="number"),
     ]
     sorted_ops = sort_operations_by_dependency(ops)
@@ -79,7 +79,12 @@ def test_translate_tool_call_to_operations() -> None:
     args = {
         "operations": [
             {"op": "upsert_state_var", "key": "score", "type": "number", "default_value": "0"},
-            {"op": "upsert_node", "node_id": "test_node", "node_type": "LOGICAL_ASSIGNER"},
+            {
+                "op": "upsert_node",
+                "node_id": "test_node",
+                "node_type": "LOGICAL_ASSIGNER",
+                "config": {"node_type": "LOGICAL_ASSIGNER"},
+            },
             {"op": "connect", "source": "test_node", "target": "end", "case": "Yes"},
         ]
     }
@@ -101,15 +106,22 @@ def test_strict_validation_forbids_extra_fields() -> None:
             op="upsert_node",
             node_id="test",
             node_type=NodeType.AGENTIC_SWITCH,
-            branches=[
-                {"case": "Submit"}  # "case" is not a valid field — must be "label"
-            ],
+            config={
+                "node_type": NodeType.AGENTIC_SWITCH,
+                "branches": [
+                    {"case": "Submit"}  # "case" is not a valid field — must be "label"
+                ],
+            },
         )
 
     # Extra fields at operation root should also be forbidden
     with pytest.raises(ValidationError):
         UpsertNodeOp(
-            op="upsert_node", node_id="test", node_type=NodeType.START, some_invalid_extra_field="hello"
+            op="upsert_node",
+            node_id="test",
+            node_type=NodeType.START,
+            config={"node_type": NodeType.START},
+            some_invalid_extra_field="hello",
         )
 
 

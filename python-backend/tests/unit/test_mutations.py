@@ -22,11 +22,14 @@ from app.graphs.schemas import (
 def test_apply_patch_upsert_node_basic() -> None:
     flow = GraphFlowData(nodes=[], edges=[])
     patch = [
-        UpsertNodeOp(op="upsert_node", node_id="start_1", node_type=NodeType.START),
+        UpsertNodeOp(
+            op="upsert_node", node_id="start_1", node_type=NodeType.START, config={"node_type": NodeType.START}
+        ),
         UpsertNodeOp(
             op="upsert_node",
             node_id="logical_assigner_1",
             node_type=NodeType.LOGICAL_ASSIGNER,
+            config={"node_type": NodeType.LOGICAL_ASSIGNER},
         ),
     ]
     updated = mutations.apply_patch(flow, patch)
@@ -47,16 +50,19 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
             op="upsert_node",
             node_id="switch_1",
             node_type=NodeType.LOGICAL_SWITCH,
-            branches=[
-                {
-                    "label": "option_a",
-                    "expression": "x == 10",
-                },
-                {
-                    "label": "option_b",
-                    "expression": "True",
-                },
-            ],
+            config={
+                "node_type": NodeType.LOGICAL_SWITCH,
+                "branches": [
+                    {
+                        "label": "option_a",
+                        "expression": "x == 10",
+                    },
+                    {
+                        "label": "option_b",
+                        "expression": "True",
+                    },
+                ],
+            },
         )
     ]
     updated = mutations.apply_patch(flow, patch)
@@ -72,8 +78,10 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
 def test_apply_patch_connect_disconnect() -> None:
     flow = GraphFlowData(nodes=[], edges=[])
     patch_nodes = [
-        UpsertNodeOp(op="upsert_node", node_id="node_a", node_type=NodeType.START),
-        UpsertNodeOp(op="upsert_node", node_id="node_b", node_type=NodeType.END),
+        UpsertNodeOp(
+            op="upsert_node", node_id="node_a", node_type=NodeType.START, config={"node_type": NodeType.START}
+        ),
+        UpsertNodeOp(op="upsert_node", node_id="node_b", node_type=NodeType.END, config={"node_type": NodeType.END}),
     ]
     flow = mutations.apply_patch(flow, patch_nodes)
 
@@ -108,12 +116,15 @@ def test_apply_patch_state_var_cascade() -> None:
                 op="upsert_node",
                 node_id="assigner_1",
                 node_type=NodeType.LOGICAL_ASSIGNER,
-                assignments=[
-                    {
-                        "target_var_key": "old_key",
-                        "expression": "old_key + ' world'",
-                    }
-                ],
+                config={
+                    "node_type": NodeType.LOGICAL_ASSIGNER,
+                    "assignments": [
+                        {
+                            "target_var_key": "old_key",
+                            "expression": "old_key + ' world'",
+                        }
+                    ],
+                },
             )
         ],
     )
@@ -151,12 +162,15 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
                 op="upsert_node",
                 node_id="assigner_1",
                 node_type=NodeType.LOGICAL_ASSIGNER,
-                assignments=[
-                    {
-                        "target_var_key": "x",
-                        "expression": "15",
-                    }
-                ],
+                config={
+                    "node_type": NodeType.LOGICAL_ASSIGNER,
+                    "assignments": [
+                        {
+                            "target_var_key": "x",
+                            "expression": "15",
+                        }
+                    ],
+                },
             )
         ],
     )

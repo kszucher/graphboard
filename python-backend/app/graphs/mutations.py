@@ -116,21 +116,11 @@ def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> Gr
 # Core Operation Implementations
 # ----------------------------------------------------
 def _node_payload_from_op(op: UpsertNodeOp) -> dict[str, Any]:
-    """Extract node-type-specific fields from a flat UpsertNodeOp into a NodeRead-compatible dict."""
+    """Extract node-type-specific fields from a nested UpsertNodeOp into a NodeRead-compatible dict."""
     base: dict[str, Any] = {"id": op.node_id, "node_type": op.node_type}
-    nt = op.node_type
-    if nt == NodeType.LOGICAL_ASSIGNER:
-        return {**base, "assignments": [a.model_dump() for a in op.assignments]}
-    if nt == NodeType.AGENTIC_ASSIGNER:
-        return {**base, "prompt": op.prompt, "agentic_inputs": op.agentic_inputs, "agentic_outputs": op.agentic_outputs}
-    if nt == NodeType.LOGICAL_SWITCH:
-        return {**base, "branches": [b.model_dump() for b in op.branches]}
-    if nt == NodeType.AGENTIC_SWITCH:
-        return {**base, "agentic_input": op.agentic_input, "branches": [b.model_dump() for b in op.branches]}
-    if nt == NodeType.INTERRUPT:
-        return {**base, "payload_vars": op.payload_vars, "resume_var": op.resume_var}
-    # START, END
-    return base
+    config_dict = op.config.model_dump()
+    config_dict.pop("node_type", None)
+    return {**base, **config_dict}
 
 
 def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
