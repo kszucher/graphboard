@@ -50,10 +50,11 @@
     {
       "id": "gen_question",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D.",
+      "prompt": "Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D. Set display_text to the generated question.",
       "agentic_inputs": [],
       "agentic_outputs": [
         "current_question",
+        "display_text",
         "correct_answer"
       ]
     },
@@ -61,7 +62,7 @@
       "id": "ask_question",
       "node_type": "INTERRUPT",
       "payload_vars": [
-        "current_question"
+        "display_text"
       ],
       "resume_var": "user_answer"
     },
@@ -109,23 +110,25 @@
     {
       "id": "audience_votes",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Poll audience for advice on question: '{current_question}'.",
+      "prompt": "Poll audience for advice on question: '{current_question}'. Append their advice to '{display_text}'.",
       "agentic_inputs": [
-        "current_question"
+        "current_question",
+        "display_text"
       ],
       "agentic_outputs": [
-        "audience_poll_result"
+        "display_text"
       ]
     },
     {
       "id": "phone_advice",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Call a friend for advice on question: '{current_question}'.",
+      "prompt": "Call a friend for advice on question: '{current_question}'. Append their advice to '{display_text}'.",
       "agentic_inputs": [
-        "current_question"
+        "current_question",
+        "display_text"
       ],
       "agentic_outputs": [
-        "phone_call_advice"
+        "display_text"
       ]
     },
     {
@@ -313,6 +316,13 @@
       "description": null
     },
     {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "key": "display_text",
+      "type": "string",
+      "default_value": null,
+      "description": null
+    },
+    {
       "id": "cd3f9cf0-42ba-438d-b9f1-571f003e6c41",
       "key": "user_answer",
       "type": "string",
@@ -338,20 +348,6 @@
       "key": "correct_answer",
       "type": "string",
       "default_value": "A",
-      "description": null
-    },
-    {
-      "id": "76542600-60ef-4e0c-9b1f-e1a21623ffdd",
-      "key": "audience_poll_result",
-      "type": "string",
-      "default_value": null,
-      "description": null
-    },
-    {
-      "id": "546b62c1-3530-4309-9934-2d62f7cbddbb",
-      "key": "phone_call_advice",
-      "type": "string",
-      "default_value": null,
       "description": null
     }
   ]
