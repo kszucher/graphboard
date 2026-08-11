@@ -1,6 +1,5 @@
 import pytest
 
-from app.constants import NodeType
 from app.exceptions import ValidationError
 from app.graphs import mutations
 from app.graphs.nodes import (
@@ -14,7 +13,8 @@ from app.graphs.schemas import (
     DeleteStateVarOp,
     DisconnectOp,
     GraphFlowData,
-    UpsertNodeOp,
+    UpsertLogicalAssignerOp,
+    UpsertLogicalSwitchOp,
     UpsertStateVarOp,
 )
 
@@ -22,19 +22,20 @@ from app.graphs.schemas import (
 def test_apply_patch_upsert_node_basic() -> None:
     flow = GraphFlowData(nodes=[], edges=[])
     patch = [
-        UpsertNodeOp(
-            op="upsert_node", node_id="start_1", node_type=NodeType.START, config={"node_type": NodeType.START}
+        UpsertLogicalSwitchOp(
+            op="upsert_logical_switch",
+            node_id="logical_switch_1",
+            branches=[],
         ),
-        UpsertNodeOp(
-            op="upsert_node",
+        UpsertLogicalAssignerOp(
+            op="upsert_logical_assigner",
             node_id="logical_assigner_1",
-            node_type=NodeType.LOGICAL_ASSIGNER,
-            config={"node_type": NodeType.LOGICAL_ASSIGNER},
+            assignments=[],
         ),
     ]
     updated = mutations.apply_patch(flow, patch)
     assert len(updated.nodes) == 2
-    assert isinstance(updated.nodes[0], StartNode)
+    assert isinstance(updated.nodes[0], LogicalSwitchNode)
     assert isinstance(updated.nodes[1], LogicalAssignerNode)
 
 
@@ -44,25 +45,21 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
         edges=[],
         state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=10)],
     )
-    # Creating a switch node and immediately setting up its branches and expressions
+    # Creating a switch node and setup its branches and expressions
     patch = [
-        UpsertNodeOp(
-            op="upsert_node",
+        UpsertLogicalSwitchOp(
+            op="upsert_logical_switch",
             node_id="switch_1",
-            node_type=NodeType.LOGICAL_SWITCH,
-            config={
-                "node_type": NodeType.LOGICAL_SWITCH,
-                "branches": [
-                    {
-                        "label": "option_a",
-                        "expression": "x == 10",
-                    },
-                    {
-                        "label": "option_b",
-                        "expression": "True",
-                    },
-                ],
-            },
+            branches=[
+                {
+                    "label": "option_a",
+                    "expression": "x == 10",
+                },
+                {
+                    "label": "option_b",
+                    "expression": "True",
+                },
+            ],
         )
     ]
     updated = mutations.apply_patch(flow, patch)
@@ -77,13 +74,11 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
 
 def test_apply_patch_connect_disconnect() -> None:
     flow = GraphFlowData(nodes=[], edges=[])
-    patch_nodes = [
-        UpsertNodeOp(
-            op="upsert_node", node_id="node_a", node_type=NodeType.START, config={"node_type": NodeType.START}
-        ),
-        UpsertNodeOp(op="upsert_node", node_id="node_b", node_type=NodeType.END, config={"node_type": NodeType.END}),
-    ]
-    flow = mutations.apply_patch(flow, patch_nodes)
+
+    from app.graphs.nodes import EndNode
+
+    flow.nodes.append(StartNode(id="node_a"))
+    flow.nodes.append(EndNode(id="node_b"))
 
     patch_connect = [ConnectOp(op="connect", source="node_a", target="node_b", source_handle=None, target_handle=None)]
     flow = mutations.apply_patch(flow, patch_connect)
@@ -112,19 +107,15 @@ def test_apply_patch_state_var_cascade() -> None:
     flow = mutations.apply_patch(
         flow,
         [
-            UpsertNodeOp(
-                op="upsert_node",
+            UpsertLogicalAssignerOp(
+                op="upsert_logical_assigner",
                 node_id="assigner_1",
-                node_type=NodeType.LOGICAL_ASSIGNER,
-                config={
-                    "node_type": NodeType.LOGICAL_ASSIGNER,
-                    "assignments": [
-                        {
-                            "target_var_key": "old_key",
-                            "expression": "old_key + ' world'",
-                        }
-                    ],
-                },
+                assignments=[
+                    {
+                        "target_var_key": "old_key",
+                        "expression": "old_key + ' world'",
+                    }
+                ],
             )
         ],
     )
@@ -158,19 +149,15 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
     flow = mutations.apply_patch(
         flow,
         [
-            UpsertNodeOp(
-                op="upsert_node",
+            UpsertLogicalAssignerOp(
+                op="upsert_logical_assigner",
                 node_id="assigner_1",
-                node_type=NodeType.LOGICAL_ASSIGNER,
-                config={
-                    "node_type": NodeType.LOGICAL_ASSIGNER,
-                    "assignments": [
-                        {
-                            "target_var_key": "x",
-                            "expression": "15",
-                        }
-                    ],
-                },
+                assignments=[
+                    {
+                        "target_var_key": "x",
+                        "expression": "15",
+                    }
+                ],
             )
         ],
     )

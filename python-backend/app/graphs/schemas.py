@@ -7,8 +7,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from app.constants import NodeType
-from app.graphs.nodes import NodeConfig, NodeRead
+from app.graphs.nodes import Branch, LogicalAssignmentSchema, NodeRead
 
 
 class OrmModel(BaseModel):
@@ -69,33 +68,66 @@ class GraphFlowData(BaseModel):
     state: list[DefinerVariableSchema] = Field(default_factory=list)
 
 
-class UpsertNodeOp(BaseModel):
-    """Node upsert operation with nested config."""
-
+class UpsertLogicalAssignerOp(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    op: Literal["upsert_node"] = "upsert_node"
+    op: Literal["upsert_logical_assigner"] = "upsert_logical_assigner"
     node_id: str
-    node_type: NodeType
     new_id: str | None = None
-    config: NodeConfig
+    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def parse_branch_and_assignment_expressions(self) -> UpsertNodeOp:
-        if self.node_type != self.config.node_type:
-            raise ValueError(f"node_type '{self.node_type}' does not match config node_type '{self.config.node_type}'")
+    def parse_expressions(self) -> UpsertLogicalAssignerOp:
+        from app.graphs.expressions import parse_expression
 
-        if self.node_type in (NodeType.LOGICAL_ASSIGNER, NodeType.LOGICAL_SWITCH):
-            from app.graphs.expressions import parse_expression
-
-            if hasattr(self.config, "assignments"):
-                for assignment in self.config.assignments:
-                    if isinstance(assignment.expression, str):
-                        assignment.expression = parse_expression(assignment.expression)
-            if hasattr(self.config, "branches"):
-                for branch in self.config.branches:
-                    if isinstance(branch.expression, str):
-                        branch.expression = parse_expression(branch.expression)
+        for assignment in self.assignments:
+            if isinstance(assignment.expression, str):
+                assignment.expression = parse_expression(assignment.expression)
         return self
+
+
+class UpsertAgenticAssignerOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_agentic_assigner"] = "upsert_agentic_assigner"
+    node_id: str
+    new_id: str | None = None
+    prompt: str = ""
+    agentic_inputs: list[str] = Field(default_factory=list)
+    agentic_outputs: list[str] = Field(default_factory=list)
+
+
+class UpsertLogicalSwitchOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_logical_switch"] = "upsert_logical_switch"
+    node_id: str
+    new_id: str | None = None
+    branches: list[Branch] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def parse_expressions(self) -> UpsertLogicalSwitchOp:
+        from app.graphs.expressions import parse_expression
+
+        for branch in self.branches:
+            if isinstance(branch.expression, str):
+                branch.expression = parse_expression(branch.expression)
+        return self
+
+
+class UpsertAgenticSwitchOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_agentic_switch"] = "upsert_agentic_switch"
+    node_id: str
+    new_id: str | None = None
+    branches: list[Branch] = Field(default_factory=list)
+    agentic_input: str = ""
+
+
+class UpsertInterruptOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_interrupt"] = "upsert_interrupt"
+    node_id: str
+    new_id: str | None = None
+    payload_vars: list[str] = Field(default_factory=list)
+    resume_var: str = ""
 
 
 class DeleteNodeOp(BaseModel):
@@ -131,6 +163,7 @@ class ConnectOp(BaseModel):
     target: str
     target_handle: SkipJsonSchema[str | None] = None
     case: str | None = None
+    expression: str | None = None
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> ConnectOp:
@@ -170,6 +203,15 @@ class DeleteStateVarOp(BaseModel):
 
 
 GraphOperation: TypeAlias = Annotated[
-    UpsertNodeOp | DeleteNodeOp | ConnectOp | DisconnectOp | UpsertStateVarOp | DeleteStateVarOp,
+    UpsertLogicalAssignerOp
+    | UpsertAgenticAssignerOp
+    | UpsertLogicalSwitchOp
+    | UpsertAgenticSwitchOp
+    | UpsertInterruptOp
+    | DeleteNodeOp
+    | ConnectOp
+    | DisconnectOp
+    | UpsertStateVarOp
+    | DeleteStateVarOp,
     Field(discriminator="op"),
 ]

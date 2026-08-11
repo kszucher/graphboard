@@ -1,5 +1,4 @@
-from app.constants import NodeType
-from app.copilot.tools import translate_tool_call_to_operations
+from app.copilot.tools import translate_tool_calls_to_operations
 from app.graphs.mutations import sort_operations_by_dependency
 from app.graphs.nodes import (
     Branch,
@@ -12,7 +11,8 @@ from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
-    UpsertNodeOp,
+    UpsertLogicalAssignerOp,
+    UpsertLogicalSwitchOp,
     UpsertStateVarOp,
 )
 from app.graphs.serializer import serialize_flow_to_code
@@ -66,32 +66,41 @@ def test_sort_operations_by_dependency() -> None:
 
     ops: list[GraphOperation] = [
         ConnectOp(op="connect", source="a", target="b"),
-        UpsertNodeOp(op="upsert_node", node_id="a", node_type=NodeType.START, config={"node_type": NodeType.START}),
+        UpsertLogicalSwitchOp(op="upsert_logical_switch", node_id="a", branches=[]),
         UpsertStateVarOp(op="upsert_state_var", key="x", type="number"),
     ]
     sorted_ops = sort_operations_by_dependency(ops)
     assert sorted_ops[0].op == "upsert_state_var"
-    assert sorted_ops[1].op == "upsert_node"
+    assert sorted_ops[1].op == "upsert_logical_switch"
     assert sorted_ops[2].op == "connect"
 
 
-def test_translate_tool_call_to_operations() -> None:
-    args = {
-        "operations": [
-            {"op": "upsert_state_var", "key": "score", "type": "number", "default_value": "0"},
-            {
-                "op": "upsert_node",
-                "node_id": "test_node",
-                "node_type": "LOGICAL_ASSIGNER",
-                "config": {"node_type": "LOGICAL_ASSIGNER"},
-            },
-            {"op": "connect", "source": "test_node", "target": "end", "case": "Yes"},
-        ]
-    }
-    ops = translate_tool_call_to_operations(args)
+class MockToolCallFunction:
+    def __init__(self, name: str, arguments: str):
+        self.name = name
+        self.arguments = arguments
+
+
+class MockToolCall:
+    def __init__(self, func_name: str, arguments: str):
+        self.id = "mock_call"
+        self.type = "function"
+        self.function = MockToolCallFunction(func_name, arguments)
+
+
+def test_translate_tool_calls_to_operations() -> None:
+    import json
+
+    tool_calls = [
+        MockToolCall("upsert_state_var", json.dumps({"key": "score", "type": "number", "default_value": 0})),
+        MockToolCall("upsert_logical_assigner", json.dumps({"node_id": "test_node", "assignments": []})),
+        MockToolCall("connect", json.dumps({"source": "test_node", "target": "end", "case": "Yes"})),
+    ]
+
+    ops = translate_tool_calls_to_operations(tool_calls)
     assert len(ops) == 3
     assert isinstance(ops[0], UpsertStateVarOp)
-    assert isinstance(ops[1], UpsertNodeOp)
+    assert isinstance(ops[1], UpsertLogicalAssignerOp)
     assert isinstance(ops[2], ConnectOp)
     assert ops[2].source_handle == "test_node_yes"
 
@@ -100,27 +109,22 @@ def test_strict_validation_forbids_extra_fields() -> None:
     import pytest
     from pydantic import ValidationError
 
-    # Extra/invalid fields on UpsertNodeOp should raise ValidationError
+    # Extra/invalid fields on UpsertLogicalSwitchOp should raise ValidationError
     with pytest.raises(ValidationError):
-        UpsertNodeOp(
-            op="upsert_node",
+        UpsertLogicalSwitchOp(
+            op="upsert_logical_switch",
             node_id="test",
-            node_type=NodeType.AGENTIC_SWITCH,
-            config={
-                "node_type": NodeType.AGENTIC_SWITCH,
-                "branches": [
-                    {"case": "Submit"}  # "case" is not a valid field — must be "label"
-                ],
-            },
+            branches=[
+                {"case": "Submit"}  # "case" is not a valid field — must be "label"
+            ],
         )
 
     # Extra fields at operation root should also be forbidden
     with pytest.raises(ValidationError):
-        UpsertNodeOp(
-            op="upsert_node",
+        UpsertLogicalSwitchOp(
+            op="upsert_logical_switch",
             node_id="test",
-            node_type=NodeType.START,
-            config={"node_type": NodeType.START},
+            branches=[],
             some_invalid_extra_field="hello",
         )
 

@@ -1,4 +1,3 @@
-
 PLANNER_SYSTEM_PROMPT = """# GraphBoard Copilot — Planner Prompt
 
 You are the **Planner** for GraphBoard, a visual graph editor that compiles to LangGraph workflows.

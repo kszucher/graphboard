@@ -19,7 +19,11 @@ from app.graphs.schemas import (
     EdgeRead,
     GraphFlowData,
     GraphOperation,
-    UpsertNodeOp,
+    UpsertAgenticAssignerOp,
+    UpsertAgenticSwitchOp,
+    UpsertInterruptOp,
+    UpsertLogicalAssignerOp,
+    UpsertLogicalSwitchOp,
     UpsertStateVarOp,
 )
 
@@ -95,8 +99,16 @@ def validate_default_value_type(var_type: str, val: Any) -> Any:
 def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> GraphFlowData:
     """Applies a list of patch operations transactionally on the given GraphFlowData."""
     for op in patch:
-        if op.op == "upsert_node":
-            flow_data = _upsert_node(flow_data, op)
+        if op.op == "upsert_logical_assigner":
+            flow_data = _upsert_logical_assigner(flow_data, op)
+        elif op.op == "upsert_agentic_assigner":
+            flow_data = _upsert_agentic_assigner(flow_data, op)
+        elif op.op == "upsert_logical_switch":
+            flow_data = _upsert_logical_switch(flow_data, op)
+        elif op.op == "upsert_agentic_switch":
+            flow_data = _upsert_agentic_switch(flow_data, op)
+        elif op.op == "upsert_interrupt":
+            flow_data = _upsert_interrupt(flow_data, op)
         elif op.op == "delete_node":
             flow_data = _delete_node(flow_data, op)
         elif op.op == "connect":
@@ -115,19 +127,15 @@ def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> Gr
 # ----------------------------------------------------
 # Core Operation Implementations
 # ----------------------------------------------------
-def _node_payload_from_op(op: UpsertNodeOp) -> dict[str, Any]:
-    """Extract node-type-specific fields from a nested UpsertNodeOp into a NodeRead-compatible dict."""
-    base: dict[str, Any] = {"id": op.node_id, "node_type": op.node_type}
-    config_dict = op.config.model_dump()
-    config_dict.pop("node_type", None)
-    return {**base, **config_dict}
-
-
-def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
+def _upsert_node_generic(
+    flow_data: GraphFlowData,
+    node_id: str,
+    node_type: NodeType,
+    config_fields: dict[str, Any],
+    new_id: str | None = None,
+) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
-    node_id = op.node_id
-    node_type = op.node_type
 
     existing_node = next((n for n in nodes if n.id == node_id), None)
     target_node: NodeRead
@@ -138,45 +146,38 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
     if not node_cls:
         raise ValidationError(f"Unsupported node type: {node_type}")
 
-    # Build the node-type-specific payload from the flat UpsertNodeOp
-    node_payload = _node_payload_from_op(op)
+    # Build flat dictionary payload for model_validate
+    node_payload = {"id": node_id, "node_type": node_type, **config_fields}
 
-    # Instantiate or replace node
     from typing import cast
 
     if existing_node is None:
         target_node = cast(NodeRead, node_cls.model_validate(node_payload))
         nodes.append(target_node)
     else:
-        # If type changed or updating config, we replace or update the node object
         if existing_node.node_type != node_type:
             nodes.remove(existing_node)
             target_node = cast(NodeRead, node_cls.model_validate(node_payload))
             nodes.append(target_node)
         else:
-            # Overwrite fields with validated data from payload
             validated = node_cls.model_validate(node_payload)
             for k in validated.model_fields.keys():
                 if k not in ("id", "node_type"):
                     setattr(existing_node, k, getattr(validated, k))
             target_node = existing_node
 
-    # Handle potential Node ID Rename
-    new_id = op.new_id
+    # Handle rename
     if new_id and new_id != node_id:
-        # Verify new ID is unique
         if any(n.id == new_id for n in nodes if n.id != node_id):
             raise ValidationError(f"Node ID '{new_id}' is already taken.")
 
         target_node.id = new_id
 
-        # Update branch ID prefixes
         if hasattr(target_node, "branches"):
             for branch in getattr(target_node, "branches", []):
                 if branch.id.startswith(f"{node_id}_"):
                     branch.id = branch.id.replace(f"{node_id}_", f"{new_id}_", 1)
 
-        # Update edges targeting/sourcing this node
         for edge in edges:
             if edge.source == node_id:
                 edge.source = new_id
@@ -193,6 +194,60 @@ def _upsert_node(flow_data: GraphFlowData, op: UpsertNodeOp) -> GraphFlowData:
                 edge.target = edge.target.replace(f"{node_id}_", f"{new_id}_", 1)
 
     return flow_data
+
+
+def _upsert_logical_assigner(flow_data: GraphFlowData, op: UpsertLogicalAssignerOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.LOGICAL_ASSIGNER,
+        config_fields={"assignments": [a.model_dump() for a in op.assignments]},
+        new_id=op.new_id,
+    )
+
+
+def _upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssignerOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.AGENTIC_ASSIGNER,
+        config_fields={
+            "prompt": op.prompt,
+            "agentic_inputs": op.agentic_inputs,
+            "agentic_outputs": op.agentic_outputs,
+        },
+        new_id=op.new_id,
+    )
+
+
+def _upsert_logical_switch(flow_data: GraphFlowData, op: UpsertLogicalSwitchOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.LOGICAL_SWITCH,
+        config_fields={"branches": [b.model_dump() for b in op.branches]},
+        new_id=op.new_id,
+    )
+
+
+def _upsert_agentic_switch(flow_data: GraphFlowData, op: UpsertAgenticSwitchOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.AGENTIC_SWITCH,
+        config_fields={"branches": [b.model_dump() for b in op.branches], "agentic_input": op.agentic_input},
+        new_id=op.new_id,
+    )
+
+
+def _upsert_interrupt(flow_data: GraphFlowData, op: UpsertInterruptOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.INTERRUPT,
+        config_fields={"payload_vars": op.payload_vars, "resume_var": op.resume_var},
+        new_id=op.new_id,
+    )
 
 
 def _delete_node(flow_data: GraphFlowData, op: DeleteNodeOp) -> GraphFlowData:
@@ -225,6 +280,33 @@ def _connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
         raise ValidationError(f"Source Node '{op.source}' not found.")
     if not target_node:
         raise ValidationError(f"Target Node '{op.target}' not found.")
+
+    # Automatically register branch on Switch nodes if case is provided
+    if source_node.node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH) and op.case:
+        from app.graphs.nodes import Branch, _make_slot_id
+
+        branches = getattr(source_node, "branches", [])
+        branch = next((b for b in branches if b.label == op.case), None)
+        if not branch:
+            branch_id = _make_slot_id(op.source, op.case)
+            new_branch = Branch(
+                id=branch_id,
+                label=op.case,
+                expression=None,
+                target_var_key=None,
+            )
+            if source_node.node_type == NodeType.LOGICAL_SWITCH and op.expression:
+                from app.graphs.expressions import parse_expression
+
+                new_branch.expression = parse_expression(op.expression)
+            branches.append(new_branch)
+            op.source_handle = branch_id
+        else:
+            if op.expression is not None and source_node.node_type == NodeType.LOGICAL_SWITCH:
+                from app.graphs.expressions import parse_expression
+
+                branch.expression = parse_expression(op.expression)
+            op.source_handle = branch.id
 
     if hasattr(source_node, "branches") and op.source_handle:
         if not any(b.id == op.source_handle for b in getattr(source_node, "branches", [])):
@@ -329,7 +411,7 @@ def sort_operations_by_dependency(ops: Sequence[GraphOperation]) -> list[GraphOp
             delete_ops.append(op)
         elif op.op == "upsert_state_var":
             state_ops.append(op)
-        elif op.op == "upsert_node":
+        elif op.op.startswith("upsert_"):
             node_ops.append(op)
         elif op.op == "connect":
             connect_ops.append(op)

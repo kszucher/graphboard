@@ -1,19 +1,14 @@
 from __future__ import annotations
 
-import logging
 from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import Command
 
 from app.context import UnitOfWork
-from app.copilot.tools import translate_tool_call_to_operations
 from app.copilot.workflow import copilot_graph
 from app.exceptions import ValidationError
 from app.graphs.schemas import GraphFlowData
 from app.graphs.serializer import serialize_flow_to_code
-
-logger = logging.getLogger(__name__)
 
 
 def format_copilot_response(values: dict[str, Any]) -> dict[str, Any]:
@@ -48,7 +43,14 @@ async def initiate_copilot_workflow(
     graph_id: Any,
     prompt: str,
 ) -> dict[str, Any]:
-    """Starts the LangGraph Copilot workflow and runs until the plan review interrupt."""
+    """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
+    from datetime import datetime
+
+    from app.copilot.logger import flow_run_id
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    flow_run_id.set(f"{timestamp}_{graph_id}")
+
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
     if not latest_snapshot:
         raise ValidationError(f"No version found for Graph {graph_id}")
@@ -72,11 +74,31 @@ async def initiate_copilot_workflow(
         "applied": None,
     }
 
-    # Run up to the first wait interrupt
+    # Run the automated pipeline fully
     await copilot_graph.ainvoke(cast(Any, initial_state), config)
 
     graph_state = await copilot_graph.aget_state(config)
-    return format_copilot_response(graph_state.values)
+    state_values = graph_state.values
+
+    # If the workflow approved applying and validation passed, commit the mutations immediately
+    if state_values.get("applied") and not state_values.get("validation_error"):
+        import uuid
+
+        from pydantic import TypeAdapter
+
+        from app.graphs import service as graphs_service
+        from app.graphs.schemas import GraphOperation
+
+        ops: list[GraphOperation] = [
+            TypeAdapter(GraphOperation).validate_python(op) for op in state_values.get("operations") or []
+        ]
+        flow_response = await graphs_service.apply_patch(uow, uuid.UUID(str(graph_id)), ops)
+
+        response = format_copilot_response(state_values)
+        response["flow_data"] = flow_response
+        return response
+
+    return format_copilot_response(state_values)
 
 
 async def approve_copilot_plan(
@@ -84,11 +106,8 @@ async def approve_copilot_plan(
     graph_id: Any,
     approved: bool,
 ) -> dict[str, Any]:
-    """Resumes graph from plan review interrupt, running executor + validator up to apply interrupt."""
+    """Obsolete. Returns the current graph execution state."""
     config = cast(RunnableConfig, {"configurable": {"thread_id": str(graph_id)}})
-
-    await copilot_graph.ainvoke(Command(resume={"approved": approved}), config)
-
     graph_state = await copilot_graph.aget_state(config)
     return format_copilot_response(graph_state.values)
 
@@ -98,25 +117,7 @@ async def apply_copilot_patch(
     graph_id: Any,
     approved: bool,
 ) -> dict[str, Any]:
-    """Resumes graph from apply review interrupt. If approved, writes mutations transaction to DB."""
+    """Obsolete. Returns the current graph execution state."""
     config = cast(RunnableConfig, {"configurable": {"thread_id": str(graph_id)}})
-
-    await copilot_graph.ainvoke(Command(resume={"approved": approved}), config)
-
     graph_state = await copilot_graph.aget_state(config)
-    state_values = graph_state.values
-
-    # If the user approved applying and validation passed, commit the mutations
-    if approved and state_values.get("applied") and not state_values.get("validation_error"):
-        import uuid
-
-        from app.graphs import service as graphs_service
-
-        ops = translate_tool_call_to_operations({"operations": state_values.get("operations") or []})
-        flow_response = await graphs_service.apply_patch(uow, uuid.UUID(str(graph_id)), ops)
-
-        response = format_copilot_response(state_values)
-        response["flow_data"] = flow_response
-        return response
-
-    return format_copilot_response(state_values)
+    return format_copilot_response(graph_state.values)

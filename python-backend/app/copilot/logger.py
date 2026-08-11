@@ -1,3 +1,4 @@
+import contextvars
 import json
 import logging
 from datetime import datetime
@@ -8,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 LOGS_DIR = BASE_DIR / "logs"
-LOG_FILE = LOGS_DIR / "llm_calls.jsonl"
+
+# ContextVar to track the flow run ID within a single asynchronous task lifecycle
+flow_run_id = contextvars.ContextVar("flow_run_id", default="")
 
 
 def log_llm_call(
@@ -19,7 +22,7 @@ def log_llm_call(
     error: str | None = None,
     graph_id: str | None = None,
 ) -> None:
-    """Appends LLM request and response details to logs/llm_calls.jsonl."""
+    """Logs LLM request and response details to a separate pretty-printed JSON file per flow run."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -64,49 +67,34 @@ def log_llm_call(
             log_entry["response"] = None
             log_entry["usage"] = None
 
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_entry) + "\n")
+        run_name = flow_run_id.get()
+        if not run_name:
+            # Fallback if ContextVar is not set
+            timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            run_name = f"{timestamp_str}_{graph_id or 'unknown'}"
+
+        log_file = LOGS_DIR / f"flow_{run_name}.json"
+
+        # Load existing run entries if the file already exists
+        entries = []
+        if log_file.exists():
+            try:
+                with open(log_file, encoding="utf-8") as f:
+                    entries = json.load(f)
+                    if not isinstance(entries, list):
+                        entries = [entries]
+            except Exception:
+                entries = []
+
+        entries.append(log_entry)
+
+        with open(log_file, "w", encoding="utf-8") as f:
+            json.dump(entries, f, indent=2, ensure_ascii=False)
 
     except Exception as e:
         logger.error(f"Failed to log LLM call: {e}", exc_info=True)
 
 
 def add_feedback_to_log(graph_id: str, feedback_data: dict[str, Any]) -> bool:
-    """Finds the most recent log entry for graph_id and appends feedback data to it."""
-    try:
-        if not LOG_FILE.exists():
-            return False
-
-        with open(LOG_FILE, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        if not lines:
-            return False
-
-        # Search backwards to find the last LLM call for this graph_id
-        target_idx = -1
-        for i in range(len(lines) - 1, -1, -1):
-            try:
-                entry = json.loads(lines[i])
-                if entry.get("graph_id") == graph_id:
-                    target_idx = i
-                    break
-            except json.JSONDecodeError:
-                continue
-
-        if target_idx != -1:
-            entry = json.loads(lines[target_idx])
-            entry["feedback"] = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                **feedback_data,
-            }
-            lines[target_idx] = json.dumps(entry) + "\n"
-
-            with open(LOG_FILE, "w", encoding="utf-8") as f:
-                f.writelines(lines)
-            return True
-
-        return False
-    except Exception as e:
-        logger.error(f"Failed to add feedback to log: {e}", exc_info=True)
-        return False
+    """Obsolete feedback logger helper."""
+    return False

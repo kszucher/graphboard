@@ -8,16 +8,15 @@ from typing import Any, Literal, TypedDict, cast
 from groq import AsyncGroq
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import interrupt
 
 from app.copilot.executor_prompts import EXECUTOR_SYSTEM_PROMPT
 from app.copilot.logger import log_llm_call
 from app.copilot.planner_prompts import PLANNER_SYSTEM_PROMPT
 from app.copilot.tools import (
-    PATCH_GRAPH_TOOL,
+    ALL_FLAT_TOOLS,
     SUBMIT_PLAN_TOOL,
     SubmitPlanArgsSchema,
-    translate_tool_call_to_operations,
+    translate_tool_calls_to_operations,
 )
 from app.exceptions import ValidationError
 from app.graphs import mutations
@@ -121,16 +120,37 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
 
 
 def wait_for_plan_node(state: CopilotState) -> dict[str, Any]:
-    """Pauses graph execution so the user can review and approve/reject the planner's checklist."""
-    decision = interrupt(
-        {
-            "status": "pending_plan_approval",
-            "plan": state.get("plan"),
-        }
-    )
-    # The decision payload is passed during resume (e.g. Command(resume={"approved": True/False}))
-    approved = decision.get("approved", False) if isinstance(decision, dict) else False
-    return {"plan_approved": approved}
+    """Automatically approves the plan to continue workflow execution."""
+    return {"plan_approved": True}
+
+
+def get_tools_for_plan(plan: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Exposes base tools and selectively enables upsert tools based on planned actions."""
+    # Base tools always allowed
+    allowed_tool_names = {
+        "upsert_state_var",
+        "delete_state_var",
+        "connect",
+        "disconnect",
+        "delete_node",
+    }
+
+    if plan:
+        for step in plan:
+            details = step.get("details") or {}
+            node_type = details.get("node_type")
+            if node_type == "LOGICAL_ASSIGNER":
+                allowed_tool_names.add("upsert_logical_assigner")
+            elif node_type == "AGENTIC_ASSIGNER":
+                allowed_tool_names.add("upsert_agentic_assigner")
+            elif node_type == "LOGICAL_SWITCH":
+                allowed_tool_names.add("upsert_logical_switch")
+            elif node_type == "AGENTIC_SWITCH":
+                allowed_tool_names.add("upsert_agentic_switch")
+            elif node_type == "INTERRUPT":
+                allowed_tool_names.add("upsert_interrupt")
+
+    return [ALL_FLAT_TOOLS[name] for name in allowed_tool_names if name in ALL_FLAT_TOOLS]
 
 
 async def executor_node(state: CopilotState) -> dict[str, Any]:
@@ -152,23 +172,22 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
             "content": (
                 f"## Current Graph State:\n{state['serialized_state']}\n\n"
                 f"## High-Level Plan to Execute:\n{steps_str}\n\n"
-                "Please generate the exact `patch_graph` tool call to implement this plan."
+                "Please invoke the appropriate tools to implement this plan."
             ),
         },
     ]
 
     from groq import RateLimitError
-    from groq.types.chat import ChatCompletionNamedToolChoiceParam
+
+    tools = get_tools_for_plan(state.get("plan"))
 
     try:
         executor_completion = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=messages,  # type: ignore
-            tools=[PATCH_GRAPH_TOOL],  # type: ignore
-            tool_choice=cast(
-                ChatCompletionNamedToolChoiceParam, {"type": "function", "function": {"name": "patch_graph"}}
-            ),
-            max_tokens=1200,
+            messages=messages,
+            tools=tools,  # type: ignore
+            tool_choice="auto",
+            max_tokens=1500,
             temperature=0.0,
         )
         log_llm_call(
@@ -200,17 +219,12 @@ async def executor_node(state: CopilotState) -> dict[str, Any]:
         raise ValidationError(f"Executor execution failed: {str(e)}")
 
     executor_choice = executor_completion.choices[0]
-    if not executor_choice.message.tool_calls:
-        raise ValidationError("Executor failed to invoke patch_graph tool.")
-
-    executor_tool_call = executor_choice.message.tool_calls[0]
-    try:
-        executor_args = json.loads(executor_tool_call.function.arguments)
-    except Exception as e:
-        raise ValidationError(f"Executor returned invalid JSON patch arguments: {str(e)}")
+    tool_calls = executor_choice.message.tool_calls
+    if not tool_calls:
+        raise ValidationError("Executor failed to invoke any tools.")
 
     try:
-        validated_ops = translate_tool_call_to_operations({"operations": executor_args.get("operations", [])})
+        validated_ops = translate_tool_calls_to_operations(tool_calls)
     except Exception as e:
         raise ValidationError(f"Executor produced invalid operations: {str(e)}")
 
@@ -223,8 +237,13 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         return {}
 
     try:
+        from pydantic import TypeAdapter
+
+        from app.graphs.schemas import GraphOperation
+
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
-        ops = translate_tool_call_to_operations({"operations": state["operations"]})
+        state_ops = state.get("operations") or []
+        ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
         sorted_ops = sort_operations_by_dependency(ops)
 
         # Dry-run patch application
@@ -236,16 +255,9 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
 
 
 def wait_for_apply_node(state: CopilotState) -> dict[str, Any]:
-    """Pauses graph execution so the user can review operation validation and approve application."""
-    decision = interrupt(
-        {
-            "status": "pending_apply_approval",
-            "operations": state.get("operations"),
-            "validation_error": state.get("validation_error"),
-        }
-    )
-    approved = decision.get("approved", False) if isinstance(decision, dict) else False
-    return {"apply_approved": approved}
+    """Automatically approves applying the patch if validation succeeded."""
+    has_error = bool(state.get("validation_error"))
+    return {"apply_approved": not has_error}
 
 
 def apply_node(state: CopilotState) -> dict[str, Any]:
