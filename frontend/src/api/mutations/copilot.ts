@@ -6,6 +6,8 @@ import type { components } from '../generated/schema';
 export type CopilotStatusResponse = components['schemas']['CopilotStatusResponse'];
 
 export const useInitiateCopilot = (graphId: string) => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async ({ prompt }: { prompt: string }): Promise<CopilotStatusResponse> => {
       const res = await apiClient.POST('/copilot/{graph_id}/initiate', {
@@ -17,58 +19,11 @@ export const useInitiateCopilot = (graphId: string) => {
       if ('error' in res) throw res.error;
       return res.data as CopilotStatusResponse;
     },
-  });
-};
-
-export const useApproveCopilotPlan = (graphId: string) => {
-  return useMutation({
-    mutationFn: async ({ approved }: { approved: boolean }): Promise<CopilotStatusResponse> => {
-      const res = await apiClient.POST('/copilot/{graph_id}/approve-plan', {
-        params: {
-          path: { graph_id: graphId },
-        },
-        body: { approved },
-      });
-      if ('error' in res) throw res.error;
-      return res.data as CopilotStatusResponse;
-    },
-  });
-};
-
-export const useApplyCopilotPatch = (graphId: string) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ approved }: { approved: boolean }): Promise<CopilotStatusResponse> => {
-      const res = await apiClient.POST('/copilot/{graph_id}/apply', {
-        params: {
-          path: { graph_id: graphId },
-        },
-        body: { approved },
-      });
-      if ('error' in res) throw res.error;
-      return res.data as CopilotStatusResponse;
-    },
     onSuccess: (data) => {
       if (data.applied) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.graphs.flow(graphId) });
         void queryClient.invalidateQueries({ queryKey: queryKeys.graphs.code(graphId) });
       }
-    },
-  });
-};
-
-export const useSubmitCopilotFeedback = (graphId: string) => {
-  return useMutation({
-    mutationFn: async ({ score, comment }: { score: number; comment?: string }) => {
-      const res = await apiClient.POST('/copilot/{graph_id}/feedback', {
-        params: {
-          path: { graph_id: graphId },
-        },
-        body: { score, comment },
-      });
-      if ('error' in res) throw res.error;
-      return res.data;
     },
   });
 };
