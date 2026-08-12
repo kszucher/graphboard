@@ -18,6 +18,10 @@ export type ApiNode =
   resume_var?: string | null;
   max_attempts?: number | null;
   valid_expression?: string | null;
+  query_var?: string | null;
+  context_output_var?: string | null;
+  knowledge_base?: string | null;
+  top_k?: number | null;
   traversalIndex?: number;
 };
 
@@ -35,7 +39,8 @@ export type NodeType =
   | 'LOGICAL_ASSIGNER'
   | 'AGENTIC_ASSIGNER'
   | 'INTERRUPT'
-  | 'AGENTIC_SWITCH';
+  | 'AGENTIC_SWITCH'
+  | 'RAG_RETRIEVER';
 
 export interface DefinerVariable {
   id: string;

@@ -62,7 +62,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         planner_completion = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,  # type: ignore
-            tools=tools,  # type: ignore
+            tools=tools,
             tool_choice="auto",
             max_tokens=1500,
             temperature=0.0,

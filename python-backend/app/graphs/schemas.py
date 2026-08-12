@@ -130,6 +130,17 @@ class UpsertInterruptOp(BaseModel):
     resume_var: str = ""
 
 
+class UpsertRagRetrieverOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_rag_retriever"] = "upsert_rag_retriever"
+    node_id: str
+    new_id: str | None = None
+    query_var: str = ""
+    context_output_var: str = ""
+    knowledge_base: str = "trivia"
+    top_k: int = 3
+
+
 class DeleteNodeOp(BaseModel):
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
@@ -208,6 +219,7 @@ GraphOperation: TypeAlias = Annotated[
     | UpsertLogicalSwitchOp
     | UpsertAgenticSwitchOp
     | UpsertInterruptOp
+    | UpsertRagRetrieverOp
     | DeleteNodeOp
     | ConnectOp
     | DisconnectOp

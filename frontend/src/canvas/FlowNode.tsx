@@ -14,6 +14,7 @@ const NODE_COLORS: Record<NodeType, BadgeProps['color']> = {
   AGENTIC_ASSIGNER: 'pink',
   INTERRUPT: 'orange',
   AGENTIC_SWITCH: 'indigo',
+  RAG_RETRIEVER: 'plum',
 };
 
 const CustomNodeComponent = ({ data, id, selected }: NodeProps<AppFlowNode>) => {

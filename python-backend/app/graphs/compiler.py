@@ -19,6 +19,7 @@ from app.graphs.nodes import (
     LogicalAssignerNode,
     LogicalSwitchNode,
     NodeRead,
+    RagRetrieverNode,
     StartNode,
 )
 from app.graphs.schemas import (
@@ -76,6 +77,10 @@ class DirectLangGraphCompiler:
     @staticmethod
     def imports_interrupt_node(_node: InterruptNode) -> set[str]:
         return {"from langgraph.types import interrupt"}
+
+    @staticmethod
+    def imports_rag_retriever_node(_node: RagRetrieverNode) -> set[str]:
+        return {"from app.graphs.rag_helper import retrieve_documents"}
 
     def emit_imports(self) -> str:
         lines = {
@@ -241,6 +246,16 @@ class DirectLangGraphCompiler:
             f"def {node.id}(state: State) -> dict:\n    value = interrupt({{{payload_items}}})\n    return {ret_dict}"
         )
 
+    def visit_rag_retriever_node(self, node: RagRetrieverNode) -> str:
+        query_key = node.query_var if node.query_var in self.valid_keys else ""
+        out_key = node.context_output_var if node.context_output_var in self.valid_keys else ""
+        return (
+            f"def {node.id}(state: State) -> dict:\n"
+            f"    query = state.get({repr(query_key)}, '')\n"
+            f"    docs = retrieve_documents(query=query, kb={repr(node.knowledge_base)}, top_k={node.top_k})\n"
+            f"    return {{{repr(out_key)}: '\\n\\n'.join(docs)}}"
+        )
+
     def emit_node_code(self, node: NodeRead) -> str:
         from typing import cast
 
@@ -251,9 +266,9 @@ class DirectLangGraphCompiler:
             "workflow = StateGraph(State)",
         ]
 
-        # 1. Add Executable Nodes to Graph (Only computation nodes: LogicalAssigner, AgenticAssigner, Interrupt)
+        # 1. Add Executable Nodes to Graph (Only computation nodes: LogicalAssigner, AgenticAssigner, Interrupt, RagRetriever)
         for n in self.executable_nodes:
-            if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode)):
+            if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode, RagRetrieverNode)):
                 lines.append(f"workflow.add_node('{n.id}', {n.id})")
 
         def resolve_target(tgt_id: str) -> str:

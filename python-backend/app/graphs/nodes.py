@@ -212,6 +212,27 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
                 )
 
 
+class RagRetrieverConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    node_type: Literal[NodeType.RAG_RETRIEVER] = NodeType.RAG_RETRIEVER
+    query_var: str = ""
+    context_output_var: str = ""
+    knowledge_base: str = "trivia"
+    top_k: int = 3
+
+
+class RagRetrieverNode(BaseNode, RagRetrieverConfig):
+    _variable_fields = ["query_var", "context_output_var"]
+
+    def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
+        from app.exceptions import ValidationError
+
+        if not self.query_var:
+            raise ValidationError(f"RAG node '{self.id}' requires a query_var.")
+        if not self.context_output_var:
+            raise ValidationError(f"RAG node '{self.id}' requires a context_output_var.")
+
+
 NodeRead: TypeAlias = Annotated[
     StartNode
     | EndNode
@@ -219,7 +240,8 @@ NodeRead: TypeAlias = Annotated[
     | AgenticAssignerNode
     | InterruptNode
     | LogicalSwitchNode
-    | AgenticSwitchNode,
+    | AgenticSwitchNode
+    | RagRetrieverNode,
     Field(discriminator="node_type"),
 ]
 
@@ -230,7 +252,8 @@ NodeConfig: TypeAlias = Annotated[
     | AgenticAssignerConfig
     | InterruptConfig
     | LogicalSwitchConfig
-    | AgenticSwitchConfig,
+    | AgenticSwitchConfig
+    | RagRetrieverConfig,
     Field(discriminator="node_type"),
 ]
 
@@ -242,4 +265,5 @@ NODE_CLASS_MAP: dict[NodeType, type[BaseNode]] = {
     NodeType.LOGICAL_SWITCH: LogicalSwitchNode,
     NodeType.AGENTIC_SWITCH: AgenticSwitchNode,
     NodeType.INTERRUPT: InterruptNode,
+    NodeType.RAG_RETRIEVER: RagRetrieverNode,
 }

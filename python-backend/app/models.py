@@ -8,7 +8,7 @@ class Base(DeclarativeBase):
 
 
 # Expose models so SQLAlchemy registry finds them and Base.metadata is fully populated
-from app.graphs.models import Graph, GraphHistory  # noqa: E402
+from app.graphs.models import DocumentChunk, Graph, GraphHistory  # noqa: E402
 from app.users.models import User  # noqa: E402
 
-__all__ = ["Base", "User", "Graph", "GraphHistory"]
+__all__ = ["Base", "User", "Graph", "GraphHistory", "DocumentChunk"]

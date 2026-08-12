@@ -13,6 +13,7 @@ from app.graphs.schemas import (
     UpsertInterruptOp,
     UpsertLogicalAssignerOp,
     UpsertLogicalSwitchOp,
+    UpsertRagRetrieverOp,
     UpsertStateVarOp,
 )
 
@@ -55,6 +56,14 @@ ALL_FLAT_TOOLS = {
             "name": "upsert_interrupt",
             "description": "Add or update an interrupt node to pause workflow execution for user payloads.",
             "parameters": UpsertInterruptOp.model_json_schema(),
+        },
+    },
+    "upsert_rag_retriever": {
+        "type": "function",
+        "function": {
+            "name": "upsert_rag_retriever",
+            "description": "Add or update a RAG node that queries a Neon Postgres vector index using Hugging Face embeddings.",
+            "parameters": UpsertRagRetrieverOp.model_json_schema(),
         },
     },
     "delete_node": {

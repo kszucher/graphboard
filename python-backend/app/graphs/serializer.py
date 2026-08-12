@@ -47,6 +47,11 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                     lines.append(f"    payload: {', '.join(node.payload_vars)}")
                 if node.resume_var:
                     lines.append(f"    resume: {node.resume_var}")
+            elif node.node_type == NodeType.RAG_RETRIEVER:
+                lines.append(f"    query: {node.query_var}")
+                lines.append(f"    output: {node.context_output_var}")
+                lines.append(f"    kb: {node.knowledge_base}")
+                lines.append(f"    top_k: {node.top_k}")
         lines.append("")
 
     # 3. Edges

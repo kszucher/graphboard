@@ -24,6 +24,7 @@ from app.graphs.schemas import (
     UpsertInterruptOp,
     UpsertLogicalAssignerOp,
     UpsertLogicalSwitchOp,
+    UpsertRagRetrieverOp,
     UpsertStateVarOp,
 )
 
@@ -109,6 +110,8 @@ def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> Gr
             flow_data = _upsert_agentic_switch(flow_data, op)
         elif op.op == "upsert_interrupt":
             flow_data = _upsert_interrupt(flow_data, op)
+        elif op.op == "upsert_rag_retriever":
+            flow_data = _upsert_rag_retriever(flow_data, op)
         elif op.op == "delete_node":
             flow_data = _delete_node(flow_data, op)
         elif op.op == "connect":
@@ -254,6 +257,21 @@ def _upsert_interrupt(flow_data: GraphFlowData, op: UpsertInterruptOp) -> GraphF
         node_id=op.node_id,
         node_type=NodeType.INTERRUPT,
         config_fields={"payload_vars": op.payload_vars, "resume_var": op.resume_var},
+        new_id=op.new_id,
+    )
+
+
+def _upsert_rag_retriever(flow_data: GraphFlowData, op: UpsertRagRetrieverOp) -> GraphFlowData:
+    return _upsert_node_generic(
+        flow_data,
+        node_id=op.node_id,
+        node_type=NodeType.RAG_RETRIEVER,
+        config_fields={
+            "query_var": op.query_var,
+            "context_output_var": op.context_output_var,
+            "knowledge_base": op.knowledge_base,
+            "top_k": op.top_k,
+        },
         new_id=op.new_id,
     )
 

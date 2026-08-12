@@ -26,6 +26,16 @@
           "id": "83fd3460-cbe0-4b6e-b5e9-4d8bc018934e",
           "target_var_key": "correct_answer",
           "expression": "'A'"
+        },
+        {
+          "id": "1a2b3c4d-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
+          "target_var_key": "topic",
+          "expression": "'Space Exploration'"
+        },
+        {
+          "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+          "target_var_key": "retrieved_facts",
+          "expression": "''"
         }
       ]
     },
@@ -48,12 +58,22 @@
       ]
     },
     {
+      "id": "retrieve_trivia_facts",
+      "node_type": "RAG_RETRIEVER",
+      "query_var": "topic",
+      "context_output_var": "retrieved_facts",
+      "knowledge_base": "trivia",
+      "top_k": 3
+    },
+    {
       "id": "gen_question",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Generate a fun trivia question for the player and set correct_answer to option A, B, C, or D. Set display_text to the generated question.",
-      "agentic_inputs": [],
+      "prompt": "Using these source facts: '{retrieved_facts}', write a challenging multiple-choice trivia question about '{topic}'. Provide options A, B, C, and D. Set correct_answer to the correct option letter. Set display_text to the question and options.",
+      "agentic_inputs": [
+        "topic",
+        "retrieved_facts"
+      ],
       "agentic_outputs": [
-        "current_question",
         "display_text",
         "correct_answer"
       ]
@@ -110,9 +130,9 @@
     {
       "id": "audience_votes",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Poll audience for advice on question: '{current_question}'. Append their advice to '{display_text}'.",
+      "prompt": "Poll audience for advice on question: '{display_text}' using these grounding facts: '{retrieved_facts}'. Append their advice to '{display_text}'.",
       "agentic_inputs": [
-        "current_question",
+        "retrieved_facts",
         "display_text"
       ],
       "agentic_outputs": [
@@ -122,9 +142,9 @@
     {
       "id": "phone_advice",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Call a friend for advice on question: '{current_question}'. Append their advice to '{display_text}'.",
+      "prompt": "Call a friend for advice on question: '{display_text}' using these grounding facts: '{retrieved_facts}'. Append their advice to '{display_text}'.",
       "agentic_inputs": [
-        "current_question",
+        "retrieved_facts",
         "display_text"
       ],
       "agentic_outputs": [
@@ -198,6 +218,13 @@
       "id": "0e81b888-c391-42b7-8d40-204893029223",
       "source": "loop_questions",
       "source_handle": "loop_questions_yes",
+      "target": "retrieve_trivia_facts",
+      "target_handle": null
+    },
+    {
+      "id": "a9b8c7d6-e5f4-3a2b-1c0d-e9f8a7b6c5d4",
+      "source": "retrieve_trivia_facts",
+      "source_handle": null,
       "target": "gen_question",
       "target_handle": null
     },
@@ -310,9 +337,9 @@
     },
     {
       "id": "462d1229-2c03-4cdd-9355-5ece594c9c4c",
-      "key": "current_question",
+      "key": "topic",
       "type": "string",
-      "default_value": null,
+      "default_value": "Space Exploration",
       "description": null
     },
     {
@@ -348,6 +375,13 @@
       "key": "correct_answer",
       "type": "string",
       "default_value": "A",
+      "description": null
+    },
+    {
+      "id": "3c4d5e6f-7a8b-9c0d-e1f2-a3b4c5d6e7f8",
+      "key": "retrieved_facts",
+      "type": "string",
+      "default_value": "",
       "description": null
     }
   ]
