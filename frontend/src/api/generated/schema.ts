@@ -414,7 +414,7 @@ export interface components {
     /** GraphFlowRead */
     GraphFlowRead: {
       /** Nodes */
-      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"])[];
+      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"] | components["schemas"]["RagRetrieverNode"])[];
       /** Edges */
       edges: components["schemas"]["EdgeRead"][];
       /** State */
@@ -512,6 +512,39 @@ export interface components {
       node_type: "LOGICAL_SWITCH";
       /** Branches */
       branches?: components["schemas"]["Branch"][];
+      /**
+       * Id
+       * @default
+       */
+      id: string;
+    };
+    /** RagRetrieverNode */
+    RagRetrieverNode: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      node_type: "RAG_RETRIEVER";
+      /**
+       * Query Var
+       * @default
+       */
+      query_var: string;
+      /**
+       * Context Output Var
+       * @default
+       */
+      context_output_var: string;
+      /**
+       * Knowledge Base
+       * @default trivia
+       */
+      knowledge_base: string;
+      /**
+       * Top K
+       * @default 3
+       */
+      top_k: number;
       /**
        * Id
        * @default

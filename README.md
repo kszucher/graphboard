@@ -35,20 +35,22 @@ Second iteration of this idea, building directly on **Mapboard** (a previous cli
 | **END** | Sentinel | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
 | **LOGICAL_ASSIGNER** | Computation | Performs deterministic inline variable assignments | Generated Python function returning updated state dictionary |
 | **AGENTIC_ASSIGNER** | Computation | Invokes LLM agents for structured state mutations | Generated Python function calling Groq LLM with Pydantic response format |
+| **RAG_RETRIEVER** | Computation | Queries Neon Postgres vector database using Hugging Face embeddings | Generated Python function calling `retrieve_documents(...)` |
 | **LOGICAL_SWITCH** | Routing | Evaluates deterministic expression branching logic | Router function evaluating AST expressions, registered via `workflow.add_conditional_edges(...)` |
 | **AGENTIC_SWITCH** | Routing | LLM-driven decision routing across slot options | Router function parsing LLM choice output to select outgoing branch |
 | **INTERRUPT** | Human & Control | Pauses workflow execution for user payload | Generated Python function calling `langgraph.types.interrupt(...)` |
 
 ### Node Vocabulary Design Rationale
-The five primitive types form a deliberate **2×2 grid plus one control primitive**:
+The six primitive types form a deliberate **2×2 grid, plus one control primitive, plus memory retrieval**:
 
 | | Deterministic | AI-Driven |
 | :--- | :--- | :--- |
 | **Computation** | `LOGICAL_ASSIGNER` | `AGENTIC_ASSIGNER` |
 | **Routing** | `LOGICAL_SWITCH` | `AGENTIC_SWITCH` |
 | **Control** | `INTERRUPT` | — |
+| **Memory** | `RAG_RETRIEVER` | — |
 
-This covers every fundamental pattern in an agentic state machine: transforming state (deterministically or via LLM), making routing decisions (by expression or by LLM classification), and yielding control back to a human. The vocabulary is intentionally small — small enough that the AI Copilot can reliably generate valid operations, and small enough that each primitive maps cleanly to a known LangGraph construct. Future extensions (e.g. `TOOL_CALL`, `PARALLEL_FAN_OUT`, `MEMORY_RETRIEVAL`) would fit the same deterministic/agentic axis.
+This covers every fundamental pattern in an agentic state machine: transforming state (deterministically or via LLM), making routing decisions (by expression or by LLM classification), yielding control back to a human, and retrieving grounded context. The vocabulary is intentionally small — small enough that the AI Copilot can reliably generate valid operations, and small enough that each primitive maps cleanly to a known LangGraph construct. Future extensions (e.g. `TOOL_CALL`, `PARALLEL_FAN_OUT`) would fit the same deterministic/agentic axis.
 
 ---
 
