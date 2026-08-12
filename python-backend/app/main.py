@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(GraphboardError)
     async def graphboard_exception_handler(request: Request, exc: GraphboardError) -> JSONResponse:
+        logger.error("Validation error: %s", exc.message)
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.message},

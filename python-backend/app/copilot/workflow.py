@@ -147,6 +147,9 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         return {"validation_error": None}
     except Exception as e:
         logger.warning("Planner operation dry-run failed: %s", str(e))
+        from app.copilot.logger import log_validation_error
+
+        log_validation_error(state.get("graph_id"), str(e))
         return {"validation_error": str(e)}
 
 
