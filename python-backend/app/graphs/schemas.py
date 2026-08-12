@@ -213,6 +213,13 @@ class DeleteStateVarOp(BaseModel):
     key: str
 
 
+class DeleteBranchOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["delete_branch"] = "delete_branch"
+    node_id: str
+    label: str
+
+
 GraphOperation: TypeAlias = Annotated[
     UpsertLogicalAssignerOp
     | UpsertAgenticAssignerOp
@@ -224,6 +231,7 @@ GraphOperation: TypeAlias = Annotated[
     | ConnectOp
     | DisconnectOp
     | UpsertStateVarOp
-    | DeleteStateVarOp,
+    | DeleteStateVarOp
+    | DeleteBranchOp,
     Field(discriminator="op"),
 ]

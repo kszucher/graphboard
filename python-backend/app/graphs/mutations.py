@@ -13,6 +13,7 @@ from app.graphs.nodes import (
 from app.graphs.schemas import (
     ConnectOp,
     DefinerVariableSchema,
+    DeleteBranchOp,
     DeleteNodeOp,
     DeleteStateVarOp,
     DisconnectOp,
@@ -122,6 +123,8 @@ def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> Gr
             flow_data = _upsert_state_var(flow_data, op)
         elif op.op == "delete_state_var":
             flow_data = _delete_state_var(flow_data, op)
+        elif op.op == "delete_branch":
+            flow_data = _delete_branch(flow_data, op)
         else:
             raise ValidationError(f"Unknown operation type: {op}")
     return flow_data
@@ -165,6 +168,19 @@ def _upsert_node_generic(
         else:
             # Merge existing state with non-None configuration updates
             non_none_config = {k: v for k, v in config_fields.items() if v is not None}
+            if "branches" in non_none_config and hasattr(existing_node, "branches"):
+                merged_branches = []
+                for b in getattr(existing_node, "branches", []):
+                    merged_branches.append(b.model_dump(mode="json"))
+                for new_b in non_none_config["branches"]:
+                    label = new_b.get("label")
+                    existing_b = next((x for x in merged_branches if x.get("label") == label), None)
+                    if existing_b:
+                        existing_b.update({k: v for k, v in new_b.items() if v is not None})
+                    else:
+                        merged_branches.append(new_b)
+                non_none_config["branches"] = merged_branches
+
             merged_payload = {
                 **existing_node.model_dump(mode="json"),
                 **non_none_config,
@@ -172,7 +188,7 @@ def _upsert_node_generic(
                 "node_type": node_type,
             }
             validated = node_cls.model_validate(merged_payload)
-            for k in validated.model_fields.keys():
+            for k in node_cls.model_fields.keys():
                 if k not in ("id", "node_type"):
                     setattr(existing_node, k, getattr(validated, k))
             target_node = existing_node
@@ -425,6 +441,33 @@ def _delete_state_var(flow_data: GraphFlowData, op: DeleteStateVarOp) -> GraphFl
     return flow_data
 
 
+def _delete_branch(flow_data: GraphFlowData, op: DeleteBranchOp) -> GraphFlowData:
+    nodes = flow_data.nodes
+    edges = flow_data.edges
+    node_id = op.node_id
+    label = op.label
+
+    target_node = next((n for n in nodes if n.id == node_id), None)
+    if not target_node:
+        raise ValidationError(f"Node '{node_id}' not found.")
+
+    from app.graphs.nodes import AgenticSwitchNode, LogicalSwitchNode
+
+    if not isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
+        raise ValidationError(f"Node '{node_id}' of type '{target_node.node_type}' does not support branches.")
+
+    branches = target_node.branches
+    branch = next((b for b in branches if b.label == label), None)
+    if not branch:
+        return flow_data
+
+    target_node.branches = [b for b in branches if b.label != label]
+
+    branch_handle_id = branch.id
+    flow_data.edges = [e for e in edges if not (e.source == node_id and e.source_handle == branch_handle_id)]
+    return flow_data
+
+
 def sort_operations_by_dependency(ops: Sequence[GraphOperation]) -> list[GraphOperation]:
     """Sorts operations: State declarations -> Node additions/deletes -> Connections/disconnects."""
     state_ops = []
@@ -433,7 +476,7 @@ def sort_operations_by_dependency(ops: Sequence[GraphOperation]) -> list[GraphOp
     delete_ops = []  # Run deletes first to avoid constraints
 
     for op in ops:
-        if op.op in ("delete_node", "delete_state_var", "disconnect"):
+        if op.op in ("delete_node", "delete_state_var", "disconnect", "delete_branch"):
             delete_ops.append(op)
         elif op.op == "upsert_state_var":
             state_ops.append(op)

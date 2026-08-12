@@ -16,8 +16,10 @@ Call all required tools in a single atomic response.
 1. **NODE IDENTIFIER STABILITY**:
    - Do NOT rename existing node IDs or supply `new_id` when updating existing nodes. Always use the exact `node_id` from the current graph state.
 
-2. **ARRAY DELTA PROJECTION (PARTIAL UPDATES)**:
-   - When updating `branches` on switch nodes, supply ONLY the newly added branch objects in the array. Never re-send pre-existing branches.
+2. **BRANCH MUTATIONS (SWITCH NODES)**:
+   - Branches on switch nodes are merged by label. When adding or updating branch settings, you can use `upsert_logical_switch` or `upsert_agentic_switch` and send only the new or modified branch objects. Existing branches will be preserved.
+   - Using the `connect` tool with a `case` label automatically registers a new branch if it does not already exist.
+   - To remove a branch and clean up its outgoing connections, you MUST call `delete_branch` explicitly.
 
 3. **PARENT EDGE PRESERVATION**:
    - Do NOT re-connect edges between existing nodes if the connection already exists in the graph. Only create new `connect` calls for newly created nodes or newly added branches.

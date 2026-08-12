@@ -4,6 +4,7 @@ from typing import Any
 
 from app.graphs.schemas import (
     ConnectOp,
+    DeleteBranchOp,
     DeleteNodeOp,
     DeleteStateVarOp,
     DisconnectOp,
@@ -104,6 +105,14 @@ ALL_FLAT_TOOLS = {
             "name": "delete_state_var",
             "description": "Delete a global state variable.",
             "parameters": DeleteStateVarOp.model_json_schema(),
+        },
+    },
+    "delete_branch": {
+        "type": "function",
+        "function": {
+            "name": "delete_branch",
+            "description": "Delete a branch from a switch node and clean up its outgoing connections.",
+            "parameters": DeleteBranchOp.model_json_schema(),
         },
     },
 }

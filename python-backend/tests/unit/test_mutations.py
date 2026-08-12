@@ -166,3 +166,111 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
     with pytest.raises(ValidationError) as excinfo:
         mutations.apply_patch(flow, [DeleteStateVarOp(op="delete_state_var", key="x")])
     assert "Cannot delete variable" in str(excinfo.value)
+
+
+def test_apply_patch_merge_branches() -> None:
+    flow = GraphFlowData(nodes=[], edges=[])
+
+    # 1. Create a switch node with one branch
+    flow = mutations.apply_patch(
+        flow,
+        [
+            UpsertLogicalSwitchOp(
+                op="upsert_logical_switch",
+                node_id="switch_1",
+                branches=[{"label": "option_a", "expression": "True"}],
+            )
+        ],
+    )
+    node = flow.nodes[0]
+    assert isinstance(node, LogicalSwitchNode)
+    assert len(node.branches) == 1
+    assert node.branches[0].label == "option_a"
+    assert node.branches[0].expression == "True"
+
+    # 2. Add another branch by upserting a list containing ONLY the new branch (delta projection test)
+    flow = mutations.apply_patch(
+        flow,
+        [
+            UpsertLogicalSwitchOp(
+                op="upsert_logical_switch",
+                node_id="switch_1",
+                branches=[{"label": "option_b", "expression": "False"}],
+            )
+        ],
+    )
+    node = flow.nodes[0]
+    assert isinstance(node, LogicalSwitchNode)
+    assert len(node.branches) == 2
+    assert node.branches[0].label == "option_a"
+    assert node.branches[1].label == "option_b"
+    assert node.branches[1].expression == "False"
+
+    # 3. Update option_a's expression with another partial upsert
+    flow = mutations.apply_patch(
+        flow,
+        [
+            UpsertLogicalSwitchOp(
+                op="upsert_logical_switch",
+                node_id="switch_1",
+                branches=[{"label": "option_a", "expression": "x == 5"}],
+            )
+        ],
+    )
+    node = flow.nodes[0]
+    assert isinstance(node, LogicalSwitchNode)
+    assert len(node.branches) == 2
+    assert node.branches[0].label == "option_a"
+    assert node.branches[0].expression == "x == 5"
+    assert node.branches[1].label == "option_b"
+
+
+def test_apply_patch_delete_branch() -> None:
+    from app.graphs.schemas import DeleteBranchOp, EdgeRead
+
+    flow = GraphFlowData(nodes=[], edges=[])
+
+    # 1. Create switch node and connect its branch to a dummy target
+    flow = mutations.apply_patch(
+        flow,
+        [
+            UpsertLogicalSwitchOp(
+                op="upsert_logical_switch",
+                node_id="switch_1",
+                branches=[{"label": "option_a", "expression": "True"}],
+            ),
+            UpsertLogicalAssignerOp(
+                op="upsert_logical_assigner",
+                node_id="assigner_1",
+                assignments=[],
+            ),
+            ConnectOp(
+                op="connect",
+                source="switch_1",
+                target="assigner_1",
+                case="option_a",
+            ),
+        ],
+    )
+
+    assert len(flow.edges) == 1
+    assert flow.edges[0].source == "switch_1"
+    assert flow.edges[0].source_handle == "switch_1_option_a"
+
+    # 2. Delete the branch
+    flow = mutations.apply_patch(
+        flow,
+        [
+            DeleteBranchOp(
+                op="delete_branch",
+                node_id="switch_1",
+                label="option_a",
+            )
+        ],
+    )
+
+    node = flow.nodes[0]
+    assert isinstance(node, LogicalSwitchNode)
+    assert len(node.branches) == 0  # Branch is gone
+    assert len(flow.edges) == 0  # Connection edge was automatically removed
+
