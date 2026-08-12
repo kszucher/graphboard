@@ -18,7 +18,7 @@ Call all required tools in a single atomic response.
 
 2. **BRANCH MUTATIONS (SWITCH NODES)**:
    - Branches on switch nodes are merged by label. When adding or updating branch settings, you can use `upsert_logical_switch` or `upsert_agentic_switch` and send only the new or modified branch objects. Existing branches will be preserved.
-   - Using the `connect` tool with a `case` label automatically registers a new branch if it does not already exist.
+   - Drawing a connection using `connect` with a `case` label requires that the branch already exists on the switch node. You MUST upsert the branch using `upsert_*_switch` first (or in parallel) before connecting it.
    - To remove a branch and clean up its outgoing connections, you MUST call `delete_branch` explicitly.
 
 3. **PARENT EDGE PRESERVATION**:

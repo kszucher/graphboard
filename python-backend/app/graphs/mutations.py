@@ -323,36 +323,13 @@ def _connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
     if not target_node:
         raise ValidationError(f"Target Node '{op.target}' not found.")
 
-    # Automatically register branch on Switch nodes if case is provided
-    if source_node.node_type in (NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH) and op.case:
-        from app.graphs.nodes import Branch, _make_slot_id
-
-        branches = getattr(source_node, "branches", [])
-        branch = next((b for b in branches if b.label == op.case), None)
-        if not branch:
-            branch_id = _make_slot_id(op.source, op.case)
-            new_branch = Branch(
-                id=branch_id,
-                label=op.case,
-                expression=None,
-                target_var_key=None,
-            )
-            if source_node.node_type == NodeType.LOGICAL_SWITCH and op.expression:
-                from app.graphs.expressions import parse_expression
-
-                new_branch.expression = parse_expression(op.expression)
-            branches.append(new_branch)
-            op.source_handle = branch_id
-        else:
-            if op.expression is not None and source_node.node_type == NodeType.LOGICAL_SWITCH:
-                from app.graphs.expressions import parse_expression
-
-                branch.expression = parse_expression(op.expression)
-            op.source_handle = branch.id
-
-    if hasattr(source_node, "branches") and op.source_handle:
+    if hasattr(source_node, "branches"):
+        if not op.source_handle:
+            raise ValidationError(f"Source node '{op.source}' requires a case label or source_handle to connect.")
         if not any(b.id == op.source_handle for b in getattr(source_node, "branches", [])):
-            raise ValidationError(f"Source handle '{op.source_handle}' not found on node '{op.source}'.")
+            raise ValidationError(
+                f"Source handle/case '{op.case or op.source_handle}' not found on node '{op.source}'."
+            )
 
     # Remove existing edges from this specific source handle to maintain single outbound constraints
     if op.source_handle:

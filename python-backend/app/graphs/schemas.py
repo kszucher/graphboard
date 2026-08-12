@@ -174,7 +174,6 @@ class ConnectOp(BaseModel):
     target: str
     target_handle: SkipJsonSchema[str | None] = None
     case: str | None = None
-    expression: str | None = None
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> ConnectOp:

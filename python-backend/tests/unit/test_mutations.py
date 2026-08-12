@@ -274,3 +274,32 @@ def test_apply_patch_delete_branch() -> None:
     assert len(node.branches) == 0  # Branch is gone
     assert len(flow.edges) == 0  # Connection edge was automatically removed
 
+
+def test_connect_raises_validation_error_if_branch_missing() -> None:
+    flow = GraphFlowData(nodes=[], edges=[])
+
+    with pytest.raises(ValidationError) as excinfo:
+        mutations.apply_patch(
+            flow,
+            [
+                UpsertLogicalSwitchOp(
+                    op="upsert_logical_switch",
+                    node_id="switch_1",
+                    branches=[{"label": "option_a", "expression": "True"}],
+                ),
+                UpsertLogicalAssignerOp(
+                    op="upsert_logical_assigner",
+                    node_id="assigner_1",
+                    assignments=[],
+                ),
+                ConnectOp(
+                    op="connect",
+                    source="switch_1",
+                    target="assigner_1",
+                    case="missing_option",
+                ),
+            ],
+        )
+    assert "not found on node 'switch_1'" in str(excinfo.value)
+
+

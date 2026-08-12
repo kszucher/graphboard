@@ -79,7 +79,7 @@ ALL_FLAT_TOOLS = {
         "type": "function",
         "function": {
             "name": "connect",
-            "description": "Draw a connection edge from a source node/branch to a target node. Automatically registers branches on Switch nodes if a case label is provided.",
+            "description": "Draw a connection edge from a source node/branch to a target node. The branch (case label) must already exist on the switch node prior to connecting.",
             "parameters": ConnectOp.model_json_schema(),
         },
     },
