@@ -24,4 +24,28 @@ class LogicalAssignerConfig(BaseModel):
 
 
 class LogicalAssignerNode(BaseNode, LogicalAssignerConfig):
-    pass
+    def get_variable_references(self) -> set[str]:
+        from app.graphs.expressions import get_expression_variables
+
+        refs = set()
+        for a in self.assignments:
+            if a.target_var_key:
+                refs.add(a.target_var_key)
+            if a.expression:
+                refs.update(get_expression_variables(a.expression))
+        return refs
+
+    def rename_variable_references(self, old_key: str, new_key: str) -> None:
+        from app.graphs.expressions import rename_expression_variables
+
+        for a in self.assignments:
+            if a.target_var_key == old_key:
+                a.target_var_key = new_key
+            if a.expression:
+                a.expression = rename_expression_variables(a.expression, old_key, new_key)
+
+    def serialize_compact(self) -> list[str]:
+        lines = [f"  - {self.id} [{self.node_type.value}]"]
+        for a in self.assignments:
+            lines.append(f"    {a.target_var_key} = {a.expression or ''}")
+        return lines

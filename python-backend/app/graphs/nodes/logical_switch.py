@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
@@ -37,6 +37,58 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
         for branch in self.branches:
             branch.id = _make_slot_id(self.id, branch.label)
         return self
+
+    @property
+    def supports_branches(self) -> bool:
+        return True
+
+    def merge_config(self, config_fields: dict[str, Any]) -> None:
+        for k, v in config_fields.items():
+            if k != "branches" and v is not None and hasattr(self, k):
+                setattr(self, k, v)
+        if "branches" in config_fields and config_fields["branches"] is not None:
+            merged_branches = [b.model_dump(mode="json") for b in self.branches]
+            for new_b in config_fields["branches"]:
+                label = new_b.get("label")
+                existing_b = next((x for x in merged_branches if x.get("label") == label), None)
+                if existing_b:
+                    existing_b.update({k: v for k, v in new_b.items() if v is not None})
+                else:
+                    merged_branches.append(new_b)
+            self.branches = [Branch.model_validate(b) for b in merged_branches]
+
+    def handle_node_rename(self, old_id: str, new_id: str) -> None:
+        self.id = new_id
+        for branch in self.branches:
+            if branch.id.startswith(f"{old_id}_"):
+                branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
+
+    def get_variable_references(self) -> set[str]:
+        from app.graphs.expressions import get_expression_variables
+
+        refs = set()
+        for b in self.branches:
+            if b.target_var_key:
+                refs.add(b.target_var_key)
+            if b.expression:
+                refs.update(get_expression_variables(b.expression))
+        return refs
+
+    def rename_variable_references(self, old_key: str, new_key: str) -> None:
+        from app.graphs.expressions import rename_expression_variables
+
+        for b in self.branches:
+            if b.target_var_key == old_key:
+                b.target_var_key = new_key
+            if b.expression:
+                b.expression = rename_expression_variables(b.expression, old_key, new_key)
+
+    def serialize_compact(self) -> list[str]:
+        lines = [f"  - {self.id} [{self.node_type.value}]"]
+        branches_str = [f"{b.label} ({b.expression or ''})" for b in self.branches]
+        if branches_str:
+            lines.append(f"    branches: {', '.join(branches_str)}")
+        return lines
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

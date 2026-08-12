@@ -69,6 +69,8 @@ class GraphFlowData(BaseModel):
 
 
 class UpsertLogicalAssignerOp(BaseModel):
+    """Add or update a logical assigner node with deterministic inline variable assignments."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_logical_assigner"] = "upsert_logical_assigner"
     node_id: str
@@ -86,6 +88,8 @@ class UpsertLogicalAssignerOp(BaseModel):
 
 
 class UpsertAgenticAssignerOp(BaseModel):
+    """Add or update an agentic assigner node that invokes LLMs for structured state mutations."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_agentic_assigner"] = "upsert_agentic_assigner"
     node_id: str
@@ -96,6 +100,8 @@ class UpsertAgenticAssignerOp(BaseModel):
 
 
 class UpsertLogicalSwitchOp(BaseModel):
+    """Add or update a logical switch node to evaluate deterministic expression branching logic."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_logical_switch"] = "upsert_logical_switch"
     node_id: str
@@ -113,6 +119,8 @@ class UpsertLogicalSwitchOp(BaseModel):
 
 
 class UpsertAgenticSwitchOp(BaseModel):
+    """Add or update an agentic switch node for LLM-driven decision routing across options."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_agentic_switch"] = "upsert_agentic_switch"
     node_id: str
@@ -122,6 +130,8 @@ class UpsertAgenticSwitchOp(BaseModel):
 
 
 class UpsertInterruptOp(BaseModel):
+    """Add or update an interrupt node to pause workflow execution for user payloads."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_interrupt"] = "upsert_interrupt"
     node_id: str
@@ -131,6 +141,8 @@ class UpsertInterruptOp(BaseModel):
 
 
 class UpsertRagRetrieverOp(BaseModel):
+    """Add or update a RAG node that queries a Neon Postgres vector index using Hugging Face embeddings."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_rag_retriever"] = "upsert_rag_retriever"
     node_id: str
@@ -142,6 +154,8 @@ class UpsertRagRetrieverOp(BaseModel):
 
 
 class DeleteNodeOp(BaseModel):
+    """Delete a node and all of its incoming/outgoing connections."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
     node_id: str
@@ -167,6 +181,8 @@ def _resolve_case_handle_fields(
 
 
 class ConnectOp(BaseModel):
+    """Draw a connection edge from a source node/branch to a target node. The branch (case label) must already exist on the switch node prior to connecting."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["connect"] = "connect"
     source: str
@@ -182,6 +198,8 @@ class ConnectOp(BaseModel):
 
 
 class DisconnectOp(BaseModel):
+    """Remove a connection edge between a source node/handle and target node/handle."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["disconnect"] = "disconnect"
     source: str
@@ -197,6 +215,8 @@ class DisconnectOp(BaseModel):
 
 
 class UpsertStateVarOp(BaseModel):
+    """Declare or update a global state variable key, type, and default value."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["upsert_state_var"] = "upsert_state_var"
     id: str | None = None
@@ -207,12 +227,16 @@ class UpsertStateVarOp(BaseModel):
 
 
 class DeleteStateVarOp(BaseModel):
+    """Delete a global state variable."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_state_var"] = "delete_state_var"
     key: str
 
 
 class DeleteBranchOp(BaseModel):
+    """Delete a branch from a switch node and clean up its outgoing connections."""
+
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_branch"] = "delete_branch"
     node_id: str

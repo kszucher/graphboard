@@ -166,28 +166,9 @@ def _upsert_node_generic(
             target_node = cast(NodeRead, node_cls.model_validate(node_payload))
             nodes.append(target_node)
         else:
-            # Merge existing state with non-None configuration updates
-            non_none_config = {k: v for k, v in config_fields.items() if v is not None}
-            if "branches" in non_none_config and hasattr(existing_node, "branches"):
-                merged_branches = []
-                for b in getattr(existing_node, "branches", []):
-                    merged_branches.append(b.model_dump(mode="json"))
-                for new_b in non_none_config["branches"]:
-                    label = new_b.get("label")
-                    existing_b = next((x for x in merged_branches if x.get("label") == label), None)
-                    if existing_b:
-                        existing_b.update({k: v for k, v in new_b.items() if v is not None})
-                    else:
-                        merged_branches.append(new_b)
-                non_none_config["branches"] = merged_branches
-
-            merged_payload = {
-                **existing_node.model_dump(mode="json"),
-                **non_none_config,
-                "id": node_id,
-                "node_type": node_type,
-            }
-            validated = node_cls.model_validate(merged_payload)
+            # Merge existing state with configuration updates using polymorphic merge_config
+            existing_node.merge_config(config_fields)
+            validated = node_cls.model_validate(existing_node.model_dump(mode="json"))
             for k in node_cls.model_fields.keys():
                 if k not in ("id", "node_type"):
                     setattr(existing_node, k, getattr(validated, k))
@@ -198,12 +179,7 @@ def _upsert_node_generic(
         if any(n.id == new_id for n in nodes if n.id != node_id):
             raise ValidationError(f"Node ID '{new_id}' is already taken.")
 
-        target_node.id = new_id
-
-        if hasattr(target_node, "branches"):
-            for branch in getattr(target_node, "branches", []):
-                if branch.id.startswith(f"{node_id}_"):
-                    branch.id = branch.id.replace(f"{node_id}_", f"{new_id}_", 1)
+        target_node.handle_node_rename(node_id, new_id)
 
         for edge in edges:
             if edge.source == node_id:
@@ -428,17 +404,20 @@ def _delete_branch(flow_data: GraphFlowData, op: DeleteBranchOp) -> GraphFlowDat
     if not target_node:
         raise ValidationError(f"Node '{node_id}' not found.")
 
-    from app.graphs.nodes import AgenticSwitchNode, LogicalSwitchNode
-
-    if not isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
+    if not target_node.supports_branches:
         raise ValidationError(f"Node '{node_id}' of type '{target_node.node_type}' does not support branches.")
 
-    branches = target_node.branches
+    from typing import cast
+
+    from app.graphs.nodes import AgenticSwitchNode, LogicalSwitchNode
+
+    switch_node = cast(LogicalSwitchNode | AgenticSwitchNode, target_node)
+    branches = switch_node.branches
     branch = next((b for b in branches if b.label == label), None)
     if not branch:
         return flow_data
 
-    target_node.branches = [b for b in branches if b.label != label]
+    switch_node.branches = [b for b in branches if b.label != label]
 
     branch_handle_id = branch.id
     flow_data.edges = [e for e in edges if not (e.source == node_id and e.source_handle == branch_handle_id)]

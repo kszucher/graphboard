@@ -1,121 +1,25 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, get_args
 
-from app.graphs.schemas import (
-    ConnectOp,
-    DeleteBranchOp,
-    DeleteNodeOp,
-    DeleteStateVarOp,
-    DisconnectOp,
-    GraphOperation,
-    UpsertAgenticAssignerOp,
-    UpsertAgenticSwitchOp,
-    UpsertInterruptOp,
-    UpsertLogicalAssignerOp,
-    UpsertLogicalSwitchOp,
-    UpsertRagRetrieverOp,
-    UpsertStateVarOp,
-)
+from app.graphs.schemas import GraphOperation
 
-ALL_FLAT_TOOLS = {
-    "upsert_logical_assigner": {
+# Extract union members dynamically from GraphOperation (Annotated[Union[...], Field(...)])
+union_wrapper = get_args(GraphOperation)[0]
+operation_classes = get_args(union_wrapper)
+
+ALL_FLAT_TOOLS = {}
+
+for cls in operation_classes:
+    op_name = cls.model_fields["op"].default
+    ALL_FLAT_TOOLS[op_name] = {
         "type": "function",
         "function": {
-            "name": "upsert_logical_assigner",
-            "description": "Add or update a logical assigner node with deterministic inline variable assignments.",
-            "parameters": UpsertLogicalAssignerOp.model_json_schema(),
+            "name": op_name,
+            "description": cls.__doc__.strip() if cls.__doc__ else f"Execute {op_name}",
+            "parameters": cls.model_json_schema(),
         },
-    },
-    "upsert_agentic_assigner": {
-        "type": "function",
-        "function": {
-            "name": "upsert_agentic_assigner",
-            "description": "Add or update an agentic assigner node that invokes LLMs for structured state mutations.",
-            "parameters": UpsertAgenticAssignerOp.model_json_schema(),
-        },
-    },
-    "upsert_logical_switch": {
-        "type": "function",
-        "function": {
-            "name": "upsert_logical_switch",
-            "description": "Add or update a logical switch node to evaluate deterministic expression branching logic.",
-            "parameters": UpsertLogicalSwitchOp.model_json_schema(),
-        },
-    },
-    "upsert_agentic_switch": {
-        "type": "function",
-        "function": {
-            "name": "upsert_agentic_switch",
-            "description": "Add or update an agentic switch node for LLM-driven decision routing across options.",
-            "parameters": UpsertAgenticSwitchOp.model_json_schema(),
-        },
-    },
-    "upsert_interrupt": {
-        "type": "function",
-        "function": {
-            "name": "upsert_interrupt",
-            "description": "Add or update an interrupt node to pause workflow execution for user payloads.",
-            "parameters": UpsertInterruptOp.model_json_schema(),
-        },
-    },
-    "upsert_rag_retriever": {
-        "type": "function",
-        "function": {
-            "name": "upsert_rag_retriever",
-            "description": "Add or update a RAG node that queries a Neon Postgres vector index using Hugging Face embeddings.",
-            "parameters": UpsertRagRetrieverOp.model_json_schema(),
-        },
-    },
-    "delete_node": {
-        "type": "function",
-        "function": {
-            "name": "delete_node",
-            "description": "Delete a node and all of its incoming/outgoing connections.",
-            "parameters": DeleteNodeOp.model_json_schema(),
-        },
-    },
-    "connect": {
-        "type": "function",
-        "function": {
-            "name": "connect",
-            "description": "Draw a connection edge from a source node/branch to a target node. The branch (case label) must already exist on the switch node prior to connecting.",
-            "parameters": ConnectOp.model_json_schema(),
-        },
-    },
-    "disconnect": {
-        "type": "function",
-        "function": {
-            "name": "disconnect",
-            "description": "Remove a connection edge between a source node/handle and target node/handle.",
-            "parameters": DisconnectOp.model_json_schema(),
-        },
-    },
-    "upsert_state_var": {
-        "type": "function",
-        "function": {
-            "name": "upsert_state_var",
-            "description": "Declare or update a global state variable key, type, and default value.",
-            "parameters": UpsertStateVarOp.model_json_schema(),
-        },
-    },
-    "delete_state_var": {
-        "type": "function",
-        "function": {
-            "name": "delete_state_var",
-            "description": "Delete a global state variable.",
-            "parameters": DeleteStateVarOp.model_json_schema(),
-        },
-    },
-    "delete_branch": {
-        "type": "function",
-        "function": {
-            "name": "delete_branch",
-            "description": "Delete a branch from a switch node and clean up its outgoing connections.",
-            "parameters": DeleteBranchOp.model_json_schema(),
-        },
-    },
-}
+    }
 
 
 def translate_tool_calls_to_operations(tool_calls: list[Any]) -> list[GraphOperation]:

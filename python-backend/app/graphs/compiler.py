@@ -46,41 +46,37 @@ class DirectLangGraphCompiler:
         self.nodes_by_id: dict[str, NodeRead] = {n.id: n for n in flow_data.nodes}
         self.executable_nodes = [n for n in flow_data.nodes if not isinstance(n, (StartNode, EndNode))]
 
-    def visit(self, node: NodeRead) -> Any:
-        """Dynamic visitor dispatcher based on Node type name."""
-        snake_name = f"{node.node_type.value.lower()}_node"
-        method_name = f"visit_{snake_name}"
-        visitor = getattr(self, method_name, self.generic_visit)
-        return visitor(node)
-
-    @staticmethod
-    def generic_visit(_node: NodeRead) -> Any:
-        return ""
+    def visit(self, node: NodeRead) -> str:
+        """Type-safe visitor dispatcher based on Node type class."""
+        match node:
+            case LogicalAssignerNode() as n:
+                return self.visit_logical_assigner_node(n)
+            case AgenticAssignerNode() as n:
+                return self.visit_agentic_assigner_node(n)
+            case LogicalSwitchNode() as n:
+                return self.visit_logical_switch_node(n)
+            case AgenticSwitchNode() as n:
+                return self.visit_agentic_switch_node(n)
+            case InterruptNode() as n:
+                return self.visit_interrupt_node(n)
+            case RagRetrieverNode() as n:
+                return self.visit_rag_retriever_node(n)
+            case _:
+                return ""
 
     def visit_imports(self, node: NodeRead) -> set[str]:
         """Query imports required by a specific node class."""
-        snake_name = f"{node.node_type.value.lower()}_node"
-        method_name = f"imports_{snake_name}"
-        from collections.abc import Callable
-
-        visitor: Callable[[NodeRead], set[str]] = getattr(self, method_name, lambda n: set())
-        return visitor(node)
-
-    @staticmethod
-    def imports_agentic_assigner_node(_node: AgenticAssignerNode) -> set[str]:
-        return {"from pydantic import BaseModel, Field", "from groq import Groq"}
-
-    @staticmethod
-    def imports_agentic_switch_node(_node: AgenticSwitchNode) -> set[str]:
-        return {"from enum import Enum", "from pydantic import BaseModel, Field", "from groq import Groq"}
-
-    @staticmethod
-    def imports_interrupt_node(_node: InterruptNode) -> set[str]:
-        return {"from langgraph.types import interrupt"}
-
-    @staticmethod
-    def imports_rag_retriever_node(_node: RagRetrieverNode) -> set[str]:
-        return {"from app.graphs.rag_helper import retrieve_documents"}
+        match node:
+            case AgenticAssignerNode():
+                return {"from pydantic import BaseModel, Field", "from groq import Groq"}
+            case AgenticSwitchNode():
+                return {"from enum import Enum", "from pydantic import BaseModel, Field", "from groq import Groq"}
+            case InterruptNode():
+                return {"from langgraph.types import interrupt"}
+            case RagRetrieverNode():
+                return {"from app.graphs.rag_helper import retrieve_documents"}
+            case _:
+                return set()
 
     def emit_imports(self) -> str:
         lines = {
@@ -257,9 +253,7 @@ class DirectLangGraphCompiler:
         )
 
     def emit_node_code(self, node: NodeRead) -> str:
-        from typing import cast
-
-        return cast(str, self.visit(node))
+        return self.visit(node)
 
     def emit_workflow(self) -> str:
         lines = [

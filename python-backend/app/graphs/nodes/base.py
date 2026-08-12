@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -16,47 +17,27 @@ class BaseNode(BaseModel):
     id: str = ""
 
     def get_variable_references(self) -> set[str]:
-        from app.graphs.expressions import get_expression_variables
-
-        refs: set[str] = set()
-        # Scan fields dynamically
-        for field in getattr(self, "_variable_fields", []):
-            val = getattr(self, field, None)
-            if isinstance(val, str) and val:
-                refs.add(val)
-            elif isinstance(val, list):
-                refs.update(item for item in val if isinstance(item, str) and item)
-
-        # Scan nested lists (assignments, branches)
-        for field in ("assignments", "branches"):
-            for item in getattr(self, field, []):
-                t_var = getattr(item, "target_var_key", None)
-                if t_var:
-                    refs.add(t_var)
-                expr = getattr(item, "expression", None)
-                if expr:
-                    refs.update(get_expression_variables(expr))
-        return refs
+        return set()
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        from app.graphs.expressions import rename_expression_variables
+        pass
 
-        # Rename in direct variable fields
-        for field in getattr(self, "_variable_fields", []):
-            val = getattr(self, field, None)
-            if isinstance(val, str) and val == old_key:
-                setattr(self, field, new_key)
-            elif isinstance(val, list):
-                setattr(self, field, [new_key if k == old_key else k for k in val])
+    def serialize_compact(self) -> list[str]:
+        node_type = getattr(self, "node_type", None)
+        type_str = node_type.value if node_type else "unknown"
+        return [f"  - {self.id} [{type_str}]"]
 
-        # Rename in nested lists
-        for field in ("assignments", "branches"):
-            for item in getattr(self, field, []):
-                if getattr(item, "target_var_key", None) == old_key:
-                    item.target_var_key = new_key
-                expr = getattr(item, "expression", None)
-                if expr:
-                    item.expression = rename_expression_variables(expr, old_key, new_key)
+    @property
+    def supports_branches(self) -> bool:
+        return False
+
+    def merge_config(self, config_fields: dict[str, Any]) -> None:
+        for k, v in config_fields.items():
+            if v is not None and hasattr(self, k):
+                setattr(self, k, v)
+
+    def handle_node_rename(self, old_id: str, new_id: str) -> None:
+        self.id = new_id
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         pass

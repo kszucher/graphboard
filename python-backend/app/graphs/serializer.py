@@ -1,4 +1,3 @@
-from app.constants import NodeType
 from app.graphs.schemas import GraphFlowData
 
 
@@ -19,39 +18,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     if flow.nodes:
         lines.append("Nodes:")
         for node in flow.nodes:
-            lines.append(f"  - {node.id} [{node.node_type.value}]")
-
-            if node.node_type == NodeType.LOGICAL_ASSIGNER:
-                for a in getattr(node, "assignments", []):
-                    lines.append(f"    {a.target_var_key} = {a.expression or ''}")
-            elif node.node_type == NodeType.AGENTIC_ASSIGNER:
-                lines.append(f"    prompt: {node.prompt}")
-                if node.agentic_inputs:
-                    lines.append(f"    in: {', '.join(node.agentic_inputs)}")
-                if node.agentic_outputs:
-                    lines.append(f"    out: {', '.join(node.agentic_outputs)}")
-            elif node.node_type == NodeType.LOGICAL_SWITCH:
-                branches = []
-                for b in getattr(node, "branches", []):
-                    branches.append(f"{b.label} ({b.expression or ''})")
-                if branches:
-                    lines.append(f"    branches: {', '.join(branches)}")
-            elif node.node_type == NodeType.AGENTIC_SWITCH:
-                if node.agentic_input:
-                    lines.append(f"    in: {node.agentic_input}")
-                branches = [b.label for b in getattr(node, "branches", [])]
-                if branches:
-                    lines.append(f"    branches: {', '.join(branches)}")
-            elif node.node_type == NodeType.INTERRUPT:
-                if node.payload_vars:
-                    lines.append(f"    payload: {', '.join(node.payload_vars)}")
-                if node.resume_var:
-                    lines.append(f"    resume: {node.resume_var}")
-            elif node.node_type == NodeType.RAG_RETRIEVER:
-                lines.append(f"    query: {node.query_var}")
-                lines.append(f"    output: {node.context_output_var}")
-                lines.append(f"    kb: {node.knowledge_base}")
-                lines.append(f"    top_k: {node.top_k}")
+            lines.extend(node.serialize_compact())
         lines.append("")
 
     # 3. Edges

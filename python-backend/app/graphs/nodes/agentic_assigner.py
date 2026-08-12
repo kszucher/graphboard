@@ -18,12 +18,25 @@ class AgenticAssignerConfig(BaseModel):
 
 
 class AgenticAssignerNode(BaseNode, AgenticAssignerConfig):
-    _variable_fields = ["agentic_inputs", "agentic_outputs"]
+    def get_variable_references(self) -> set[str]:
+        return set(self.agentic_inputs) | set(self.agentic_outputs)
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        super().rename_variable_references(old_key, new_key)
+        self.agentic_inputs = [new_key if k == old_key else k for k in self.agentic_inputs]
+        self.agentic_outputs = [new_key if k == old_key else k for k in self.agentic_outputs]
         if self.prompt:
             self.prompt = self.prompt.replace(f"{{{old_key}}}", f"{{{new_key}}}")
+
+    def serialize_compact(self) -> list[str]:
+        lines = [
+            f"  - {self.id} [{self.node_type.value}]",
+            f"    prompt: {self.prompt}",
+        ]
+        if self.agentic_inputs:
+            lines.append(f"    in: {', '.join(self.agentic_inputs)}")
+        if self.agentic_outputs:
+            lines.append(f"    out: {', '.join(self.agentic_outputs)}")
+        return lines
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

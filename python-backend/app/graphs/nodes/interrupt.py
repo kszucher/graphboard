@@ -17,7 +17,24 @@ class InterruptConfig(BaseModel):
 
 
 class InterruptNode(BaseNode, InterruptConfig):
-    _variable_fields = ["payload_vars", "resume_var"]
+    def get_variable_references(self) -> set[str]:
+        refs = set(self.payload_vars)
+        if self.resume_var:
+            refs.add(self.resume_var)
+        return refs
+
+    def rename_variable_references(self, old_key: str, new_key: str) -> None:
+        self.payload_vars = [new_key if k == old_key else k for k in self.payload_vars]
+        if self.resume_var == old_key:
+            self.resume_var = new_key
+
+    def serialize_compact(self) -> list[str]:
+        lines = [f"  - {self.id} [{self.node_type.value}]"]
+        if self.payload_vars:
+            lines.append(f"    payload: {', '.join(self.payload_vars)}")
+        if self.resume_var:
+            lines.append(f"    resume: {self.resume_var}")
+        return lines
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
