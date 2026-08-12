@@ -174,57 +174,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/copilot/{graph_id}/approve-plan": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Approve Plan Endpoint */
-    post: operations["approve_plan_endpoint_copilot__graph_id__approve_plan_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/copilot/{graph_id}/apply": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Apply Copilot Patch Endpoint */
-    post: operations["apply_copilot_patch_endpoint_copilot__graph_id__apply_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/copilot/{graph_id}/feedback": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Copilot Feedback Endpoint */
-    post: operations["copilot_feedback_endpoint_copilot__graph_id__feedback_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/health": {
     parameters: {
       query?: never;
@@ -311,18 +260,6 @@ export interface components {
       /** Target Var Key */
       target_var_key?: string | null;
     };
-    /** CopilotDecisionRequest */
-    CopilotDecisionRequest: {
-      /** Approved */
-      approved: boolean;
-    };
-    /** CopilotFeedbackRequest */
-    CopilotFeedbackRequest: {
-      /** Score */
-      score: number;
-      /** Comment */
-      comment?: string | null;
-    };
     /** CopilotInitiateRequest */
     CopilotInitiateRequest: {
       /** Prompt */
@@ -332,21 +269,10 @@ export interface components {
     CopilotStatusResponse: {
       /** Graph Id */
       graph_id: string;
-      /** Status */
-      status: string;
-      /** Plan */
-      plan?: {
-        [key: string]: unknown;
-      }[] | null;
-      /** Operations */
-      operations?: {
-        [key: string]: unknown;
-      }[] | null;
-      /** Validation Error */
-      validation_error?: string | null;
       /** Applied */
       applied: boolean;
-      flow_data?: components["schemas"]["GraphFlowRead"] | null;
+      /** Validation Error */
+      validation_error?: string | null;
     };
     /** DefinerVariableSchema */
     DefinerVariableSchema: {
@@ -933,117 +859,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CopilotStatusResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  approve_plan_endpoint_copilot__graph_id__approve_plan_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CopilotDecisionRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CopilotStatusResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  apply_copilot_patch_endpoint_copilot__graph_id__apply_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CopilotDecisionRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CopilotStatusResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  copilot_feedback_endpoint_copilot__graph_id__feedback_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CopilotFeedbackRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
         };
       };
       /** @description Validation Error */

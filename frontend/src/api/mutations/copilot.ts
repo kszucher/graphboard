@@ -1,15 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
 import { queryKeys } from '../queryKeys';
-import type { components } from '../generated/schema';
-
-export type CopilotStatusResponse = components['schemas']['CopilotStatusResponse'];
 
 export const useInitiateCopilot = (graphId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ prompt }: { prompt: string }): Promise<CopilotStatusResponse> => {
+    mutationFn: async ({ prompt }: { prompt: string }): Promise<{ applied: boolean; validation_error?: string | null }> => {
       const res = await apiClient.POST('/copilot/{graph_id}/initiate', {
         params: {
           path: { graph_id: graphId },
@@ -17,7 +14,7 @@ export const useInitiateCopilot = (graphId: string) => {
         body: { prompt },
       });
       if ('error' in res) throw res.error;
-      return res.data as CopilotStatusResponse;
+      return res.data as { applied: boolean; validation_error?: string | null };
     },
     onSuccess: (data) => {
       if (data.applied) {
