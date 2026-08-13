@@ -40,21 +40,6 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
     def supports_branches(self) -> bool:
         return True
 
-    def merge_config(self, config_fields: dict[str, Any]) -> None:
-        for k, v in config_fields.items():
-            if k != "branches" and v is not None and hasattr(self, k):
-                setattr(self, k, v)
-        if "branches" in config_fields and config_fields["branches"] is not None:
-            merged_branches = [b.model_dump(mode="json") for b in self.branches]
-            for new_b in config_fields["branches"]:
-                label = new_b.get("label")
-                existing_b = next((x for x in merged_branches if x.get("label") == label), None)
-                if existing_b:
-                    existing_b.update({k: v for k, v in new_b.items() if v is not None})
-                else:
-                    merged_branches.append(new_b)
-            self.branches = [AgenticBranch.model_validate(b) for b in merged_branches]
-
     def handle_node_rename(self, old_id: str, new_id: str) -> None:
         self.id = new_id
         for branch in self.branches:

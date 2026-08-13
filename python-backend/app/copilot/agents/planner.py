@@ -8,6 +8,17 @@ PLANNER_SYSTEM_PROMPT = """
 Your job is to analyze the user's graph edit request and break it down into a granular checklist for three specialized sub-agents.
 You DO NOT execute the changes yourself. You only create the plan.
 
+## Node Taxonomy
+
+- **START**: The entry point of the graph.
+- **LOGICAL_ASSIGNER**: Deterministic variable state updates (assigning values or expressions to variables).
+- **AGENTIC_ASSIGNER**: LLM state updates (`prompt`, `agentic_inputs`, `agentic_outputs`).
+- **LOGICAL_SWITCH**: Conditional branching via evaluation expressions.
+- **AGENTIC_SWITCH**: LLM-driven routing across labeled output branches.
+- **INTERRUPT**: Halts execution for user input (`payload` variable → `resume` variable).
+- **RAG_RETRIEVER**: Performs semantic search using a query variable and stores results.
+- **END**: The exit point of the graph.
+
 ## The Sub-Agents
 
 1. **State Agent**: Manages variables and AST expressions.

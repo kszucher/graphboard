@@ -25,11 +25,6 @@ class BaseNode(BaseModel):
     def supports_branches(self) -> bool:
         return False
 
-    def merge_config(self, config_fields: dict[str, Any]) -> None:
-        for k, v in config_fields.items():
-            if v is not None and hasattr(self, k):
-                setattr(self, k, v)
-
     def handle_node_rename(self, old_id: str, new_id: str) -> None:
         self.id = new_id
 
