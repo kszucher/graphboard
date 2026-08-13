@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -28,7 +28,7 @@ class InterruptNode(BaseNode, InterruptConfig):
         if self.resume_var == old_key:
             self.resume_var = new_key
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         if self.payload_vars:
             lines.append(f"    payload: {', '.join(self.payload_vars)}")

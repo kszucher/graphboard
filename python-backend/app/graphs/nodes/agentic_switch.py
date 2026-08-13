@@ -77,7 +77,7 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
             if b.target_var_key == old_key:
                 b.target_var_key = new_key
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         if self.agentic_input:
             lines.append(f"    in: {self.agentic_input}")

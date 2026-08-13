@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,9 +47,20 @@ class LogicalAssignerNode(BaseNode, LogicalAssignerConfig):
             if a.expression:
                 rename_variables_in_ast(a.expression, old_key, new_key)
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, expressions: dict[str, Any] | None = None, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         for a in self.assignments:
-            expr_str = a.expression.to_string() if a.expression else ""
+            expr_str = ""
+            if a.expression:
+                matched_id = None
+                if expressions:
+                    for eid, record in expressions.items():
+                        if getattr(record, "expr", None) == a.expression:
+                            matched_id = eid
+                            break
+                if matched_id:
+                    expr_str = matched_id
+                else:
+                    expr_str = a.expression.to_string()
             lines.append(f"    {a.target_var_key} = {expr_str}")
         return lines

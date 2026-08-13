@@ -61,6 +61,48 @@ def test_serialize_flow_to_code() -> None:
     assert "- check -[Yes]-> end" in serialized
 
 
+def test_serialize_flow_to_code_with_expressions() -> None:
+    from app.graphs.schemas import ExpressionRecord
+    flow = GraphFlowData(
+        state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
+        expressions={
+            "expr_score": ExpressionRecord(id="expr_score", expr=LiteralExpr(value=10)),
+            "expr_yes": ExpressionRecord(id="expr_yes", expr=LiteralExpr(value=True)),
+        },
+        nodes=[
+            LogicalAssignerNode(
+                id="init",
+                assignments=[
+                    LogicalAssignmentSchema(
+                        id="a1",
+                        target_var_key="score",
+                        expression=LiteralExpr(value=10),
+                    )
+                ],
+            ),
+            LogicalSwitchNode(
+                id="check",
+                branches=[
+                    Branch(
+                        id="check_yes",
+                        label="Yes",
+                        expression=LiteralExpr(value=True),
+                    )
+                ],
+            ),
+        ],
+        edges=[],
+    )
+
+    serialized = serialize_flow_to_code(flow)
+    assert "Expressions:" in serialized
+    assert "- expr_score: 10" in serialized
+    assert "- expr_yes: True" in serialized
+    assert "score = expr_score" in serialized
+    assert "branches: Yes (expr_yes)" in serialized
+
+
+
 def test_sort_operations_by_dependency() -> None:
     from app.graphs.schemas import GraphOperation
 

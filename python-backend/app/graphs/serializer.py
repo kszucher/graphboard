@@ -14,11 +14,18 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
             lines.append(f"  - {var.key}: {var.type}{default_str}{desc_str}")
         lines.append("")
 
-    # 2. Nodes
+    # 2. Expressions
+    if flow.expressions:
+        lines.append("Expressions:")
+        for expr_id, record in sorted(flow.expressions.items()):
+            lines.append(f"  - {expr_id}: {record.expr.to_string()}")
+        lines.append("")
+
+    # 3. Nodes
     if flow.nodes:
         lines.append("Nodes:")
         for node in flow.nodes:
-            lines.extend(node.serialize_compact())
+            lines.extend(node.serialize_compact(expressions=flow.expressions))
         lines.append("")
 
     # 3. Edges

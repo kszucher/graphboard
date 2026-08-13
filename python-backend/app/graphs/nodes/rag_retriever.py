@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -33,7 +33,7 @@ class RagRetrieverNode(BaseNode, RagRetrieverConfig):
         if self.context_output_var == old_key:
             self.context_output_var = new_key
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         return [
             f"  - {self.id} [{self.node_type.value}]",
             f"    query: {self.query_var}",

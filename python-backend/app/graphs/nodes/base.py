@@ -22,7 +22,7 @@ class BaseNode(BaseModel):
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
         pass
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         node_type = getattr(self, "node_type", None)
         type_str = node_type.value if node_type else "unknown"
         return [f"  - {self.id} [{type_str}]"]

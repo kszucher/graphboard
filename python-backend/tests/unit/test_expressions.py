@@ -119,18 +119,31 @@ def test_structured_expression_pydantic_parsing() -> None:
 
 
 def test_copilot_tools_schema_restrictions() -> None:
+    import json
+
+    import tiktoken
+
     from app.copilot.tools import ALL_FLAT_TOOLS
 
-    # Verify that the LLM tools do not accept string type for expression fields
-    switch_tool = ALL_FLAT_TOOLS["upsert_logical_switch"]
-    # Check that in the schema, branches items expression does NOT contain "string"
-    defs = switch_tool["function"]["parameters"]["$defs"]
-    branch_schema = defs["Branch"]
-    expr_schema = branch_schema["properties"]["expression"]
-    # Verify that string type is not anywhere in the expression options
-    if "anyOf" in expr_schema:
-        types = [item.get("type") for item in expr_schema["anyOf"] if "type" in item]
-        assert "string" not in types
-    else:
-        # If it is a direct oneOf/ref discriminator, string is definitely excluded
-        assert expr_schema.get("type") != "string"
+    # 1. Total token budget must be under 4000
+    tools = list(ALL_FLAT_TOOLS.values())
+    encoding = tiktoken.get_encoding("cl100k_base")
+    total_tokens = len(encoding.encode(json.dumps(tools, indent=2)))
+    assert total_tokens < 4000, f"Tool schemas exceed 4000 token limit: {total_tokens}"
+
+    # 2. upsert_expression is the sole carrier of the AST — must have func enum constraint
+    expr_tool = ALL_FLAT_TOOLS["upsert_expression"]
+    expr_schema_str = json.dumps(expr_tool)
+    assert "random.choice" in expr_schema_str, "func enum must include random.choice"
+    assert "random.sample" in expr_schema_str, "func enum must include random.sample"
+
+    # 3. Assigner and switch tools must NOT embed expression schema (no AST bleed)
+    assigner_schema_str = json.dumps(ALL_FLAT_TOOLS["upsert_logical_assigner"])
+    assert "random.choice" not in assigner_schema_str, "assigner must not carry expression schema"
+
+    switch_schema_str = json.dumps(ALL_FLAT_TOOLS["upsert_logical_switch"])
+    assert "random.choice" not in switch_schema_str, "switch must not carry expression schema"
+
+    # 4. No $defs blocks should remain (all refs inlined and dropped)
+    for tool in tools:
+        assert "$defs" not in json.dumps(tool), f"Tool {tool['function']['name']} still has $defs"

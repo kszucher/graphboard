@@ -13,6 +13,7 @@ from app.graphs.schemas import (
     DeleteStateVarOp,
     DisconnectOp,
     GraphFlowData,
+    UpsertExpressionOp,
     UpsertLogicalAssignerOp,
     UpsertLogicalSwitchOp,
     UpsertStateVarOp,
@@ -45,30 +46,26 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
         edges=[],
         state=[DefinerVariableSchema(id="var_x", key="x", type="number", default_value=10)],
     )
-    # Creating a switch node and setup its branches and expressions
+    # Creating a switch node with expressions via the store
     patch = [
+        UpsertExpressionOp(
+            op="upsert_expression",
+            id="expr_option_a",
+            expr={"type": "binary", "left": {"type": "variable", "name": "x"}, "op": "==", "right": {"type": "literal", "value": 10}},  # type: ignore[arg-type]
+        ),
+        UpsertExpressionOp(
+            op="upsert_expression",
+            id="expr_option_b",
+            expr={"type": "literal", "value": True},  # type: ignore[arg-type]
+        ),
         UpsertLogicalSwitchOp(
             op="upsert_logical_switch",
             node_id="switch_1",
             branches=[
-                {
-                    "label": "option_a",
-                    "expression": {
-                        "type": "binary",
-                        "left": {"type": "variable", "name": "x"},
-                        "op": "==",
-                        "right": {"type": "literal", "value": 10},
-                    },
-                },
-                {
-                    "label": "option_b",
-                    "expression": {
-                        "type": "literal",
-                        "value": True,
-                    },
-                },
+                {"label": "option_a", "expr_id": "expr_option_a"},
+                {"label": "option_b", "expr_id": "expr_option_b"},
             ],
-        )
+        ),
     ]
     updated = mutations.apply_patch(flow, patch)
     assert len(updated.nodes) == 1
@@ -112,25 +109,20 @@ def test_apply_patch_state_var_cascade() -> None:
     assert len(flow.state) == 1
     assert flow.state[0].key == "old_key"
 
-    # 2. Add an Assigner Node that references it
+    # 2. Add an Assigner Node that references it (via expression store)
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_concat",
+                expr={"type": "binary", "left": {"type": "variable", "name": "old_key"}, "op": "+", "right": {"type": "literal", "value": " world"}},  # type: ignore[arg-type]
+            ),
             UpsertLogicalAssignerOp(
                 op="upsert_logical_assigner",
                 node_id="assigner_1",
-                assignments=[
-                    {
-                        "target_var_key": "old_key",
-                        "expression": {
-                            "type": "binary",
-                            "left": {"type": "variable", "name": "old_key"},
-                            "op": "+",
-                            "right": {"type": "literal", "value": " world"},
-                        },
-                    }
-                ],
-            )
+                assignments=[{"target_var_key": "old_key", "expr_id": "expr_concat"}],
+            ),
         ],
     )
     node = flow.nodes[0]
@@ -160,20 +152,20 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
         flow, [UpsertStateVarOp(op="upsert_state_var", key="x", type="number", default_value=10)]
     )
 
-    # 2. Add node referencing variable
+    # 2. Add node referencing variable (via expression store)
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_x_val",
+                expr={"type": "literal", "value": 15},  # type: ignore[arg-type]
+            ),
             UpsertLogicalAssignerOp(
                 op="upsert_logical_assigner",
                 node_id="assigner_1",
-                assignments=[
-                    {
-                        "target_var_key": "x",
-                        "expression": {"type": "literal", "value": 15},
-                    }
-                ],
-            )
+                assignments=[{"target_var_key": "x", "expr_id": "expr_x_val"}],
+            ),
         ],
     )
 
@@ -190,11 +182,16 @@ def test_apply_patch_merge_branches() -> None:
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_true",
+                expr={"type": "literal", "value": True},  # type: ignore[arg-type]
+            ),
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
-            )
+                branches=[{"label": "option_a", "expr_id": "expr_true"}],
+            ),
         ],
     )
     node = flow.nodes[0]
@@ -208,11 +205,16 @@ def test_apply_patch_merge_branches() -> None:
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_false",
+                expr={"type": "literal", "value": False},  # type: ignore[arg-type]
+            ),
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_b", "expression": {"type": "literal", "value": False}}],
-            )
+                branches=[{"label": "option_b", "expr_id": "expr_false"}],
+            ),
         ],
     )
     node = flow.nodes[0]
@@ -227,21 +229,16 @@ def test_apply_patch_merge_branches() -> None:
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_x_eq_5",
+                expr={"type": "binary", "left": {"type": "variable", "name": "x"}, "op": "==", "right": {"type": "literal", "value": 5}},  # type: ignore[arg-type]
+            ),
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[
-                    {
-                        "label": "option_a",
-                        "expression": {
-                            "type": "binary",
-                            "left": {"type": "variable", "name": "x"},
-                            "op": "==",
-                            "right": {"type": "literal", "value": 5},
-                        },
-                    }
-                ],
-            )
+                branches=[{"label": "option_a", "expr_id": "expr_x_eq_5"}],
+            ),
         ],
     )
     node = flow.nodes[0]
@@ -262,10 +259,15 @@ def test_apply_patch_delete_branch() -> None:
     flow = mutations.apply_patch(
         flow,
         [
+            UpsertExpressionOp(
+                op="upsert_expression",
+                id="expr_true",
+                expr={"type": "literal", "value": True},  # type: ignore[arg-type]
+            ),
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
+                branches=[{"label": "option_a", "expr_id": "expr_true"}],
             ),
             UpsertLogicalAssignerOp(
                 op="upsert_logical_assigner",
@@ -310,10 +312,15 @@ def test_connect_raises_validation_error_if_branch_missing() -> None:
         mutations.apply_patch(
             flow,
             [
+                UpsertExpressionOp(
+                    op="upsert_expression",
+                    id="expr_true",
+                    expr={"type": "literal", "value": True},  # type: ignore[arg-type]
+                ),
                 UpsertLogicalSwitchOp(
                     op="upsert_logical_switch",
                     node_id="switch_1",
-                    branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
+                    branches=[{"label": "option_a", "expr_id": "expr_true"}],
                 ),
                 UpsertLogicalAssignerOp(
                     op="upsert_logical_assigner",
@@ -329,3 +336,20 @@ def test_connect_raises_validation_error_if_branch_missing() -> None:
             ],
         )
     assert "not found on node 'switch_1'" in str(excinfo.value)
+
+
+def test_upsert_expression_integrity_check() -> None:
+    """Referencing a non-existent expr_id in an assigner op raises ValidationError."""
+    flow = GraphFlowData(nodes=[], edges=[])
+
+    with pytest.raises(ValidationError, match="does not exist in the expression store"):
+        mutations.apply_patch(
+            flow,
+            [
+                UpsertLogicalAssignerOp(
+                    op="upsert_logical_assigner",
+                    node_id="assigner_1",
+                    assignments=[{"target_var_key": "x", "expr_id": "non_existent_expr"}],
+                )
+            ],
+        )

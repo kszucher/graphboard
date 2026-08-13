@@ -86,11 +86,22 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
             if b.expression:
                 rename_variables_in_comparison_ast(b.expression, old_key, new_key)
 
-    def serialize_compact(self) -> list[str]:
+    def serialize_compact(self, expressions: dict[str, Any] | None = None, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         branches_str = []
         for b in self.branches:
-            expr_str = b.expression.to_string() if b.expression else ""
+            expr_str = ""
+            if b.expression:
+                matched_id = None
+                if expressions:
+                    for eid, record in expressions.items():
+                        if getattr(record, "expr", None) == b.expression:
+                            matched_id = eid
+                            break
+                if matched_id:
+                    expr_str = matched_id
+                else:
+                    expr_str = b.expression.to_string()
             branches_str.append(f"{b.label} ({expr_str})")
         if branches_str:
             lines.append(f"    branches: {', '.join(branches_str)}")
