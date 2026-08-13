@@ -19,23 +19,9 @@ from app.graphs import operations
 from app.graphs.operations import sort_operations_by_dependency
 from app.graphs.schemas import GraphFlowData
 
+from app.copilot.models import CopilotState
+
 logger = logging.getLogger(__name__)
-
-
-class CopilotState(TypedDict):
-    graph_id: str
-    user_prompt: str
-    serialized_state: str
-    initial_flow_data: dict[str, Any]
-
-    plan: list[dict[str, Any]] | None
-    plan_approved: bool | None
-
-    operations: list[dict[str, Any]] | None
-    validation_error: str | None
-
-    apply_approved: bool | None
-    applied: bool | None
 
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
@@ -74,6 +60,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         err_msg = f"Planner tool schemas token size ({tools_tokens}) exceeds safety limit of 4000 tokens."
         logger.warning(err_msg)
         log_llm_call(
+            trace_id=state["trace_id"],
             node_name="planner_node",
             model="llama-3.3-70b-versatile",
             messages=messages,
@@ -96,6 +83,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     try:
         planner_completion = await client.chat.completions.create(**kwargs)
         log_llm_call(
+            trace_id=state["trace_id"],
             node_name="planner_node",
             model="llama-3.3-70b-versatile",
             messages=messages,
@@ -106,6 +94,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         )
     except RateLimitError as e:
         log_llm_call(
+            trace_id=state["trace_id"],
             node_name="planner_node",
             model="llama-3.3-70b-versatile",
             messages=messages,
@@ -118,6 +107,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         raise ValidationError("Groq LLM rate limit exceeded. Please wait a moment before trying again.")
     except Exception as e:
         log_llm_call(
+            trace_id=state["trace_id"],
             node_name="planner_node",
             model="llama-3.3-70b-versatile",
             messages=messages,
@@ -183,7 +173,7 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         logger.warning("Planner operation dry-run failed: %s", str(e))
         from app.copilot.logger import log_validation_error
 
-        log_validation_error(state.get("graph_id"), str(e))
+        log_validation_error(state["trace_id"], state.get("graph_id"), str(e))
         return {"validation_error": str(e)}
 
 

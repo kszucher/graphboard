@@ -110,6 +110,20 @@ def build_tool_schema(raw_schema: dict[str, Any], max_expr_depth: int = 2) -> di
 
 
 ALL_FLAT_TOOLS: dict[str, Any] = {}
+STATE_TOOLS: list[dict[str, Any]] = []
+TOPOLOGY_TOOLS: list[dict[str, Any]] = []
+CONFIG_TOOLS: list[dict[str, Any]] = []
+
+_STATE_OPS = {"declare_variable", "delete_variable", "define_expression"}
+_TOPOLOGY_OPS = {"create_node", "delete_node", "add_switch_branch", "remove_switch_branch", "connect", "disconnect"}
+_CONFIG_OPS = {
+    "bind_logical_assignment",
+    "bind_branch_condition",
+    "configure_agentic_prompt",
+    "configure_agentic_switch",
+    "configure_rag_search",
+    "configure_interrupt",
+}
 
 # upsert_expression owns the full AST schema — depth 1 is enough:
 # top-level variants are fully described; recursive children are stubbed as {type:object}.
@@ -120,7 +134,7 @@ for cls in operation_classes:
     op_name = cls.model_fields["op"].default
     raw_schema = cls.model_json_schema()
     compact_schema = build_tool_schema(raw_schema, max_expr_depth=_EXPR_DEPTH.get(op_name, 2))
-    ALL_FLAT_TOOLS[op_name] = {
+    tool = {
         "type": "function",
         "function": {
             "name": op_name,
@@ -128,6 +142,14 @@ for cls in operation_classes:
             "parameters": compact_schema,
         },
     }
+    ALL_FLAT_TOOLS[op_name] = tool
+    
+    if op_name in _STATE_OPS:
+        STATE_TOOLS.append(tool)
+    elif op_name in _TOPOLOGY_OPS:
+        TOPOLOGY_TOOLS.append(tool)
+    elif op_name in _CONFIG_OPS:
+        CONFIG_TOOLS.append(tool)
 
 
 def translate_tool_calls_to_operations(tool_calls: list[Any]) -> list[GraphOperation]:

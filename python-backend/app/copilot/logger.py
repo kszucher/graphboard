@@ -10,11 +10,9 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 LOGS_DIR = BASE_DIR / "logs"
 
-# ContextVar to track the flow run ID within a single asynchronous task lifecycle
-flow_run_id = contextvars.ContextVar("flow_run_id", default="")
-
 
 def log_llm_call(
+    trace_id: str,
     node_name: str,
     model: str,
     messages: list[dict[str, Any]],
@@ -85,11 +83,7 @@ def log_llm_call(
             log_entry["response"] = None
             log_entry["usage"] = None
 
-        run_name = flow_run_id.get()
-        if not run_name:
-            # Fallback if ContextVar is not set
-            timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            run_name = f"{timestamp_str}_{graph_id or 'unknown'}"
+        run_name = trace_id
 
         log_file = LOGS_DIR / f"flow_{run_name}.json"
 
@@ -113,7 +107,7 @@ def log_llm_call(
         logger.error(f"Failed to log LLM call: {e}", exc_info=True)
 
 
-def log_validation_error(graph_id: str | None, error: str) -> None:
+def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> None:
     """Logs validation error details to the flow run's JSON file."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -123,10 +117,7 @@ def log_validation_error(graph_id: str | None, error: str) -> None:
             "step": "validation",
             "error": error,
         }
-        run_name = flow_run_id.get()
-        if not run_name:
-            timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            run_name = f"{timestamp_str}_{graph_id or 'unknown'}"
+        run_name = trace_id
 
         log_file = LOGS_DIR / f"flow_{run_name}.json"
         entries = []
