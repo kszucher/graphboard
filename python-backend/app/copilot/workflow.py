@@ -2,30 +2,28 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 
 from groq import AsyncGroq
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from app.copilot.logger import log_llm_call
-from app.copilot.planner_prompts import PLANNER_SYSTEM_PROMPT
-from app.copilot.tools import (
-    ALL_FLAT_TOOLS,
-    translate_tool_calls_to_operations,
-)
+from app.copilot.agents.config_agent import execute_config_tasks
+from app.copilot.agents.planner import generate_plan
+from app.copilot.agents.state_agent import execute_state_tasks
+from app.copilot.agents.topology_agent import execute_topology_tasks
+from app.copilot.logger import log_validation_error
+from app.copilot.models import CopilotState
+from app.copilot.tools import translate_tool_calls_to_operations
 from app.exceptions import ValidationError
 from app.graphs import operations
-from app.graphs.operations import sort_operations_by_dependency
 from app.graphs.schemas import GraphFlowData
-
-from app.copilot.models import CopilotState
 
 logger = logging.getLogger(__name__)
 
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
-    """Invokes the Planner LLM directly with flat mutation tools, enabling one-pass parallel tool calling."""
+    """Invokes the Planner LLM to generate the checklist of agent tasks."""
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise ValidationError("GROQ_API_KEY environment variable is not set.")
@@ -33,103 +31,105 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     client = AsyncGroq(api_key=api_key)
 
     messages = [
-        {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+        },
+    ]
+    
+    plan = await generate_plan(client, state["trace_id"], state.get("graph_id", ""), messages)
+    checklist = plan.model_dump()
+    
+    return {
+        "agent_checklist": checklist,
+        "operations": [],
+        "plan": [], # We will populate this in the aggregation node for the UI
+    }
+
+
+async def state_agent_node(state: CopilotState) -> dict[str, Any]:
+    """Invokes the State Agent to execute variable and expression tasks."""
+    checklist = state.get("agent_checklist") or {}
+    tasks = checklist.get("state_tasks", [])
+    if not tasks:
+        return {}
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    client = AsyncGroq(api_key=api_key)
+
+    messages = [
         {
             "role": "user",
             "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
         },
     ]
 
-    import json
+    tool_calls = await execute_state_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
+    ops = translate_tool_calls_to_operations(tool_calls)
+    
+    current_ops = state.get("operations") or []
+    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
 
-    import tiktoken
-    from groq import RateLimitError
 
-    tools = list(ALL_FLAT_TOOLS.values())
+async def topology_agent_node(state: CopilotState) -> dict[str, Any]:
+    """Invokes the Topology Agent to execute node creation and wiring tasks."""
+    checklist = state.get("agent_checklist") or {}
+    tasks = checklist.get("topology_tasks", [])
+    if not tasks:
+        return {}
 
-    # Calculate token length of tool schemas
+    api_key = os.environ.get("GROQ_API_KEY")
+    client = AsyncGroq(api_key=api_key)
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+        },
+    ]
+
+    tool_calls = await execute_topology_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
+    ops = translate_tool_calls_to_operations(tool_calls)
+    
+    current_ops = state.get("operations") or []
+    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
+
+
+async def config_agent_node(state: CopilotState) -> dict[str, Any]:
+    """Invokes the Config Agent to execute logic and prompt injection tasks."""
+    checklist = state.get("agent_checklist") or {}
+    tasks = checklist.get("config_tasks", [])
+    if not tasks:
+        return {}
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    client = AsyncGroq(api_key=api_key)
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+        },
+    ]
+
+    tool_calls = await execute_config_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
+    ops = translate_tool_calls_to_operations(tool_calls)
+    
+    current_ops = state.get("operations") or []
+    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
+
+
+def aggregation_node(state: CopilotState) -> dict[str, Any]:
+    """Aggregates all operations into a human-readable plan for the UI."""
+    from pydantic import TypeAdapter
+    from app.graphs.operations import GraphOperation
+
+    state_ops = state.get("operations") or []
     try:
-        encoding = tiktoken.get_encoding("cl100k_base")
-    except Exception:
-        encoding = tiktoken.encoding_for_model("gpt-4")
-
-    tools_json = json.dumps(tools, indent=2)
-    tools_tokens = len(encoding.encode(tools_json))
-
-    if tools_tokens > 4000:
-        err_msg = f"Planner tool schemas token size ({tools_tokens}) exceeds safety limit of 4000 tokens."
-        logger.warning(err_msg)
-        log_llm_call(
-            trace_id=state["trace_id"],
-            node_name="planner_node",
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            error=err_msg,
-            graph_id=state.get("graph_id"),
-            tools=tools,
-            tool_tokens=tools_tokens,
-        )
-        raise ValidationError(err_msg)
-
-    kwargs: dict[str, Any] = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": messages,
-        "max_tokens": 1500,
-        "temperature": 0.0,
-        "tools": tools,
-        "tool_choice": "auto",
-    }
-
-    try:
-        planner_completion = await client.chat.completions.create(**kwargs)
-        log_llm_call(
-            trace_id=state["trace_id"],
-            node_name="planner_node",
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            response=planner_completion,
-            graph_id=state.get("graph_id"),
-            tools=tools,
-            tool_tokens=tools_tokens,
-        )
-    except RateLimitError as e:
-        log_llm_call(
-            trace_id=state["trace_id"],
-            node_name="planner_node",
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            error=str(e),
-            graph_id=state.get("graph_id"),
-            tools=tools,
-            tool_tokens=tools_tokens,
-        )
-        logger.warning("Groq rate limit exceeded in Planner")
-        raise ValidationError("Groq LLM rate limit exceeded. Please wait a moment before trying again.")
+        validated_ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
     except Exception as e:
-        log_llm_call(
-            trace_id=state["trace_id"],
-            node_name="planner_node",
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            error=str(e),
-            graph_id=state.get("graph_id"),
-            tools=tools,
-            tool_tokens=tools_tokens,
-        )
-        logger.exception("Failed calling Planner Groq LLM")
-        raise ValidationError(f"Planner execution failed: {str(e)}")
+        raise ValidationError(f"Agents generated invalid mutations: {str(e)}")
 
-    planner_choice = planner_completion.choices[0]
-    tool_calls = planner_choice.message.tool_calls
-    if not tool_calls:
-        raise ValidationError("Planner failed to generate any mutations.")
-
-    try:
-        validated_ops = translate_tool_calls_to_operations(tool_calls)
-    except Exception as e:
-        raise ValidationError(f"Planner generated invalid mutations: {str(e)}")
-
-    # Populate human-readable plan steps for the UI panel/logs from the generated operations
     plan_steps = []
     for op in validated_ops:
         plan_steps.append(
@@ -140,10 +140,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             }
         )
 
-    return {
-        "plan": plan_steps,
-        "operations": [op.model_dump(mode="json") for op in validated_ops],
-    }
+    return {"plan": plan_steps}
 
 
 def wait_for_plan_node(state: CopilotState) -> dict[str, Any]:
@@ -158,21 +155,18 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
 
     try:
         from pydantic import TypeAdapter
-
         from app.graphs.operations import GraphOperation
 
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
         state_ops = state.get("operations") or []
         ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
-        sorted_ops = sort_operations_by_dependency(ops)
+        sorted_ops = operations.sort_operations_by_dependency(ops)
 
         # Dry-run patch application
         operations.apply_patch(flow_data, sorted_ops)
         return {"validation_error": None}
     except Exception as e:
-        logger.warning("Planner operation dry-run failed: %s", str(e))
-        from app.copilot.logger import log_validation_error
-
+        logger.warning("Agent operation dry-run failed: %s", str(e))
         log_validation_error(state["trace_id"], state.get("graph_id"), str(e))
         return {"validation_error": str(e)}
 
@@ -210,13 +204,21 @@ def route_after_apply(state: CopilotState) -> Literal["apply_node", "__end__"]:
 workflow = StateGraph(CopilotState)
 
 workflow.add_node("planner_node", planner_node)
+workflow.add_node("state_agent_node", state_agent_node)
+workflow.add_node("topology_agent_node", topology_agent_node)
+workflow.add_node("config_agent_node", config_agent_node)
+workflow.add_node("aggregation_node", aggregation_node)
 workflow.add_node("wait_for_plan_node", wait_for_plan_node)
 workflow.add_node("validation_node", validation_node)
 workflow.add_node("wait_for_apply_node", wait_for_apply_node)
 workflow.add_node("apply_node", apply_node)
 
 workflow.add_edge(START, "planner_node")
-workflow.add_edge("planner_node", "wait_for_plan_node")
+workflow.add_edge("planner_node", "state_agent_node")
+workflow.add_edge("state_agent_node", "topology_agent_node")
+workflow.add_edge("topology_agent_node", "config_agent_node")
+workflow.add_edge("config_agent_node", "aggregation_node")
+workflow.add_edge("aggregation_node", "wait_for_plan_node")
 workflow.add_conditional_edges("wait_for_plan_node", route_after_plan)
 workflow.add_edge("validation_node", "wait_for_apply_node")
 workflow.add_conditional_edges("wait_for_apply_node", route_after_apply)

@@ -28,10 +28,8 @@ async def initiate_copilot_workflow(
     """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
     from datetime import datetime
 
-    from app.copilot.logger import flow_run_id
-
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    flow_run_id.set(f"{timestamp}_{graph_id}")
+    trace_id = f"{timestamp}_{graph_id}"
 
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
     if not latest_snapshot:
@@ -44,10 +42,12 @@ async def initiate_copilot_workflow(
 
     # Reset/initialize graph state
     initial_state = {
+        "trace_id": trace_id,
         "graph_id": str(graph_id),
         "user_prompt": prompt,
         "serialized_state": serialized_state,
         "initial_flow_data": flow_data.model_dump(mode="json"),
+        "agent_checklist": None,
         "plan": None,
         "plan_approved": None,
         "operations": None,

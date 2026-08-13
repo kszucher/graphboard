@@ -9,6 +9,7 @@ class CopilotState(TypedDict):
     user_prompt: str
     serialized_state: str
     initial_flow_data: dict[str, Any]
+    agent_checklist: dict[str, list[str]] | None
 
     plan: list[dict[str, Any]] | None
     plan_approved: bool | None
