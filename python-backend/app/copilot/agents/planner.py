@@ -48,6 +48,12 @@ Leave the list empty if an agent has no work to do.
 For example, if you tell the Topology Agent to create node 'my_node', you must refer to it as exactly 'my_node' when telling the Config Agent to configure it.
 DO NOT use fuzzy names or natural language references for IDs.
 
+**CRITICAL RULES FOR ASSIGNERS & STATE**:
+- **State Tasks (Expressions)**: When planning to define an expression, you MUST specify the exact unique expression identifier (e.g., `expr_<node_id>_<variable_name>`) and the exact logic or formula (e.g. `expr_check_correct_is_correct: (parsed_answer == correct_answer)`) inside the description so the State Agent knows what formula to define.
+- **Agentic vs Logical Assigners**:
+  - `AGENTIC_ASSIGNER` nodes (like LLM prompts) use `configure_agentic_prompt` to map inputs, outputs, and prompts. **NEVER** map expressions or logical assignments (`bind_logical_assignment`) to them.
+  - `LOGICAL_ASSIGNER` nodes use `bind_logical_assignment` to assign expression formulas to variables.
+
 **OUTPUT FORMAT CRITICAL INSTRUCTION**:
 You must return an array of objects for each task list. DO NOT return lists of strings.
 Each object must have a `description` string and a `node_id` string. If a task does not involve a specific node, set `node_id` to `""`.
