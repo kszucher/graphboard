@@ -1,6 +1,7 @@
 import pytest
 
 from app.exceptions import ValidationError
+from app.graphs.expressions.schemas import BinaryExpr, ComparisonExpr, LiteralExpr, VariableExpr
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.nodes import (
     AgenticAssignerNode,
@@ -29,12 +30,16 @@ def base_flow() -> GraphFlowData:
                 Branch(
                     id="switch_1_option_a",
                     label="option_a",
-                    expression="x == 10",
+                    expression=ComparisonExpr(
+                        left=VariableExpr(name="x"),
+                        op="==",
+                        right=LiteralExpr(value=10),
+                    ),
                 ),
                 Branch(
                     id="switch_1_option_b",
                     label="option_b",
-                    expression="True",
+                    expression=LiteralExpr(value=True),
                 ),
             ],
         ),
@@ -44,7 +49,11 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    expression="x + 1",
+                    expression=BinaryExpr(
+                        left=VariableExpr(name="x"),
+                        op="+",
+                        right=LiteralExpr(value=1),
+                    ),
                 )
             ],
         ),
@@ -54,7 +63,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_y",
                     target_var_key="y",
-                    expression="True",
+                    expression=LiteralExpr(value=True),
                 )
             ],
         ),

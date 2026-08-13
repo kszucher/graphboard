@@ -15,27 +15,42 @@
         {
           "id": "71619488-2cad-4f2a-aec7-fa322677f0ef",
           "target_var_key": "score",
-          "expression": "0"
+          "expression": {
+            "type": "literal",
+            "value": 0
+          }
         },
         {
           "id": "f36b92ee-8262-4456-a9bc-ff781a913dd4",
           "target_var_key": "more_questions",
-          "expression": "True"
+          "expression": {
+            "type": "literal",
+            "value": true
+          }
         },
         {
           "id": "83fd3460-cbe0-4b6e-b5e9-4d8bc018934e",
           "target_var_key": "correct_answer",
-          "expression": "'A'"
+          "expression": {
+            "type": "literal",
+            "value": "A"
+          }
         },
         {
           "id": "1a2b3c4d-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
           "target_var_key": "topic",
-          "expression": "'Space Exploration'"
+          "expression": {
+            "type": "literal",
+            "value": "Space Exploration"
+          }
         },
         {
           "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
           "target_var_key": "retrieved_facts",
-          "expression": "''"
+          "expression": {
+            "type": "literal",
+            "value": ""
+          }
         }
       ]
     },
@@ -46,13 +61,22 @@
         {
           "id": "loop_questions_yes",
           "label": "Yes",
-          "expression": "more_questions",
+          "expression": {
+            "type": "variable",
+            "name": "more_questions"
+          },
           "target_var_key": null
         },
         {
           "id": "loop_questions_no",
           "label": "No",
-          "expression": "not more_questions",
+          "expression": {
+            "type": "not",
+            "argument": {
+              "type": "variable",
+              "name": "more_questions"
+            }
+          },
           "target_var_key": null
         }
       ]
@@ -93,7 +117,10 @@
         {
           "id": "706ca220-6b80-4178-8f78-c3d563448dde",
           "target_var_key": "parsed_answer",
-          "expression": "user_answer"
+          "expression": {
+            "type": "variable",
+            "name": "user_answer"
+          }
         }
       ]
     },
@@ -158,7 +185,18 @@
         {
           "id": "0efbc2c0-af0e-409a-bfe0-982f1a2b7499",
           "target_var_key": "is_correct",
-          "expression": "parsed_answer == correct_answer"
+          "expression": {
+            "type": "binary",
+            "left": {
+              "type": "variable",
+              "name": "parsed_answer"
+            },
+            "op": "==",
+            "right": {
+              "type": "variable",
+              "name": "correct_answer"
+            }
+          }
         }
       ]
     },
@@ -169,13 +207,22 @@
         {
           "id": "result_switch_correct",
           "label": "correct",
-          "expression": "is_correct",
+          "expression": {
+            "type": "variable",
+            "name": "is_correct"
+          },
           "target_var_key": null
         },
         {
           "id": "result_switch_wrong",
           "label": "wrong",
-          "expression": "not is_correct",
+          "expression": {
+            "type": "not",
+            "argument": {
+              "type": "variable",
+              "name": "is_correct"
+            }
+          },
           "target_var_key": null
         }
       ]
@@ -187,7 +234,18 @@
         {
           "id": "b2f8b45d-ff61-46e0-a3f7-b3a8f7e6cd03",
           "target_var_key": "score",
-          "expression": "score + 1"
+          "expression": {
+            "type": "binary",
+            "left": {
+              "type": "variable",
+              "name": "score"
+            },
+            "op": "+",
+            "right": {
+              "type": "literal",
+              "value": 1
+            }
+          }
         }
       ]
     }

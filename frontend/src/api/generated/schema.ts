@@ -244,6 +244,23 @@ export interface components {
        */
       id: string;
     };
+    /** BinaryExpr */
+    BinaryExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "binary";
+      /** Left */
+      left: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
+      /**
+       * Op
+       * @enum {string}
+       */
+      op: "+" | "-" | "*" | "/" | "%" | "and" | "or" | "==" | "!=" | "<" | ">" | "<=" | ">=";
+      /** Right */
+      right: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
+    };
     /**
      * Branch
      * @description A routing branch on a switch node.
@@ -256,9 +273,26 @@ export interface components {
       /** Label */
       label: string;
       /** Expression */
-      expression?: string | null;
+      expression?: (components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"]) | null;
       /** Target Var Key */
       target_var_key?: string | null;
+    };
+    /** ComparisonExpr */
+    ComparisonExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "comparison";
+      /** Left */
+      left: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
+      /**
+       * Op
+       * @enum {string}
+       */
+      op: "==" | "!=" | "<" | ">" | "<=" | ">=";
+      /** Right */
+      right: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
     };
     /** CopilotInitiateRequest */
     CopilotInitiateRequest: {
@@ -321,6 +355,21 @@ export interface components {
        * @default
        */
       id: string;
+    };
+    /** FunctionCallExpr */
+    FunctionCallExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "call";
+      /**
+       * Func
+       * @enum {string}
+       */
+      func: "str" | "int" | "float" | "bool" | "len" | "random.choice" | "random.sample";
+      /** Args */
+      args: (components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"])[];
     };
     /** GraphCodeRead */
     GraphCodeRead: {
@@ -405,6 +454,16 @@ export interface components {
        */
       id: string;
     };
+    /** LiteralExpr */
+    LiteralExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "literal";
+      /** Value */
+      value: string | number | boolean | null;
+    };
     /** LogicalAssignerNode */
     LogicalAssignerNode: {
       /**
@@ -427,7 +486,24 @@ export interface components {
       /** Target Var Key */
       target_var_key: string;
       /** Expression */
-      expression?: string | null;
+      expression?: (components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"]) | null;
+    };
+    /** LogicalExpr */
+    LogicalExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "logical";
+      /** Left */
+      left: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
+      /**
+       * Op
+       * @enum {string}
+       */
+      op: "and" | "or";
+      /** Right */
+      right: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
     };
     /** LogicalSwitchNode */
     LogicalSwitchNode: {
@@ -443,6 +519,16 @@ export interface components {
        * @default
        */
       id: string;
+    };
+    /** NotExpr */
+    NotExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "not";
+      /** Argument */
+      argument: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
     };
     /** RagRetrieverNode */
     RagRetrieverNode: {
@@ -503,6 +589,21 @@ export interface components {
        */
       id: string;
     };
+    /** UnaryExpr */
+    UnaryExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "unary";
+      /**
+       * Op
+       * @enum {string}
+       */
+      op: "not" | "-" | "+";
+      /** Argument */
+      argument: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
+    };
     /** UserCreate */
     UserCreate: {
       /** User Name */
@@ -516,6 +617,16 @@ export interface components {
       msg: string;
       /** Error Type */
       type: string;
+    };
+    /** VariableExpr */
+    VariableExpr: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "variable";
+      /** Name */
+      name: string;
     };
   };
   responses: never;

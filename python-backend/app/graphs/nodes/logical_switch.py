@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
-from app.graphs.expressions.schemas import ComparisonExpression
+from app.graphs.expressions.schemas import (
+    ComparisonExpression,
+    get_variables_from_comparison_ast,
+    rename_variables_in_comparison_ast,
+)
 
 from .base import BaseNode, _make_slot_id
 
@@ -22,19 +26,8 @@ class Branch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: SkipJsonSchema[str] = ""
     label: str  # required — the human-readable routing label
-    expression: ComparisonExpression | str | None = None  # LogicalSwitch condition (Python expression)
+    expression: ComparisonExpression | None = None  # LogicalSwitch condition (Python expression)
     target_var_key: str | None = None  # optional variable binding for integrity tracking
-
-    @model_validator(mode="after")
-    def convert_expression_to_string(self) -> Branch:
-        if self.expression is not None:
-            if not isinstance(self.expression, str):
-                self.expression = self.expression.to_string()
-            else:
-                from app.graphs.expressions import parse_comparison_expression
-
-                self.expression = parse_comparison_expression(self.expression)
-        return self
 
 
 class LogicalSwitchConfig(BaseModel):
@@ -76,28 +69,27 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
 
     def get_variable_references(self) -> set[str]:
-        from app.graphs.expressions import get_expression_variables
-
         refs = set()
         for b in self.branches:
             if b.target_var_key:
                 refs.add(b.target_var_key)
             if b.expression:
-                refs.update(get_expression_variables(cast(str, b.expression)))
+                refs.update(get_variables_from_comparison_ast(b.expression))
         return refs
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        from app.graphs.expressions import rename_expression_variables
-
         for b in self.branches:
             if b.target_var_key == old_key:
                 b.target_var_key = new_key
             if b.expression:
-                b.expression = rename_expression_variables(cast(str, b.expression), old_key, new_key)
+                rename_variables_in_comparison_ast(b.expression, old_key, new_key)
 
     def serialize_compact(self) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
-        branches_str = [f"{b.label} ({b.expression or ''})" for b in self.branches]
+        branches_str = []
+        for b in self.branches:
+            expr_str = b.expression.to_string() if b.expression else ""
+            branches_str.append(f"{b.label} ({expr_str})")
         if branches_str:
             lines.append(f"    branches: {', '.join(branches_str)}")
         return lines

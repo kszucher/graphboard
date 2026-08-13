@@ -1,6 +1,7 @@
 import ast
 
 from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
+from app.graphs.expressions.schemas import ComparisonExpr, LiteralExpr, VariableExpr
 from app.graphs.nodes import (
     AgenticAssignerNode,
     Branch,
@@ -48,7 +49,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="status",
-                        expression="'processed'",
+                        expression=LiteralExpr(value="processed"),
                     ),
                 ],
             ),
@@ -78,7 +79,11 @@ async def test_generate_graph_code_with_switch_node() -> None:
                     Branch(
                         id="switch_1_is_active",
                         label="is_active",
-                        expression="status == 'active'",
+                        expression=ComparisonExpr(
+                            left=VariableExpr(name="status"),
+                            op="==",
+                            right=LiteralExpr(value="active"),
+                        ),
                     )
                 ],
             ),

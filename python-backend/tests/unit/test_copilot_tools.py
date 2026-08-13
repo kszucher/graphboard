@@ -1,4 +1,5 @@
 from app.copilot.tools import translate_tool_calls_to_operations
+from app.graphs.expressions.schemas import LiteralExpr
 from app.graphs.mutations import sort_operations_by_dependency
 from app.graphs.nodes import (
     Branch,
@@ -27,7 +28,7 @@ def test_serialize_flow_to_code() -> None:
                     LogicalAssignmentSchema(
                         id="a1",
                         target_var_key="score",
-                        expression="10",
+                        expression=LiteralExpr(value=10),
                     )
                 ],
             ),
@@ -37,7 +38,7 @@ def test_serialize_flow_to_code() -> None:
                     Branch(
                         id="check_yes",
                         label="Yes",
-                        expression="True",
+                        expression=LiteralExpr(value=True),
                     )
                 ],
             ),

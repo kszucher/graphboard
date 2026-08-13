@@ -88,28 +88,34 @@ def test_structured_expression_pydantic_parsing() -> None:
     from app.graphs.nodes import Branch, LogicalAssignmentSchema
 
     # Test assignments parsing structured JSON into a string
-    assignment = LogicalAssignmentSchema.model_validate({
-        "target_var_key": "score",
-        "expression": {
-            "type": "binary",
-            "left": {"type": "variable", "name": "score"},
-            "op": "+",
-            "right": {"type": "literal", "value": 1},
-        },
-    })
-    assert assignment.expression == "(score + 1)"
+    assignment = LogicalAssignmentSchema.model_validate(
+        {
+            "target_var_key": "score",
+            "expression": {
+                "type": "binary",
+                "left": {"type": "variable", "name": "score"},
+                "op": "+",
+                "right": {"type": "literal", "value": 1},
+            },
+        }
+    )
+    assert assignment.expression is not None
+    assert assignment.expression.to_string() == "(score + 1)"
 
     # Test branches parsing structured JSON into a string
-    branch = Branch.model_validate({
-        "label": "Option A",
-        "expression": {
-            "type": "comparison",
-            "left": {"type": "variable", "name": "score"},
-            "op": ">",
-            "right": {"type": "literal", "value": 10},
-        },
-    })
-    assert branch.expression == "(score > 10)"
+    branch = Branch.model_validate(
+        {
+            "label": "Option A",
+            "expression": {
+                "type": "comparison",
+                "left": {"type": "variable", "name": "score"},
+                "op": ">",
+                "right": {"type": "literal", "value": 10},
+            },
+        }
+    )
+    assert branch.expression is not None
+    assert branch.expression.to_string() == "(score > 10)"
 
 
 def test_copilot_tools_schema_restrictions() -> None:
@@ -119,7 +125,7 @@ def test_copilot_tools_schema_restrictions() -> None:
     switch_tool = ALL_FLAT_TOOLS["upsert_logical_switch"]
     # Check that in the schema, branches items expression does NOT contain "string"
     defs = switch_tool["function"]["parameters"]["$defs"]
-    branch_schema = defs["BranchOpSchema"]
+    branch_schema = defs["Branch"]
     expr_schema = branch_schema["properties"]["expression"]
     # Verify that string type is not anywhere in the expression options
     if "anyOf" in expr_schema:
@@ -128,4 +134,3 @@ def test_copilot_tools_schema_restrictions() -> None:
     else:
         # If it is a direct oneOf/ref discriminator, string is definitely excluded
         assert expr_schema.get("type") != "string"
-

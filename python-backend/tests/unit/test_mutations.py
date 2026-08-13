@@ -77,7 +77,8 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
     expr = node.branches[0].expression
-    assert expr == "(x == 10)"
+    assert expr is not None
+    assert expr.to_string() == "(x == 10)"
 
 
 def test_apply_patch_connect_disconnect() -> None:
@@ -147,7 +148,8 @@ def test_apply_patch_state_var_cascade() -> None:
     assert isinstance(assigner, LogicalAssignerNode)
     assert assigner.assignments[0].target_var_key == "new_key"
     expr = assigner.assignments[0].expression
-    assert expr == "new_key + ' world'"
+    assert expr is not None
+    assert expr.to_string() == "(new_key + ' world')"
 
 
 def test_apply_patch_delete_var_blocked_if_referenced() -> None:
@@ -199,7 +201,8 @@ def test_apply_patch_merge_branches() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 1
     assert node.branches[0].label == "option_a"
-    assert node.branches[0].expression == "True"
+    assert node.branches[0].expression is not None
+    assert node.branches[0].expression.to_string() == "True"
 
     # 2. Add another branch by upserting a list containing ONLY the new branch (delta projection test)
     flow = mutations.apply_patch(
@@ -217,7 +220,8 @@ def test_apply_patch_merge_branches() -> None:
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
     assert node.branches[1].label == "option_b"
-    assert node.branches[1].expression == "False"
+    assert node.branches[1].expression is not None
+    assert node.branches[1].expression.to_string() == "False"
 
     # 3. Update option_a's expression with another partial upsert
     flow = mutations.apply_patch(
@@ -226,12 +230,17 @@ def test_apply_patch_merge_branches() -> None:
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": {
-                    "type": "comparison",
-                    "left": {"type": "variable", "name": "x"},
-                    "op": "==",
-                    "right": {"type": "literal", "value": 5},
-                }}],
+                branches=[
+                    {
+                        "label": "option_a",
+                        "expression": {
+                            "type": "comparison",
+                            "left": {"type": "variable", "name": "x"},
+                            "op": "==",
+                            "right": {"type": "literal", "value": 5},
+                        },
+                    }
+                ],
             )
         ],
     )
@@ -239,7 +248,8 @@ def test_apply_patch_merge_branches() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
-    assert node.branches[0].expression == "(x == 5)"
+    assert node.branches[0].expression is not None
+    assert node.branches[0].expression.to_string() == "(x == 5)"
     assert node.branches[1].label == "option_b"
 
 
@@ -319,5 +329,3 @@ def test_connect_raises_validation_error_if_branch_missing() -> None:
             ],
         )
     assert "not found on node 'switch_1'" in str(excinfo.value)
-
-

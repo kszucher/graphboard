@@ -8,7 +8,7 @@ executable Python LangGraph code strings with single-pass AST validation.
 from __future__ import annotations
 
 import ast
-from typing import Any, cast
+from typing import Any
 
 from app.graphs.expressions import expression_to_code
 from app.graphs.nodes import (
@@ -110,7 +110,8 @@ class DirectLangGraphCompiler:
         pairs = []
         for i in valid_items:
             expr = getattr(i, "expression", None)
-            val_code = expression_to_code(expr, self.valid_keys)
+            expr_str = expr.to_string() if expr else None
+            val_code = expression_to_code(expr_str, self.valid_keys)
             pairs.append(f"{repr(i.target_var_key)}: {val_code}")
         return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
@@ -162,10 +163,11 @@ class DirectLangGraphCompiler:
         for idx, branch in enumerate(node.branches):
             raw = branch.label or f"Branch {idx + 1}"
             expr = branch.expression
-            if idx == len(node.branches) - 1 and expr == "True":
+            expr_str = expr.to_string() if expr else None
+            if idx == len(node.branches) - 1 and expr_str == "True":
                 if_branches.append(f"    else:\n        return {repr(raw)}")
             else:
-                cond_code = expression_to_code(cast(str | None, expr), self.valid_keys, fallback="False")
+                cond_code = expression_to_code(expr_str, self.valid_keys, fallback="False")
                 keyword = "if" if idx == 0 else "elif"
                 if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
 

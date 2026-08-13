@@ -157,7 +157,7 @@ async def test_run_graph_flow_success(
                     {
                         "id": "asgn_1",
                         "target_var_key": "x",
-                        "expression": "42",
+                        "expression": {"type": "literal", "value": 42},
                     }
                 ],
             },
@@ -200,9 +200,21 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "switch_1_option_a",
                         "label": "option_a",
-                        "expression": "x > 0",
+                        "expression": {
+                            "type": "comparison",
+                            "left": {"type": "variable", "name": "x"},
+                            "op": ">",
+                            "right": {"type": "literal", "value": 0},
+                        },
                     },
-                    {"id": "switch_1_option_b", "label": "option_b", "expression": "True"},
+                    {
+                        "id": "switch_1_option_b",
+                        "label": "option_b",
+                        "expression": {
+                            "type": "literal",
+                            "value": True,
+                        },
+                    },
                 ],
             },
             {
@@ -212,7 +224,10 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_a",
                         "target_var_key": "y",
-                        "expression": "100",
+                        "expression": {
+                            "type": "literal",
+                            "value": 100,
+                        },
                     }
                 ],
             },
@@ -223,7 +238,10 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_b",
                         "target_var_key": "y",
-                        "expression": "200",
+                        "expression": {
+                            "type": "literal",
+                            "value": 200,
+                        },
                     }
                 ],
             },
@@ -282,7 +300,7 @@ async def test_run_graph_flow_invalid_state_ref(
                     {
                         "id": "asgn_1",
                         "target_var_key": "non_existent",
-                        "expression": "42",
+                        "expression": {"type": "literal", "value": 42},
                     }
                 ],
             },
