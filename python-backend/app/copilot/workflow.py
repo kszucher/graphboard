@@ -18,8 +18,28 @@ from app.copilot.tools import translate_tool_calls_to_operations
 from app.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.schemas import GraphFlowData
+from app.graphs.serializer import serialize_flow_to_code
 
 logger = logging.getLogger(__name__)
+
+
+def _get_current_state_message(state: CopilotState) -> str:
+    """Computes the current graph state by applying accumulated operations."""
+    flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
+    current_ops_raw = state.get("operations") or []
+
+    if current_ops_raw:
+        from pydantic import TypeAdapter
+
+        from app.graphs.operations import GraphOperation
+
+        ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in current_ops_raw]
+        sorted_ops = operations.sort_operations_by_dependency(ops)
+        operations.apply_patch(flow_data, sorted_ops)
+
+    current_serialized_state = serialize_flow_to_code(flow_data)
+
+    return f"## Current Graph State:\n{current_serialized_state}\n\n## User Request:\n{state['user_prompt']}"
 
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
@@ -60,7 +80,7 @@ async def state_agent_node(state: CopilotState) -> dict[str, Any]:
     messages = [
         {
             "role": "user",
-            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+            "content": _get_current_state_message(state),
         },
     ]
 
@@ -84,7 +104,7 @@ async def topology_agent_node(state: CopilotState) -> dict[str, Any]:
     messages = [
         {
             "role": "user",
-            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+            "content": _get_current_state_message(state),
         },
     ]
 
@@ -108,7 +128,7 @@ async def config_agent_node(state: CopilotState) -> dict[str, Any]:
     messages = [
         {
             "role": "user",
-            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+            "content": _get_current_state_message(state),
         },
     ]
 
@@ -122,6 +142,7 @@ async def config_agent_node(state: CopilotState) -> dict[str, Any]:
 def aggregation_node(state: CopilotState) -> dict[str, Any]:
     """Aggregates all operations into a human-readable plan for the UI."""
     from pydantic import TypeAdapter
+
     from app.graphs.operations import GraphOperation
 
     state_ops = state.get("operations") or []
@@ -155,6 +176,7 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
 
     try:
         from pydantic import TypeAdapter
+
         from app.graphs.operations import GraphOperation
 
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])

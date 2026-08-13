@@ -42,16 +42,31 @@ Analyze the current graph state and the user request.
 Write out human-readable tasks for each agent in the order they must be executed (State -> Topology -> Config).
 Leave the list empty if an agent has no work to do.
 
-**CRITICAL**: You MUST use exact, identical string identifiers for variables and `node_id`s across all your task descriptions. For example, if you tell the Topology Agent to create node 'my_node', you must refer to it as exactly 'my_node' when telling the Config Agent to configure it. Do not use fuzzy names.
+**CRITICAL**: Every new node created in the Topology tasks MUST have a corresponding configuration task in the Config tasks (e.g., binding LLM prompts, input/output variables, or branching conditions). Do not leave new nodes unconfigured.
+
+**CRITICAL**: You MUST use exact, identical string identifiers for variables and `node_id`s across all your task descriptions. 
+For example, if you tell the Topology Agent to create node 'my_node', you must refer to it as exactly 'my_node' when telling the Config Agent to configure it.
+DO NOT use fuzzy names or natural language references for IDs.
+
+**OUTPUT FORMAT CRITICAL INSTRUCTION**:
+You must return an array of objects for each task list. DO NOT return lists of strings.
+Each object must have a `description` string and a `node_id` string. If a task does not involve a specific node, set `node_id` to `""`.
 """
+
+
+class AgentTask(BaseModel):
+    description: str = Field(description="The natural language instruction for the sub-agent")
+    node_id: str = Field(description="The exact node_id this task targets. Use an empty string '' if not applicable.")
 
 
 class AgentPlan(BaseModel):
     """The master checklist for the multi-agent copilot."""
 
-    state_tasks: list[str] = Field(description="Tasks for the State Agent (variables & logic formulas)")
-    topology_tasks: list[str] = Field(description="Tasks for the Topology Agent (creating nodes & wiring connections)")
-    config_tasks: list[str] = Field(
+    state_tasks: list[AgentTask] = Field(description="Tasks for the State Agent (variables & logic formulas)")
+    topology_tasks: list[AgentTask] = Field(
+        description="Tasks for the Topology Agent (creating nodes & wiring connections)"
+    )
+    config_tasks: list[AgentTask] = Field(
         description="Tasks for the Config Agent (binding prompts, RAG, and logical assignments to nodes)"
     )
 
@@ -59,6 +74,7 @@ class AgentPlan(BaseModel):
 async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]]) -> AgentPlan:
     """Invokes the LLM to generate the checklist."""
     import json
+
     from app.copilot.logger import log_llm_call
 
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
@@ -103,4 +119,24 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
     if not tool_calls:
         raise Exception("Planner failed to generate a plan tool call.")
 
-    return AgentPlan.model_validate(json.loads(tool_calls[0].function.arguments))
+    state_tasks = []
+    topology_tasks = []
+    config_tasks = []
+
+    for call in tool_calls:
+        try:
+            args = json.loads(call.function.arguments)
+            if "state_tasks" in args and isinstance(args["state_tasks"], list):
+                state_tasks.extend(args["state_tasks"])
+            if "topology_tasks" in args and isinstance(args["topology_tasks"], list):
+                topology_tasks.extend(args["topology_tasks"])
+            if "config_tasks" in args and isinstance(args["config_tasks"], list):
+                config_tasks.extend(args["config_tasks"])
+        except Exception:
+            continue
+
+    return AgentPlan(
+        state_tasks=state_tasks,
+        topology_tasks=topology_tasks,
+        config_tasks=config_tasks,
+    )

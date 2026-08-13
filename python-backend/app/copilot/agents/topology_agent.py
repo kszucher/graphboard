@@ -17,7 +17,7 @@ Tools available:
 
 
 async def execute_topology_tasks(
-    client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]], tasks: list[str]
+    client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]], tasks: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """Executes topology-related tasks using LLM tool calling."""
     if not tasks:
@@ -25,7 +25,9 @@ async def execute_topology_tasks(
 
     from app.copilot.logger import log_llm_call
 
-    task_list_str = "\n".join(f"- {task}" for task in tasks)
+    task_list_str = "\n".join(
+        f"- Task: {t['description']}" + (f" (Target ID: {t['node_id']})" if t.get("node_id") else "") for t in tasks
+    )
     system_message = {"role": "system", "content": f"{TOPOLOGY_SYSTEM_PROMPT}\n\nTasks to execute:\n{task_list_str}"}
     req_messages = [system_message] + messages
 
@@ -44,7 +46,6 @@ async def execute_topology_tasks(
             messages=req_messages,
             response=response,
             graph_id=graph_id,
-            tools=TOPOLOGY_TOOLS,
         )
     except Exception as e:
         log_llm_call(
@@ -54,7 +55,6 @@ async def execute_topology_tasks(
             messages=req_messages,
             error=str(e),
             graph_id=graph_id,
-            tools=TOPOLOGY_TOOLS,
         )
         raise e
 

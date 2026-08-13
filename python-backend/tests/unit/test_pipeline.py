@@ -1,10 +1,8 @@
-import pytest
-
-from app.graphs.operations.pipeline import apply_patch, sort_operations_by_dependency
-from app.graphs.schemas import GraphFlowData
-from app.graphs.operations.topology_ops import CreateNodeOp
-from app.graphs.operations.state_ops import DeclareVariableOp
 from app.graphs.nodes import LogicalAssignerNode
+from app.graphs.operations.pipeline import apply_patch, sort_operations_by_dependency
+from app.graphs.operations.state_ops import DeclareVariableOp
+from app.graphs.operations.topology_ops import CreateNodeOp
+from app.graphs.schemas import GraphFlowData
 
 
 def test_pipeline_basic() -> None:

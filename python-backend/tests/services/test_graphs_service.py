@@ -9,7 +9,6 @@ from app.constants import EventName
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
 from app.graphs.operations.topology_ops import CreateNodeOp
-
 from app.models import Graph, GraphHistory, User
 
 

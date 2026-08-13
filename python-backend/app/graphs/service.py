@@ -156,7 +156,6 @@ async def apply_patch(
         raise ValidationError(f"Graph {graph_id} not found")
 
     from app.graphs import operations
-    from app.graphs.operations import sort_operations_by_dependency
 
     # Mutations are always applied to the latest version
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)

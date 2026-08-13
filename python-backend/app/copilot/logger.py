@@ -1,4 +1,3 @@
-import contextvars
 import json
 import logging
 from datetime import datetime
@@ -19,8 +18,6 @@ def log_llm_call(
     response: Any = None,
     error: str | None = None,
     graph_id: str | None = None,
-    tools: list[dict[str, Any]] | None = None,
-    tool_tokens: int | None = None,
 ) -> None:
     """Logs LLM request and response details to a separate pretty-printed JSON file per flow run."""
     try:
@@ -40,8 +37,6 @@ def log_llm_call(
             "node_name": node_name,
             "model": model,
             "messages": logged_messages,
-            "tools": tools,
-            "tool_schemas_tokens": tool_tokens,
             "error": error,
         }
 

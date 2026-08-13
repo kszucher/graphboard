@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Any, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.graphs.expressions.schemas import Expression
-from app.graphs.nodes import AgenticBranch, NodeRead
+from app.graphs.nodes import NodeRead
 
 
 class OrmModel(BaseModel):

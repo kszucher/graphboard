@@ -1,24 +1,25 @@
 import json
+
 import pytest
 from pydantic import ValidationError
 
 from app.copilot.tools import translate_tool_calls_to_operations
 from app.graphs.expressions.schemas import LiteralExpr
-from app.graphs.operations import sort_operations_by_dependency
-from app.graphs.operations.pipeline import GraphOperation
-from app.graphs.operations.state_ops import DeclareVariableOp
-from app.graphs.operations.topology_ops import ConnectOp, CreateNodeOp
 from app.graphs.nodes import (
     Branch,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
 )
+from app.graphs.operations import sort_operations_by_dependency
+from app.graphs.operations.pipeline import GraphOperation
+from app.graphs.operations.state_ops import DeclareVariableOp
+from app.graphs.operations.topology_ops import ConnectOp, CreateNodeOp
 from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
-    GraphFlowData,
     ExpressionRecord,
+    GraphFlowData,
 )
 from app.graphs.serializer import serialize_flow_to_code
 

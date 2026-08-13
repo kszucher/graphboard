@@ -108,7 +108,7 @@ def test_copilot_tools_schema_restrictions() -> None:
 
     import tiktoken
 
-    from app.copilot.tools import ALL_FLAT_TOOLS, STATE_TOOLS, TOPOLOGY_TOOLS, CONFIG_TOOLS
+    from app.copilot.tools import ALL_FLAT_TOOLS, CONFIG_TOOLS, STATE_TOOLS, TOPOLOGY_TOOLS
 
     encoding = tiktoken.get_encoding("cl100k_base")
     # 1. Token budget per sub-agent must be under 4000

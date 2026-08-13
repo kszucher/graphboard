@@ -188,12 +188,16 @@ def add_switch_branch(flow_data: GraphFlowData, op: AddSwitchBranchOp) -> GraphF
     if any(b.label == op.label for b in getattr(target_node, "branches", [])):
         raise ValidationError(f"Branch '{op.label}' already exists on node '{op.node_id}'.")
 
-    from app.graphs.nodes import AgenticBranch, Branch
+    from app.graphs.nodes import AgenticBranch, Branch, _make_slot_id
 
     if isinstance(target_node, LogicalSwitchNode):
-        target_node.branches.append(Branch(label=op.label))
+        logical_branch = Branch(label=op.label)
+        logical_branch.id = _make_slot_id(target_node.id, op.label)
+        target_node.branches.append(logical_branch)
     elif isinstance(target_node, AgenticSwitchNode):
-        target_node.branches.append(AgenticBranch(label=op.label))
+        agentic_branch = AgenticBranch(label=op.label)
+        agentic_branch.id = _make_slot_id(target_node.id, op.label)
+        target_node.branches.append(agentic_branch)
     return flow_data
 
 
