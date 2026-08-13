@@ -8,7 +8,8 @@ from sqlalchemy import select
 from app.constants import EventName
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
-from app.graphs.schemas import UpsertLogicalAssignerOp
+from app.graphs.operations.topology_ops import CreateNodeOp
+
 from app.models import Graph, GraphHistory, User
 
 
@@ -53,10 +54,10 @@ async def test_add_node(
 ) -> None:
     # Action: add a node of type LOGICAL_ASSIGNER using apply_patch
     patch = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
+        CreateNodeOp(
+            op="create_node",
             node_id="logical_assigner_1",
-            assignments=[],
+            node_type="LOGICAL_ASSIGNER",
         )
     ]
     result = await graphs_service.apply_patch(uow=real_uow, graph_id=dummy_graph.id, patch=patch)
@@ -89,19 +90,19 @@ async def test_versions_graph_flow(
 
     # Mutation 1 -> Sequence 1 (Add node)
     patch1 = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
+        CreateNodeOp(
+            op="create_node",
             node_id="la_1",
-            assignments=[],
+            node_type="LOGICAL_ASSIGNER",
         )
     ]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch1)
     # Mutation 2 -> Sequence 2 (Add another node)
     patch2 = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
+        CreateNodeOp(
+            op="create_node",
             node_id="la_2",
-            assignments=[],
+            node_type="LOGICAL_ASSIGNER",
         )
     ]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch2)
@@ -131,7 +132,7 @@ async def test_get_graph_flow_returns_versions(
     dummy_graph: Graph,
 ) -> None:
     # Mutation -> Sequence 1
-    patch = [UpsertLogicalAssignerOp(op="upsert_logical_assigner", node_id="la_1", assignments=[])]
+    patch = [CreateNodeOp(op="create_node", node_id="la_1", node_type="LOGICAL_ASSIGNER")]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch)
     await real_uow.session.commit()
 
