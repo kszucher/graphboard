@@ -20,13 +20,13 @@ class RagRetrieverConfig(BaseModel):
 
 class RagRetrieverNode(BaseNode, RagRetrieverConfig):
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        return [
-            f"  - {self.id} [{self.node_type.value}]",
-            f"    query: {self.query_var}",
-            f"    output: {self.context_output_var}",
-            f"    kb: {self.knowledge_base}",
-            f"    top_k: {self.top_k}",
+        parts = [
+            f"query={self.query_var}",
+            f"out={self.context_output_var}",
+            f"kb={self.knowledge_base}",
+            f"top_k={self.top_k}",
         ]
+        return [f"  - {self.id} [{self.node_type.value}] {' '.join(parts)}"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

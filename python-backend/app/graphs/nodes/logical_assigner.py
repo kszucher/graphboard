@@ -25,8 +25,6 @@ class LogicalAssignerConfig(BaseModel):
 
 class LogicalAssignerNode(BaseNode, LogicalAssignerConfig):
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        lines = [f"  - {self.id} [{self.node_type.value}]"]
-        for a in self.assignments:
-            expr_str = a.expr_id or ""
-            lines.append(f"    {a.target_var_key} = {expr_str}")
-        return lines
+        assigns = [f"{a.target_var_key}={a.expr_id or ''}" for a in self.assignments]
+        assigns_str = f" assignments={{{', '.join(assigns)}}}" if assigns else ""
+        return [f"  - {self.id} [{self.node_type.value}]{assigns_str}"]

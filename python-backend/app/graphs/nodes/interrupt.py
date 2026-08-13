@@ -18,12 +18,13 @@ class InterruptConfig(BaseModel):
 
 class InterruptNode(BaseNode, InterruptConfig):
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        lines = [f"  - {self.id} [{self.node_type.value}]"]
+        parts = []
         if self.payload_vars:
-            lines.append(f"    payload: {', '.join(self.payload_vars)}")
+            parts.append(f"payload=[{', '.join(self.payload_vars)}]")
         if self.resume_var:
-            lines.append(f"    resume: {self.resume_var}")
-        return lines
+            parts.append(f"resume={self.resume_var}")
+        parts_str = f" {' '.join(parts)}" if parts else ""
+        return [f"  - {self.id} [{self.node_type.value}]{parts_str}"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

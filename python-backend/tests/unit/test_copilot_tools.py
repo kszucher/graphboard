@@ -61,8 +61,9 @@ def test_serialize_flow_to_code() -> None:
     )
 
     serialized = serialize_flow_to_code(flow)
-    assert "- score: number [default: 10]" in serialized
-    assert "score = expr_1" in serialized
+    assert "- score: number = 10" in serialized
+    assert "init [LOGICAL_ASSIGNER] assignments={score=expr_1}" in serialized
+    assert "check [LOGICAL_SWITCH] branches=[Yes(expr_2)]" in serialized
 
 
 def test_sort_operations_by_dependency() -> None:

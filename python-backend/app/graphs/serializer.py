@@ -9,16 +9,18 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
     if flow.state:
         lines.append("Variables:")
         for var in flow.state:
-            default_str = f" [default: {var.default_value}]" if var.default_value is not None else ""
-            desc_str = f" ({var.description})" if var.description else ""
-            lines.append(f"  - {var.key}: {var.type}{default_str}{desc_str}")
+            default_str = f" = {var.default_value}" if var.default_value is not None else ""
+            lines.append(f"  - {var.key}: {var.type}{default_str}")
         lines.append("")
 
     # 2. Expressions
     if flow.expressions:
         lines.append("Expressions:")
         for expr_id, record in sorted(flow.expressions.items()):
-            lines.append(f"  - {expr_id}: {record.expr.to_string()}")
+            expr_str = record.expr.to_string()
+            if expr_str.startswith("(") and expr_str.endswith(")"):
+                expr_str = expr_str[1:-1]
+            lines.append(f"  - {expr_id}: {expr_str}")
         lines.append("")
 
     # 3. Nodes
