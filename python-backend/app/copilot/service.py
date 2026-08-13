@@ -69,7 +69,7 @@ async def initiate_copilot_workflow(
         from pydantic import TypeAdapter
 
         from app.graphs import service as graphs_service
-        from app.graphs.schemas import GraphOperation
+        from app.graphs.operations import GraphOperation
 
         ops: list[GraphOperation] = [
             TypeAdapter(GraphOperation).validate_python(op) for op in state_values.get("operations") or []

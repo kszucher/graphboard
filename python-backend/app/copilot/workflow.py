@@ -15,8 +15,8 @@ from app.copilot.tools import (
     translate_tool_calls_to_operations,
 )
 from app.exceptions import ValidationError
-from app.graphs import mutations
-from app.graphs.mutations import sort_operations_by_dependency
+from app.graphs import operations
+from app.graphs.operations import sort_operations_by_dependency
 from app.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
     try:
         from pydantic import TypeAdapter
 
-        from app.graphs.schemas import GraphOperation
+        from app.graphs.operations import GraphOperation
 
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
         state_ops = state.get("operations") or []
@@ -177,7 +177,7 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         sorted_ops = sort_operations_by_dependency(ops)
 
         # Dry-run patch application
-        mutations.apply_patch(flow_data, sorted_ops)
+        operations.apply_patch(flow_data, sorted_ops)
         return {"validation_error": None}
     except Exception as e:
         logger.warning("Planner operation dry-run failed: %s", str(e))

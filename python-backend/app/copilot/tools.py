@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from typing import Any, get_args
 
-from app.graphs.schemas import GraphOperation
+from app.graphs.operations import GraphOperation
 
 # Extract union members dynamically from GraphOperation (Annotated[Union[...], Field(...)])
 union_wrapper = get_args(GraphOperation)[0]
