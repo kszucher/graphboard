@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.constants import NodeType
 from app.graphs.expressions.schemas import (
     Expression,
+)
+from app.graphs.expressions.utils import (
     get_variables_from_ast,
     rename_variables_in_ast,
 )

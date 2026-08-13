@@ -8,6 +8,8 @@ from pydantic.json_schema import SkipJsonSchema
 from app.constants import NodeType
 from app.graphs.expressions.schemas import (
     ComparisonExpression,
+)
+from app.graphs.expressions.utils import (
     get_variables_from_comparison_ast,
     rename_variables_in_comparison_ast,
 )
