@@ -19,8 +19,14 @@ from app.graphs.serializer import serialize_flow_to_code
 
 
 def test_serialize_flow_to_code() -> None:
+    from app.graphs.schemas import ExpressionRecord
+
     flow = GraphFlowData(
         state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
+        expressions={
+            "expr_1": ExpressionRecord(id="expr_1", expr=LiteralExpr(value=10)),
+            "expr_2": ExpressionRecord(id="expr_2", expr=LiteralExpr(value=True)),
+        },
         nodes=[
             LogicalAssignerNode(
                 id="init",
@@ -28,7 +34,7 @@ def test_serialize_flow_to_code() -> None:
                     LogicalAssignmentSchema(
                         id="a1",
                         target_var_key="score",
-                        expression=LiteralExpr(value=10),
+                        expr_id="expr_1",
                     )
                 ],
             ),
@@ -38,7 +44,7 @@ def test_serialize_flow_to_code() -> None:
                     Branch(
                         id="check_yes",
                         label="Yes",
-                        expression=LiteralExpr(value=True),
+                        expr_id="expr_2",
                     )
                 ],
             ),
@@ -53,9 +59,9 @@ def test_serialize_flow_to_code() -> None:
     serialized = serialize_flow_to_code(flow)
     assert "- score: number [default: 10]" in serialized
     assert "- init [LOGICAL_ASSIGNER]" in serialized
-    assert "score = 10" in serialized
+    assert "score = expr_1" in serialized
     assert "- check [LOGICAL_SWITCH]" in serialized
-    assert "branches: Yes (True)" in serialized
+    assert "branches: Yes (expr_2)" in serialized
     assert "- start -> init" in serialized
     assert "- init -> check" in serialized
     assert "- check -[Yes]-> end" in serialized
@@ -63,6 +69,7 @@ def test_serialize_flow_to_code() -> None:
 
 def test_serialize_flow_to_code_with_expressions() -> None:
     from app.graphs.schemas import ExpressionRecord
+
     flow = GraphFlowData(
         state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
         expressions={
@@ -76,7 +83,7 @@ def test_serialize_flow_to_code_with_expressions() -> None:
                     LogicalAssignmentSchema(
                         id="a1",
                         target_var_key="score",
-                        expression=LiteralExpr(value=10),
+                        expr_id="expr_score",
                     )
                 ],
             ),
@@ -86,7 +93,7 @@ def test_serialize_flow_to_code_with_expressions() -> None:
                     Branch(
                         id="check_yes",
                         label="Yes",
-                        expression=LiteralExpr(value=True),
+                        expr_id="expr_yes",
                     )
                 ],
             ),
@@ -100,7 +107,6 @@ def test_serialize_flow_to_code_with_expressions() -> None:
     assert "- expr_yes: True" in serialized
     assert "score = expr_score" in serialized
     assert "branches: Yes (expr_yes)" in serialized
-
 
 
 def test_sort_operations_by_dependency() -> None:

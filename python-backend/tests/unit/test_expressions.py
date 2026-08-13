@@ -85,13 +85,13 @@ def test_parse_comparison_expression() -> None:
 
 
 def test_structured_expression_pydantic_parsing() -> None:
-    from app.graphs.nodes import Branch, LogicalAssignmentSchema
+    from app.graphs.schemas import ExpressionRecord
 
-    # Test assignments parsing structured JSON into a string
-    assignment = LogicalAssignmentSchema.model_validate(
+    # Test ExpressionRecord parsing structured JSON into a string
+    record = ExpressionRecord.model_validate(
         {
-            "target_var_key": "score",
-            "expression": {
+            "id": "expr_score_plus_1",
+            "expr": {
                 "type": "binary",
                 "left": {"type": "variable", "name": "score"},
                 "op": "+",
@@ -99,23 +99,8 @@ def test_structured_expression_pydantic_parsing() -> None:
             },
         }
     )
-    assert assignment.expression is not None
-    assert assignment.expression.to_string() == "(score + 1)"
-
-    # Test branches parsing structured JSON into a string
-    branch = Branch.model_validate(
-        {
-            "label": "Option A",
-            "expression": {
-                "type": "binary",
-                "left": {"type": "variable", "name": "score"},
-                "op": ">",
-                "right": {"type": "literal", "value": 10},
-            },
-        }
-    )
-    assert branch.expression is not None
-    assert branch.expression.to_string() == "(score > 10)"
+    assert record.expr is not None
+    assert record.expr.to_string() == "(score + 1)"
 
 
 def test_copilot_tools_schema_restrictions() -> None:

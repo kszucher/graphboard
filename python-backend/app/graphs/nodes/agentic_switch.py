@@ -61,22 +61,6 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
             if branch.id.startswith(f"{old_id}_"):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
 
-    def get_variable_references(self) -> set[str]:
-        refs = set()
-        if self.agentic_input:
-            refs.add(self.agentic_input)
-        for b in self.branches:
-            if b.target_var_key:
-                refs.add(b.target_var_key)
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        if self.agentic_input == old_key:
-            self.agentic_input = new_key
-        for b in self.branches:
-            if b.target_var_key == old_key:
-                b.target_var_key = new_key
-
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         if self.agentic_input:

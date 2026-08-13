@@ -219,12 +219,11 @@ def _resolve_expr_id(flow_data: GraphFlowData, expr_id: str | None, context: str
 def _upsert_logical_assigner(flow_data: GraphFlowData, op: UpsertLogicalAssignerOp) -> GraphFlowData:
     from app.graphs.nodes import LogicalAssignmentSchema as NodeAssignmentSchema
 
-    # Validate all referenced expr_ids and build node-level assignments with resolved expressions
+    # Validate all referenced expr_ids and build node-level assignments
     node_assignments = []
     for llm_a in op.assignments:
         _resolve_expr_id(flow_data, llm_a.expr_id, f"upsert_logical_assigner('{op.node_id}')")  # noqa: E501
-        expr = flow_data.expressions[llm_a.expr_id].expr if llm_a.expr_id else None
-        node_assignments.append(NodeAssignmentSchema(target_var_key=llm_a.target_var_key, expression=expr))
+        node_assignments.append(NodeAssignmentSchema(target_var_key=llm_a.target_var_key, expr_id=llm_a.expr_id))
     return _upsert_node_generic(
         flow_data,
         node_id=op.node_id,
@@ -251,15 +250,14 @@ def _upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssigner
 def _upsert_logical_switch(flow_data: GraphFlowData, op: UpsertLogicalSwitchOp) -> GraphFlowData:
     from app.graphs.nodes import Branch as NodeBranch
 
-    # Validate all referenced expr_ids and build node-level branches with resolved expressions
+    # Validate all referenced expr_ids and build node-level branches
     node_branches = []
     for llm_b in op.branches:
         _resolve_expr_id(flow_data, llm_b.expr_id, f"upsert_logical_switch('{op.node_id}')")
-        expr = flow_data.expressions[llm_b.expr_id].expr if llm_b.expr_id else None
         node_branches.append(
             NodeBranch(
                 label=llm_b.label,
-                expression=expr,
+                expr_id=llm_b.expr_id,
                 target_var_key=llm_b.target_var_key,
             )
         )
@@ -412,8 +410,13 @@ def _upsert_state_var(flow_data: GraphFlowData, op: UpsertStateVarOp) -> GraphFl
         existing_var.description = op.description
 
         if key != old_key:
+            from app.graphs.expressions.utils import rename_variables_in_ast
+            from app.graphs.variables import rename_node_variable_references
+
             for node in flow_data.nodes:
-                node.rename_variable_references(old_key, key)
+                rename_node_variable_references(node, old_key, key)
+            for record in flow_data.expressions.values():
+                rename_variables_in_ast(record.expr, old_key, key)
 
     return flow_data
 
@@ -425,8 +428,11 @@ def _delete_state_var(flow_data: GraphFlowData, op: DeleteStateVarOp) -> GraphFl
         return flow_data
 
     # Check dependencies to block delete
+    from app.graphs.variables import get_node_variable_references
+
     for node in flow_data.nodes:
-        if var_key in node.get_variable_references():
+        node_refs = get_node_variable_references(node, flow_data.expressions)
+        if var_key in node_refs:
             raise ValidationError(f"Cannot delete variable '{var_key}' because it is referenced in node '{node.id}'.")
 
     flow_data.state = [v for v in flow_data.state if v.key != var_key]

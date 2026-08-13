@@ -16,12 +16,6 @@ class BaseNode(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = ""
 
-    def get_variable_references(self) -> set[str]:
-        return set()
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        pass
-
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         node_type = getattr(self, "node_type", None)
         type_str = node_type.value if node_type else "unknown"

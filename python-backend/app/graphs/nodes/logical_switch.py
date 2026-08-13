@@ -6,13 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
-from app.graphs.expressions.schemas import (
-    ComparisonExpression,
-)
-from app.graphs.expressions.utils import (
-    get_variables_from_comparison_ast,
-    rename_variables_in_comparison_ast,
-)
 
 from .base import BaseNode, _make_slot_id
 
@@ -28,7 +21,7 @@ class Branch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: SkipJsonSchema[str] = ""
     label: str  # required — the human-readable routing label
-    expression: ComparisonExpression | None = None  # LogicalSwitch condition (Python expression)
+    expr_id: str | None = None  # LogicalSwitch condition (Python expression)
     target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
@@ -70,38 +63,11 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
             if branch.id.startswith(f"{old_id}_"):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
 
-    def get_variable_references(self) -> set[str]:
-        refs = set()
-        for b in self.branches:
-            if b.target_var_key:
-                refs.add(b.target_var_key)
-            if b.expression:
-                refs.update(get_variables_from_comparison_ast(b.expression))
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        for b in self.branches:
-            if b.target_var_key == old_key:
-                b.target_var_key = new_key
-            if b.expression:
-                rename_variables_in_comparison_ast(b.expression, old_key, new_key)
-
-    def serialize_compact(self, expressions: dict[str, Any] | None = None, *args: Any, **kwargs: Any) -> list[str]:
+    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]
         branches_str = []
         for b in self.branches:
-            expr_str = ""
-            if b.expression:
-                matched_id = None
-                if expressions:
-                    for eid, record in expressions.items():
-                        if getattr(record, "expr", None) == b.expression:
-                            matched_id = eid
-                            break
-                if matched_id:
-                    expr_str = matched_id
-                else:
-                    expr_str = b.expression.to_string()
+            expr_str = b.expr_id or ""
             branches_str.append(f"{b.label} ({expr_str})")
         if branches_str:
             lines.append(f"    branches: {', '.join(branches_str)}")
@@ -111,7 +77,7 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
         from app.exceptions import ValidationError
 
         for branch in self.branches:
-            if branch.expression is None:
+            if branch.expr_id is None:
                 raise ValidationError(
                     f"Logical Switch node '{self.id}' has an unset condition on option '{branch.label}'."
                 )

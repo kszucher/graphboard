@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.exceptions import ValidationError
 from app.graphs.nodes import StartNode
 from app.graphs.schemas import GraphFlowData
+from app.graphs.variables import get_node_variable_references
 
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
@@ -51,10 +52,10 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
 
     # 3. Check for invalid variable references
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
-
     for node_item in user_nodes:
-        # Generic polymorphic check for missing state variables
-        invalid_refs = node_item.get_variable_references() - valid_keys
+        # Check for missing state variables centrally
+        node_refs = get_node_variable_references(node_item, flow_data.expressions)
+        invalid_refs = node_refs - valid_keys
         if invalid_refs:
             raise ValidationError(
                 f"Invalid variable reference on node '{node_item.id}': variable(s) {', '.join(sorted(invalid_refs))} missing or deleted."

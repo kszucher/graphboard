@@ -16,6 +16,7 @@ from app.graphs.nodes import (
 from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
+    ExpressionRecord,
     GraphFlowData,
 )
 
@@ -30,16 +31,12 @@ def base_flow() -> GraphFlowData:
                 Branch(
                     id="switch_1_option_a",
                     label="option_a",
-                    expression=BinaryExpr(
-                        left=VariableExpr(name="x"),
-                        op="==",
-                        right=LiteralExpr(value=10),
-                    ),
+                    expr_id="expr_1",
                 ),
                 Branch(
                     id="switch_1_option_b",
                     label="option_b",
-                    expression=LiteralExpr(value=True),
+                    expr_id="expr_2",
                 ),
             ],
         ),
@@ -49,11 +46,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    expression=BinaryExpr(
-                        left=VariableExpr(name="x"),
-                        op="+",
-                        right=LiteralExpr(value=1),
-                    ),
+                    expr_id="expr_3",
                 )
             ],
         ),
@@ -63,7 +56,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_y",
                     target_var_key="y",
-                    expression=LiteralExpr(value=True),
+                    expr_id="expr_4",
                 )
             ],
         ),
@@ -83,7 +76,34 @@ def base_flow() -> GraphFlowData:
         DefinerVariableSchema(id="var_y", key="y", type="boolean", default_value=False),
     ]
 
-    return GraphFlowData(nodes=nodes, edges=edges, state=state)
+    expressions = {
+        "expr_1": ExpressionRecord(
+            id="expr_1",
+            expr=BinaryExpr(
+                left=VariableExpr(name="x"),
+                op="==",
+                right=LiteralExpr(value=10),
+            ),
+        ),
+        "expr_2": ExpressionRecord(
+            id="expr_2",
+            expr=LiteralExpr(value=True),
+        ),
+        "expr_3": ExpressionRecord(
+            id="expr_3",
+            expr=BinaryExpr(
+                left=VariableExpr(name="x"),
+                op="+",
+                right=LiteralExpr(value=1),
+            ),
+        ),
+        "expr_4": ExpressionRecord(
+            id="expr_4",
+            expr=LiteralExpr(value=True),
+        ),
+    }
+
+    return GraphFlowData(nodes=nodes, edges=edges, state=state, expressions=expressions)
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
@@ -93,7 +113,7 @@ def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
 def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
     assert isinstance(switch_1, LogicalSwitchNode)
-    switch_1.branches[1].expression = None
+    switch_1.branches[1].expr_id = None
 
     with pytest.raises(ValidationError, match="unset condition"):
         assert_flow_is_complete(base_flow)

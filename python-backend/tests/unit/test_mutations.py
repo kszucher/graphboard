@@ -51,7 +51,12 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
         UpsertExpressionOp(
             op="upsert_expression",
             id="expr_option_a",
-            expr={"type": "binary", "left": {"type": "variable", "name": "x"}, "op": "==", "right": {"type": "literal", "value": 10}},  # type: ignore[arg-type]
+            expr={
+                "type": "binary",
+                "left": {"type": "variable", "name": "x"},
+                "op": "==",
+                "right": {"type": "literal", "value": 10},
+            },  # type: ignore[arg-type]
         ),
         UpsertExpressionOp(
             op="upsert_expression",
@@ -73,8 +78,8 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
-    expr = node.branches[0].expression
-    assert expr is not None
+    assert node.branches[0].expr_id == "expr_option_a"
+    expr = updated.expressions[node.branches[0].expr_id].expr
     assert expr.to_string() == "(x == 10)"
 
 
@@ -116,7 +121,12 @@ def test_apply_patch_state_var_cascade() -> None:
             UpsertExpressionOp(
                 op="upsert_expression",
                 id="expr_concat",
-                expr={"type": "binary", "left": {"type": "variable", "name": "old_key"}, "op": "+", "right": {"type": "literal", "value": " world"}},  # type: ignore[arg-type]
+                expr={
+                    "type": "binary",
+                    "left": {"type": "variable", "name": "old_key"},
+                    "op": "+",
+                    "right": {"type": "literal", "value": " world"},
+                },  # type: ignore[arg-type]
             ),
             UpsertLogicalAssignerOp(
                 op="upsert_logical_assigner",
@@ -139,8 +149,9 @@ def test_apply_patch_state_var_cascade() -> None:
     assigner = flow.nodes[0]
     assert isinstance(assigner, LogicalAssignerNode)
     assert assigner.assignments[0].target_var_key == "new_key"
-    expr = assigner.assignments[0].expression
-    assert expr is not None
+    expr_id = assigner.assignments[0].expr_id
+    assert expr_id == "expr_concat"
+    expr = flow.expressions[expr_id].expr
     assert expr.to_string() == "(new_key + ' world')"
 
 
@@ -198,8 +209,9 @@ def test_apply_patch_merge_branches() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 1
     assert node.branches[0].label == "option_a"
-    assert node.branches[0].expression is not None
-    assert node.branches[0].expression.to_string() == "True"
+    assert node.branches[0].expr_id == "expr_true"
+    expr = flow.expressions[node.branches[0].expr_id].expr
+    assert expr.to_string() == "True"
 
     # 2. Add another branch by upserting a list containing ONLY the new branch (delta projection test)
     flow = mutations.apply_patch(
@@ -222,8 +234,9 @@ def test_apply_patch_merge_branches() -> None:
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
     assert node.branches[1].label == "option_b"
-    assert node.branches[1].expression is not None
-    assert node.branches[1].expression.to_string() == "False"
+    assert node.branches[1].expr_id == "expr_false"
+    expr = flow.expressions[node.branches[1].expr_id].expr
+    assert expr.to_string() == "False"
 
     # 3. Update option_a's expression with another partial upsert
     flow = mutations.apply_patch(
@@ -232,7 +245,12 @@ def test_apply_patch_merge_branches() -> None:
             UpsertExpressionOp(
                 op="upsert_expression",
                 id="expr_x_eq_5",
-                expr={"type": "binary", "left": {"type": "variable", "name": "x"}, "op": "==", "right": {"type": "literal", "value": 5}},  # type: ignore[arg-type]
+                expr={
+                    "type": "binary",
+                    "left": {"type": "variable", "name": "x"},
+                    "op": "==",
+                    "right": {"type": "literal", "value": 5},
+                },  # type: ignore[arg-type]
             ),
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
@@ -245,8 +263,9 @@ def test_apply_patch_merge_branches() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
-    assert node.branches[0].expression is not None
-    assert node.branches[0].expression.to_string() == "(x == 5)"
+    assert node.branches[0].expr_id == "expr_x_eq_5"
+    expr = flow.expressions[node.branches[0].expr_id].expr
+    assert expr.to_string() == "(x == 5)"
     assert node.branches[1].label == "option_b"
 
 

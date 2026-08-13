@@ -19,20 +19,6 @@ class RagRetrieverConfig(BaseModel):
 
 
 class RagRetrieverNode(BaseNode, RagRetrieverConfig):
-    def get_variable_references(self) -> set[str]:
-        refs = set()
-        if self.query_var:
-            refs.add(self.query_var)
-        if self.context_output_var:
-            refs.add(self.context_output_var)
-        return refs
-
-    def rename_variable_references(self, old_key: str, new_key: str) -> None:
-        if self.query_var == old_key:
-            self.query_var = new_key
-        if self.context_output_var == old_key:
-            self.context_output_var = new_key
-
     def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
         return [
             f"  - {self.id} [{self.node_type.value}]",
