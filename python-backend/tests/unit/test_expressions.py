@@ -107,7 +107,7 @@ def test_structured_expression_pydantic_parsing() -> None:
         {
             "label": "Option A",
             "expression": {
-                "type": "comparison",
+                "type": "binary",
                 "left": {"type": "variable", "name": "score"},
                 "op": ">",
                 "right": {"type": "literal", "value": 10},

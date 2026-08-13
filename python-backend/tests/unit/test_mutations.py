@@ -54,7 +54,7 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
                 {
                     "label": "option_a",
                     "expression": {
-                        "type": "comparison",
+                        "type": "binary",
                         "left": {"type": "variable", "name": "x"},
                         "op": "==",
                         "right": {"type": "literal", "value": 10},
@@ -234,7 +234,7 @@ def test_apply_patch_merge_branches() -> None:
                     {
                         "label": "option_a",
                         "expression": {
-                            "type": "comparison",
+                            "type": "binary",
                             "left": {"type": "variable", "name": "x"},
                             "op": "==",
                             "right": {"type": "literal", "value": 5},

@@ -1,7 +1,7 @@
 import pytest
 
 from app.exceptions import ValidationError
-from app.graphs.expressions.schemas import BinaryExpr, ComparisonExpr, LiteralExpr, VariableExpr
+from app.graphs.expressions.schemas import BinaryExpr, LiteralExpr, VariableExpr
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.nodes import (
     AgenticAssignerNode,
@@ -30,7 +30,7 @@ def base_flow() -> GraphFlowData:
                 Branch(
                     id="switch_1_option_a",
                     label="option_a",
-                    expression=ComparisonExpr(
+                    expression=BinaryExpr(
                         left=VariableExpr(name="x"),
                         op="==",
                         right=LiteralExpr(value=10),

@@ -201,7 +201,7 @@ async def test_run_graph_flow_switch_routing(
                         "id": "switch_1_option_a",
                         "label": "option_a",
                         "expression": {
-                            "type": "comparison",
+                            "type": "binary",
                             "left": {"type": "variable", "name": "x"},
                             "op": ">",
                             "right": {"type": "literal", "value": 0},

@@ -7,7 +7,7 @@ from pydantic import Field
 from app.constants import NodeType
 
 from .agentic_assigner import AgenticAssignerConfig, AgenticAssignerNode
-from .agentic_switch import AgenticSwitchConfig, AgenticSwitchNode
+from .agentic_switch import AgenticBranch, AgenticSwitchConfig, AgenticSwitchNode
 from .base import BaseNode, _make_slot_id
 from .end import EndConfig, EndNode
 from .interrupt import InterruptConfig, InterruptNode
@@ -64,6 +64,7 @@ __all__ = [
     "AgenticAssignerNode",
     "AgenticAssignerConfig",
     "Branch",
+    "AgenticBranch",
     "LogicalSwitchNode",
     "LogicalSwitchConfig",
     "AgenticSwitchNode",

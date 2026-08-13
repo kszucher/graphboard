@@ -71,7 +71,8 @@
           "id": "loop_questions_no",
           "label": "No",
           "expression": {
-            "type": "not",
+            "type": "unary",
+            "op": "not",
             "argument": {
               "type": "variable",
               "name": "more_questions"
@@ -217,7 +218,8 @@
           "id": "result_switch_wrong",
           "label": "wrong",
           "expression": {
-            "type": "not",
+            "type": "unary",
+            "op": "not",
             "argument": {
               "type": "variable",
               "name": "is_correct"

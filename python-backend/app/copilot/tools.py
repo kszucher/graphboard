@@ -8,16 +8,34 @@ from app.graphs.schemas import GraphOperation
 union_wrapper = get_args(GraphOperation)[0]
 operation_classes = get_args(union_wrapper)
 
+
+def prune_json_schema(schema: Any, is_inside_defs: bool = False) -> Any:
+    """Recursively prunes unnecessary fields from the JSON Schema to optimize LLM tokens."""
+    if isinstance(schema, dict):
+        schema.pop("title", None)
+        if is_inside_defs:
+            schema.pop("description", None)
+
+        for k, v in list(schema.items()):
+            next_inside_defs = is_inside_defs or (k == "$defs")
+            schema[k] = prune_json_schema(v, next_inside_defs)
+    elif isinstance(schema, list):
+        return [prune_json_schema(item, is_inside_defs) for item in schema]
+    return schema
+
+
 ALL_FLAT_TOOLS = {}
 
 for cls in operation_classes:
     op_name = cls.model_fields["op"].default
+    raw_schema = cls.model_json_schema()
+    pruned_schema = prune_json_schema(raw_schema)
     ALL_FLAT_TOOLS[op_name] = {
         "type": "function",
         "function": {
             "name": op_name,
             "description": cls.__doc__.strip() if cls.__doc__ else f"Execute {op_name}",
-            "parameters": cls.model_json_schema(),
+            "parameters": pruned_schema,
         },
     }
 

@@ -417,7 +417,10 @@ def _delete_branch(flow_data: GraphFlowData, op: DeleteBranchOp) -> GraphFlowDat
     if not branch:
         return flow_data
 
-    switch_node.branches = [b for b in branches if b.label != label]
+    if isinstance(switch_node, LogicalSwitchNode):
+        switch_node.branches = [b for b in switch_node.branches if b.label != label]
+    else:
+        switch_node.branches = [b for b in switch_node.branches if b.label != label]
 
     branch_handle_id = branch.id
     flow_data.edges = [e for e in edges if not (e.source == node_id and e.source_handle == branch_handle_id)]

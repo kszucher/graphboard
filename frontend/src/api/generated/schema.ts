@@ -224,6 +224,18 @@ export interface components {
        */
       id: string;
     };
+    /**
+     * AgenticBranch
+     * @description A routing branch on an agentic switch node.
+     *
+     *     Doesn't contain any code evaluation expressions.
+     */
+    AgenticBranch: {
+      /** Label */
+      label: string;
+      /** Target Var Key */
+      target_var_key?: string | null;
+    };
     /** AgenticSwitchNode */
     AgenticSwitchNode: {
       /**
@@ -232,7 +244,7 @@ export interface components {
        */
       node_type: "AGENTIC_SWITCH";
       /** Branches */
-      branches?: components["schemas"]["Branch"][];
+      branches?: components["schemas"]["AgenticBranch"][];
       /**
        * Agentic Input
        * @default
@@ -273,26 +285,9 @@ export interface components {
       /** Label */
       label: string;
       /** Expression */
-      expression?: (components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"]) | null;
+      expression?: (components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"]) | null;
       /** Target Var Key */
       target_var_key?: string | null;
-    };
-    /** ComparisonExpr */
-    ComparisonExpr: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "comparison";
-      /** Left */
-      left: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
-      /**
-       * Op
-       * @enum {string}
-       */
-      op: "==" | "!=" | "<" | ">" | "<=" | ">=";
-      /** Right */
-      right: components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"];
     };
     /** CopilotInitiateRequest */
     CopilotInitiateRequest: {
@@ -488,23 +483,6 @@ export interface components {
       /** Expression */
       expression?: (components["schemas"]["LiteralExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["BinaryExpr"] | components["schemas"]["UnaryExpr"] | components["schemas"]["FunctionCallExpr"]) | null;
     };
-    /** LogicalExpr */
-    LogicalExpr: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "logical";
-      /** Left */
-      left: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
-      /**
-       * Op
-       * @enum {string}
-       */
-      op: "and" | "or";
-      /** Right */
-      right: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
-    };
     /** LogicalSwitchNode */
     LogicalSwitchNode: {
       /**
@@ -519,16 +497,6 @@ export interface components {
        * @default
        */
       id: string;
-    };
-    /** NotExpr */
-    NotExpr: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "not";
-      /** Argument */
-      argument: components["schemas"]["ComparisonExpr"] | components["schemas"]["LogicalExpr"] | components["schemas"]["NotExpr"] | components["schemas"]["VariableExpr"] | components["schemas"]["LiteralExpr"];
     };
     /** RagRetrieverNode */
     RagRetrieverNode: {

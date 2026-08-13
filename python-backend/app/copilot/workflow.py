@@ -54,25 +54,55 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
         },
     ]
 
+    import json
+
+    import tiktoken
     from groq import RateLimitError
 
     tools = list(ALL_FLAT_TOOLS.values())
 
+    # Calculate token length of tool schemas
     try:
-        planner_completion = await client.chat.completions.create(
+        encoding = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        encoding = tiktoken.encoding_for_model("gpt-4")
+
+    tools_json = json.dumps(tools, indent=2)
+    tools_tokens = len(encoding.encode(tools_json))
+
+    if tools_tokens > 4000:
+        err_msg = f"Planner tool schemas token size ({tools_tokens}) exceeds safety limit of 4000 tokens."
+        logger.warning(err_msg)
+        log_llm_call(
+            node_name="planner_node",
             model="llama-3.3-70b-versatile",
-            messages=messages,  # type: ignore
+            messages=messages,
+            error=err_msg,
+            graph_id=state.get("graph_id"),
             tools=tools,
-            tool_choice="auto",
-            max_tokens=1500,
-            temperature=0.0,
+            tool_tokens=tools_tokens,
         )
+        raise ValidationError(err_msg)
+
+    kwargs: dict[str, Any] = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": messages,
+        "max_tokens": 1500,
+        "temperature": 0.0,
+        "tools": tools,
+        "tool_choice": "auto",
+    }
+
+    try:
+        planner_completion = await client.chat.completions.create(**kwargs)
         log_llm_call(
             node_name="planner_node",
             model="llama-3.3-70b-versatile",
             messages=messages,
             response=planner_completion,
             graph_id=state.get("graph_id"),
+            tools=tools,
+            tool_tokens=tools_tokens,
         )
     except RateLimitError as e:
         log_llm_call(
@@ -81,6 +111,8 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             messages=messages,
             error=str(e),
             graph_id=state.get("graph_id"),
+            tools=tools,
+            tool_tokens=tools_tokens,
         )
         logger.warning("Groq rate limit exceeded in Planner")
         raise ValidationError("Groq LLM rate limit exceeded. Please wait a moment before trying again.")
@@ -91,6 +123,8 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             messages=messages,
             error=str(e),
             graph_id=state.get("graph_id"),
+            tools=tools,
+            tool_tokens=tools_tokens,
         )
         logger.exception("Failed calling Planner Groq LLM")
         raise ValidationError(f"Planner execution failed: {str(e)}")

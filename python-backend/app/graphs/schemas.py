@@ -7,7 +7,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from app.graphs.nodes import Branch, LogicalAssignmentSchema, NodeRead
+from app.graphs.nodes import AgenticBranch, Branch, LogicalAssignmentSchema, NodeRead
 
 
 class OrmModel(BaseModel):
@@ -107,7 +107,7 @@ class UpsertAgenticSwitchOp(BaseModel):
     op: Literal["upsert_agentic_switch"] = "upsert_agentic_switch"
     node_id: str
     new_id: str | None = None
-    branches: list[Branch] = Field(default_factory=list)
+    branches: list[AgenticBranch] = Field(default_factory=list)
     agentic_input: str = ""
 
 

@@ -55,43 +55,8 @@ Expression = Annotated[
     Field(discriminator="type"),
 ]
 
+ComparisonExpression = Expression
+
 BinaryExpr.model_rebuild()
 UnaryExpr.model_rebuild()
 FunctionCallExpr.model_rebuild()
-
-
-class ComparisonExpr(BaseModel):
-    type: Literal["comparison"] = "comparison"
-    left: Expression
-    op: Literal["==", "!=", "<", ">", "<=", ">="]
-    right: Expression
-
-    def to_string(self) -> str:
-        return f"({self.left.to_string()} {self.op} {self.right.to_string()})"
-
-
-class LogicalExpr(BaseModel):
-    type: Literal["logical"] = "logical"
-    left: ComparisonExpression
-    op: Literal["and", "or"]
-    right: ComparisonExpression
-
-    def to_string(self) -> str:
-        return f"({self.left.to_string()} {self.op} {self.right.to_string()})"
-
-
-class NotExpr(BaseModel):
-    type: Literal["not"] = "not"
-    argument: ComparisonExpression
-
-    def to_string(self) -> str:
-        return f"(not {self.argument.to_string()})"
-
-
-ComparisonExpression = Annotated[
-    ComparisonExpr | LogicalExpr | NotExpr | VariableExpr | LiteralExpr,
-    Field(discriminator="type"),
-]
-
-LogicalExpr.model_rebuild()
-NotExpr.model_rebuild()

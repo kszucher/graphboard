@@ -3,17 +3,29 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
 
 from .base import BaseNode, _make_slot_id
-from .logical_switch import Branch
+
+
+class AgenticBranch(BaseModel):
+    """A routing branch on an agentic switch node.
+
+    Doesn't contain any code evaluation expressions.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    id: SkipJsonSchema[str] = ""
+    label: str  # required — the human-readable routing label
+    target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
 class AgenticSwitchConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
-    branches: list[Branch] = Field(default_factory=list)
+    branches: list[AgenticBranch] = Field(default_factory=list)
     agentic_input: str = ""
 
 
@@ -41,7 +53,7 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
                     existing_b.update({k: v for k, v in new_b.items() if v is not None})
                 else:
                     merged_branches.append(new_b)
-            self.branches = [Branch.model_validate(b) for b in merged_branches]
+            self.branches = [AgenticBranch.model_validate(b) for b in merged_branches]
 
     def handle_node_rename(self, old_id: str, new_id: str) -> None:
         self.id = new_id
