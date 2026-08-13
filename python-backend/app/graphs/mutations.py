@@ -18,10 +18,12 @@ from app.graphs.schemas import (
     DeleteStateVarOp,
     DisconnectOp,
     EdgeRead,
+    ExpressionRecord,
     GraphFlowData,
     GraphOperation,
     UpsertAgenticAssignerOp,
     UpsertAgenticSwitchOp,
+    UpsertExpressionOp,
     UpsertInterruptOp,
     UpsertLogicalAssignerOp,
     UpsertLogicalSwitchOp,
@@ -101,7 +103,9 @@ def validate_default_value_type(var_type: str, val: Any) -> Any:
 def apply_patch(flow_data: GraphFlowData, patch: Sequence[GraphOperation]) -> GraphFlowData:
     """Applies a list of patch operations transactionally on the given GraphFlowData."""
     for op in patch:
-        if op.op == "upsert_logical_assigner":
+        if op.op == "upsert_expression":
+            flow_data = _upsert_expression(flow_data, op)
+        elif op.op == "upsert_logical_assigner":
             flow_data = _upsert_logical_assigner(flow_data, op)
         elif op.op == "upsert_agentic_assigner":
             flow_data = _upsert_agentic_assigner(flow_data, op)
@@ -199,12 +203,33 @@ def _upsert_node_generic(
     return flow_data
 
 
+def _upsert_expression(flow_data: GraphFlowData, op: UpsertExpressionOp) -> GraphFlowData:
+    flow_data.expressions[op.id] = ExpressionRecord(id=op.id, expr=op.expr)
+    return flow_data
+
+
+def _resolve_expr_id(flow_data: GraphFlowData, expr_id: str | None, context: str) -> None:
+    """Validates that expr_id exists in the expression store. Raises ValidationError if not found."""
+    if expr_id is not None and expr_id not in flow_data.expressions:
+        raise ValidationError(
+            f"{context}: expr_id '{expr_id}' does not exist in the expression store. Call upsert_expression first."
+        )
+
+
 def _upsert_logical_assigner(flow_data: GraphFlowData, op: UpsertLogicalAssignerOp) -> GraphFlowData:
+    from app.graphs.nodes import LogicalAssignmentSchema as NodeAssignmentSchema
+
+    # Validate all referenced expr_ids and build node-level assignments with resolved expressions
+    node_assignments = []
+    for llm_a in op.assignments:
+        _resolve_expr_id(flow_data, llm_a.expr_id, f"upsert_logical_assigner('{op.node_id}')")  # noqa: E501
+        expr = flow_data.expressions[llm_a.expr_id].expr if llm_a.expr_id else None
+        node_assignments.append(NodeAssignmentSchema(target_var_key=llm_a.target_var_key, expression=expr))
     return _upsert_node_generic(
         flow_data,
         node_id=op.node_id,
         node_type=NodeType.LOGICAL_ASSIGNER,
-        config_fields={"assignments": [a.model_dump() for a in op.assignments]},
+        config_fields={"assignments": [a.model_dump() for a in node_assignments]},
         new_id=op.new_id,
     )
 
@@ -224,11 +249,25 @@ def _upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssigner
 
 
 def _upsert_logical_switch(flow_data: GraphFlowData, op: UpsertLogicalSwitchOp) -> GraphFlowData:
+    from app.graphs.nodes import Branch as NodeBranch
+
+    # Validate all referenced expr_ids and build node-level branches with resolved expressions
+    node_branches = []
+    for llm_b in op.branches:
+        _resolve_expr_id(flow_data, llm_b.expr_id, f"upsert_logical_switch('{op.node_id}')")
+        expr = flow_data.expressions[llm_b.expr_id].expr if llm_b.expr_id else None
+        node_branches.append(
+            NodeBranch(
+                label=llm_b.label,
+                expression=expr,
+                target_var_key=llm_b.target_var_key,
+            )
+        )
     return _upsert_node_generic(
         flow_data,
         node_id=op.node_id,
         node_type=NodeType.LOGICAL_SWITCH,
-        config_fields={"branches": [b.model_dump() for b in op.branches]},
+        config_fields={"branches": [b.model_dump() for b in node_branches]},
         new_id=op.new_id,
     )
 
@@ -428,20 +467,23 @@ def _delete_branch(flow_data: GraphFlowData, op: DeleteBranchOp) -> GraphFlowDat
 
 
 def sort_operations_by_dependency(ops: Sequence[GraphOperation]) -> list[GraphOperation]:
-    """Sorts operations: State declarations -> Node additions/deletes -> Connections/disconnects."""
+    """Sorts operations: deletes -> state declarations -> expression upserts -> node upserts -> connections."""
+    delete_ops = []
     state_ops = []
+    expr_ops = []  # Must precede assigner/switch ops that reference expr_ids
     node_ops = []
     connect_ops = []
-    delete_ops = []  # Run deletes first to avoid constraints
 
     for op in ops:
         if op.op in ("delete_node", "delete_state_var", "disconnect", "delete_branch"):
             delete_ops.append(op)
         elif op.op == "upsert_state_var":
             state_ops.append(op)
+        elif op.op == "upsert_expression":
+            expr_ops.append(op)
         elif op.op.startswith("upsert_"):
             node_ops.append(op)
         elif op.op == "connect":
             connect_ops.append(op)
 
-    return delete_ops + state_ops + node_ops + connect_ops
+    return delete_ops + state_ops + expr_ops + node_ops + connect_ops

@@ -7,7 +7,8 @@ from typing import Annotated, Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from app.graphs.nodes import AgenticBranch, Branch, LogicalAssignmentSchema, NodeRead
+from app.graphs.expressions.schemas import Expression
+from app.graphs.nodes import AgenticBranch, NodeRead
 
 
 class OrmModel(BaseModel):
@@ -62,10 +63,26 @@ class GraphCodeRead(BaseModel):
     code: str
 
 
+class ExpressionRecord(BaseModel):
+    """A named, reusable expression stored in the graph's expression store."""
+
+    id: str
+    expr: Expression
+
+
 class GraphFlowData(BaseModel):
     nodes: list[NodeRead] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
     state: list[DefinerVariableSchema] = Field(default_factory=list)
+    expressions: dict[str, ExpressionRecord] = Field(default_factory=dict)
+
+
+class LLMAssignmentSchema(BaseModel):
+    """An assignment entry referencing a pre-declared expression by ID."""
+
+    model_config = ConfigDict(extra="forbid")
+    target_var_key: str
+    expr_id: str | None = None
 
 
 class UpsertLogicalAssignerOp(BaseModel):
@@ -75,7 +92,7 @@ class UpsertLogicalAssignerOp(BaseModel):
     op: Literal["upsert_logical_assigner"] = "upsert_logical_assigner"
     node_id: str
     new_id: str | None = None
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
+    assignments: list[LLMAssignmentSchema] = Field(default_factory=list)
 
 
 class UpsertAgenticAssignerOp(BaseModel):
@@ -90,6 +107,15 @@ class UpsertAgenticAssignerOp(BaseModel):
     agentic_outputs: list[str] = Field(default_factory=list)
 
 
+class LLMBranchSchema(BaseModel):
+    """A branch entry on a logical switch, referencing a pre-declared expression by ID."""
+
+    model_config = ConfigDict(extra="forbid")
+    label: str
+    expr_id: str | None = None
+    target_var_key: str | None = None
+
+
 class UpsertLogicalSwitchOp(BaseModel):
     """Add or update a logical switch node to evaluate deterministic expression branching logic."""
 
@@ -97,7 +123,7 @@ class UpsertLogicalSwitchOp(BaseModel):
     op: Literal["upsert_logical_switch"] = "upsert_logical_switch"
     node_id: str
     new_id: str | None = None
-    branches: list[Branch] = Field(default_factory=list)
+    branches: list[LLMBranchSchema] = Field(default_factory=list)
 
 
 class UpsertAgenticSwitchOp(BaseModel):
@@ -225,8 +251,18 @@ class DeleteBranchOp(BaseModel):
     label: str
 
 
+class UpsertExpressionOp(BaseModel):
+    """Declare or update a named expression in the graph's expression store. Always call this before referencing expr_id in assigner or switch ops."""
+
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["upsert_expression"] = "upsert_expression"
+    id: str
+    expr: Expression
+
+
 GraphOperation: TypeAlias = Annotated[
-    UpsertLogicalAssignerOp
+    UpsertExpressionOp
+    | UpsertLogicalAssignerOp
     | UpsertAgenticAssignerOp
     | UpsertLogicalSwitchOp
     | UpsertAgenticSwitchOp

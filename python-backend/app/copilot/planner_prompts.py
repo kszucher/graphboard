@@ -30,4 +30,10 @@ Call all required tools in a single atomic response.
 5. **VARIABLE INITIALIZATION**:
    - Every new variable declared via `upsert_state_var` MUST be initialized in the root/entry assignment node.
    - Variable names MUST be valid lowercase snake_case. Do not use uppercase letters.
+
+6. **EXPRESSION AUTHORING**:
+   - Expressions (for logical assigners and logical switch branches) live in a shared expression store.
+   - Always call `upsert_expression` **before** any `upsert_logical_assigner` or `upsert_logical_switch` that references it.
+   - Reference the expression in assigner/switch ops via its `expr_id` string — do NOT embed the expression inline.
+   - You may call `upsert_expression` and node ops in the same atomic response; the backend applies expressions first.
 """
