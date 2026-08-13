@@ -22,6 +22,7 @@ from app.graphs.schemas import (
 )
 from app.graphs.serializer import serialize_flow_to_code
 
+
 def test_serialize_flow_to_code() -> None:
     flow = GraphFlowData(
         state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
@@ -79,6 +80,7 @@ class MockToolCallFunction:
     def __init__(self, name: str, arguments: str):
         self.name = name
         self.arguments = arguments
+
 
 class MockToolCall:
     def __init__(self, func_name: str, arguments: str):

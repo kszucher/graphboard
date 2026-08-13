@@ -16,7 +16,9 @@ Tools available:
 """
 
 
-async def execute_topology_tasks(client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]], tasks: list[str]) -> list[dict[str, Any]]:
+async def execute_topology_tasks(
+    client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]], tasks: list[str]
+) -> list[dict[str, Any]]:
     """Executes topology-related tasks using LLM tool calling."""
     if not tasks:
         return []
@@ -26,14 +28,14 @@ async def execute_topology_tasks(client: Any, trace_id: str, graph_id: str, mess
     task_list_str = "\n".join(f"- {task}" for task in tasks)
     system_message = {"role": "system", "content": f"{TOPOLOGY_SYSTEM_PROMPT}\n\nTasks to execute:\n{task_list_str}"}
     req_messages = [system_message] + messages
-    
+
     try:
         response = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=req_messages,
             tools=TOPOLOGY_TOOLS,
             tool_choice="auto",
-            temperature=0.0
+            temperature=0.0,
         )
         log_llm_call(
             trace_id=trace_id,
@@ -55,6 +57,6 @@ async def execute_topology_tasks(client: Any, trace_id: str, graph_id: str, mess
             tools=TOPOLOGY_TOOLS,
         )
         raise e
-    
+
     choice = response.choices[0]
     return choice.message.tool_calls or []

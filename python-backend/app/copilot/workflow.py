@@ -36,14 +36,14 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
         },
     ]
-    
+
     plan = await generate_plan(client, state["trace_id"], state.get("graph_id", ""), messages)
     checklist = plan.model_dump()
-    
+
     return {
         "agent_checklist": checklist,
         "operations": [],
-        "plan": [], # We will populate this in the aggregation node for the UI
+        "plan": [],  # We will populate this in the aggregation node for the UI
     }
 
 
@@ -66,7 +66,7 @@ async def state_agent_node(state: CopilotState) -> dict[str, Any]:
 
     tool_calls = await execute_state_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
     ops = translate_tool_calls_to_operations(tool_calls)
-    
+
     current_ops = state.get("operations") or []
     return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
 
@@ -90,7 +90,7 @@ async def topology_agent_node(state: CopilotState) -> dict[str, Any]:
 
     tool_calls = await execute_topology_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
     ops = translate_tool_calls_to_operations(tool_calls)
-    
+
     current_ops = state.get("operations") or []
     return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
 
@@ -114,7 +114,7 @@ async def config_agent_node(state: CopilotState) -> dict[str, Any]:
 
     tool_calls = await execute_config_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
     ops = translate_tool_calls_to_operations(tool_calls)
-    
+
     current_ops = state.get("operations") or []
     return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
 

@@ -143,7 +143,7 @@ for cls in operation_classes:
         },
     }
     ALL_FLAT_TOOLS[op_name] = tool
-    
+
     if op_name in _STATE_OPS:
         STATE_TOOLS.append(tool)
     elif op_name in _TOPOLOGY_OPS:
