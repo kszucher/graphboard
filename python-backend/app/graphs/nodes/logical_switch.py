@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
+from app.graphs.expressions.schemas import ComparisonExpression
 
 from .base import BaseNode, _make_slot_id
 
@@ -21,8 +22,19 @@ class Branch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: SkipJsonSchema[str] = ""
     label: str  # required — the human-readable routing label
-    expression: str | None = None  # LogicalSwitch condition (Python expression)
+    expression: ComparisonExpression | str | None = None  # LogicalSwitch condition (Python expression)
     target_var_key: str | None = None  # optional variable binding for integrity tracking
+
+    @model_validator(mode="after")
+    def convert_expression_to_string(self) -> Branch:
+        if self.expression is not None:
+            if not isinstance(self.expression, str):
+                self.expression = self.expression.to_string()
+            else:
+                from app.graphs.expressions import parse_comparison_expression
+
+                self.expression = parse_comparison_expression(self.expression)
+        return self
 
 
 class LogicalSwitchConfig(BaseModel):
@@ -71,7 +83,7 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
             if b.target_var_key:
                 refs.add(b.target_var_key)
             if b.expression:
-                refs.update(get_expression_variables(b.expression))
+                refs.update(get_expression_variables(cast(str, b.expression)))
         return refs
 
     def rename_variable_references(self, old_key: str, new_key: str) -> None:
@@ -81,7 +93,7 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
             if b.target_var_key == old_key:
                 b.target_var_key = new_key
             if b.expression:
-                b.expression = rename_expression_variables(b.expression, old_key, new_key)
+                b.expression = rename_expression_variables(cast(str, b.expression), old_key, new_key)
 
     def serialize_compact(self) -> list[str]:
         lines = [f"  - {self.id} [{self.node_type.value}]"]

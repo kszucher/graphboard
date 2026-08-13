@@ -200,11 +200,18 @@ def _upsert_node_generic(
 
 
 def _upsert_logical_assigner(flow_data: GraphFlowData, op: UpsertLogicalAssignerOp) -> GraphFlowData:
+    assignments = []
+    for a in op.assignments:
+        assignments.append({
+            "id": a.id,
+            "target_var_key": a.target_var_key,
+            "expression": a.expression.to_string(),
+        })
     return _upsert_node_generic(
         flow_data,
         node_id=op.node_id,
         node_type=NodeType.LOGICAL_ASSIGNER,
-        config_fields={"assignments": [a.model_dump() for a in op.assignments]},
+        config_fields={"assignments": assignments},
         new_id=op.new_id,
     )
 
@@ -224,11 +231,18 @@ def _upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssigner
 
 
 def _upsert_logical_switch(flow_data: GraphFlowData, op: UpsertLogicalSwitchOp) -> GraphFlowData:
+    branches = []
+    for b in op.branches:
+        branches.append({
+            "label": b.label,
+            "expression": b.expression.to_string(),
+            "target_var_key": b.target_var_key,
+        })
     return _upsert_node_generic(
         flow_data,
         node_id=op.node_id,
         node_type=NodeType.LOGICAL_SWITCH,
-        config_fields={"branches": [b.model_dump() for b in op.branches]},
+        config_fields={"branches": branches},
         new_id=op.new_id,
     )
 

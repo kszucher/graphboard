@@ -53,11 +53,19 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
             branches=[
                 {
                     "label": "option_a",
-                    "expression": "x == 10",
+                    "expression": {
+                        "type": "comparison",
+                        "left": {"type": "variable", "name": "x"},
+                        "op": "==",
+                        "right": {"type": "literal", "value": 10},
+                    },
                 },
                 {
                     "label": "option_b",
-                    "expression": "True",
+                    "expression": {
+                        "type": "literal",
+                        "value": True,
+                    },
                 },
             ],
         )
@@ -69,7 +77,7 @@ def test_apply_patch_upsert_node_switch_with_slots() -> None:
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
     expr = node.branches[0].expression
-    assert expr == "x == 10"
+    assert expr == "(x == 10)"
 
 
 def test_apply_patch_connect_disconnect() -> None:
@@ -113,7 +121,12 @@ def test_apply_patch_state_var_cascade() -> None:
                 assignments=[
                     {
                         "target_var_key": "old_key",
-                        "expression": "old_key + ' world'",
+                        "expression": {
+                            "type": "binary",
+                            "left": {"type": "variable", "name": "old_key"},
+                            "op": "+",
+                            "right": {"type": "literal", "value": " world"},
+                        },
                     }
                 ],
             )
@@ -155,7 +168,7 @@ def test_apply_patch_delete_var_blocked_if_referenced() -> None:
                 assignments=[
                     {
                         "target_var_key": "x",
-                        "expression": "15",
+                        "expression": {"type": "literal", "value": 15},
                     }
                 ],
             )
@@ -178,7 +191,7 @@ def test_apply_patch_merge_branches() -> None:
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": "True"}],
+                branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
             )
         ],
     )
@@ -195,7 +208,7 @@ def test_apply_patch_merge_branches() -> None:
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_b", "expression": "False"}],
+                branches=[{"label": "option_b", "expression": {"type": "literal", "value": False}}],
             )
         ],
     )
@@ -213,7 +226,12 @@ def test_apply_patch_merge_branches() -> None:
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": "x == 5"}],
+                branches=[{"label": "option_a", "expression": {
+                    "type": "comparison",
+                    "left": {"type": "variable", "name": "x"},
+                    "op": "==",
+                    "right": {"type": "literal", "value": 5},
+                }}],
             )
         ],
     )
@@ -221,12 +239,12 @@ def test_apply_patch_merge_branches() -> None:
     assert isinstance(node, LogicalSwitchNode)
     assert len(node.branches) == 2
     assert node.branches[0].label == "option_a"
-    assert node.branches[0].expression == "x == 5"
+    assert node.branches[0].expression == "(x == 5)"
     assert node.branches[1].label == "option_b"
 
 
 def test_apply_patch_delete_branch() -> None:
-    from app.graphs.schemas import DeleteBranchOp, EdgeRead
+    from app.graphs.schemas import DeleteBranchOp
 
     flow = GraphFlowData(nodes=[], edges=[])
 
@@ -237,7 +255,7 @@ def test_apply_patch_delete_branch() -> None:
             UpsertLogicalSwitchOp(
                 op="upsert_logical_switch",
                 node_id="switch_1",
-                branches=[{"label": "option_a", "expression": "True"}],
+                branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
             ),
             UpsertLogicalAssignerOp(
                 op="upsert_logical_assigner",
@@ -285,7 +303,7 @@ def test_connect_raises_validation_error_if_branch_missing() -> None:
                 UpsertLogicalSwitchOp(
                     op="upsert_logical_switch",
                     node_id="switch_1",
-                    branches=[{"label": "option_a", "expression": "True"}],
+                    branches=[{"label": "option_a", "expression": {"type": "literal", "value": True}}],
                 ),
                 UpsertLogicalAssignerOp(
                     op="upsert_logical_assigner",

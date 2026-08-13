@@ -8,7 +8,7 @@ executable Python LangGraph code strings with single-pass AST validation.
 from __future__ import annotations
 
 import ast
-from typing import Any
+from typing import Any, cast
 
 from app.graphs.expressions import expression_to_code
 from app.graphs.nodes import (
@@ -165,7 +165,7 @@ class DirectLangGraphCompiler:
             if idx == len(node.branches) - 1 and expr == "True":
                 if_branches.append(f"    else:\n        return {repr(raw)}")
             else:
-                cond_code = expression_to_code(expr, self.valid_keys, fallback="False")
+                cond_code = expression_to_code(cast(str | None, expr), self.valid_keys, fallback="False")
                 keyword = "if" if idx == 0 else "elif"
                 if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
 

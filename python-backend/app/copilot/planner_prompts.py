@@ -29,4 +29,5 @@ Call all required tools in a single atomic response.
 
 5. **VARIABLE INITIALIZATION**:
    - Every new variable declared via `upsert_state_var` MUST be initialized in the root/entry assignment node.
+   - Variable names MUST be valid lowercase snake_case. Do not use uppercase letters.
 """

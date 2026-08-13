@@ -7,13 +7,28 @@ from typing import Annotated, Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from app.graphs.nodes import Branch, LogicalAssignmentSchema, NodeRead
+from app.graphs.expressions.schemas import ComparisonExpression, Expression
+from app.graphs.nodes import Branch, NodeRead
+
+
+class LogicalAssignmentOpSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    target_var_key: str
+    expression: Expression
+
+
+class BranchOpSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: str
+    expression: ComparisonExpression
+    target_var_key: str | None = None
 
 
 class OrmModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-
+ 
+# ... keep other models ...
 class GraphCreate(BaseModel):
     user_id: uuid.UUID
     graph_name: str = Field(min_length=1, max_length=255)
@@ -75,16 +90,7 @@ class UpsertLogicalAssignerOp(BaseModel):
     op: Literal["upsert_logical_assigner"] = "upsert_logical_assigner"
     node_id: str
     new_id: str | None = None
-    assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def parse_expressions(self) -> UpsertLogicalAssignerOp:
-        from app.graphs.expressions import parse_expression
-
-        for assignment in self.assignments:
-            if isinstance(assignment.expression, str):
-                assignment.expression = parse_expression(assignment.expression)
-        return self
+    assignments: list[LogicalAssignmentOpSchema] = Field(default_factory=list)
 
 
 class UpsertAgenticAssignerOp(BaseModel):
@@ -106,16 +112,7 @@ class UpsertLogicalSwitchOp(BaseModel):
     op: Literal["upsert_logical_switch"] = "upsert_logical_switch"
     node_id: str
     new_id: str | None = None
-    branches: list[Branch] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def parse_expressions(self) -> UpsertLogicalSwitchOp:
-        from app.graphs.expressions import parse_expression
-
-        for branch in self.branches:
-            if isinstance(branch.expression, str):
-                branch.expression = parse_expression(branch.expression)
-        return self
+    branches: list[BranchOpSchema] = Field(default_factory=list)
 
 
 class UpsertAgenticSwitchOp(BaseModel):
