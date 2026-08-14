@@ -23,7 +23,7 @@ async def execute_state_tasks(
     from app.copilot.logger import log_llm_call
 
     task_list_str = "\n".join(
-        f"- Task: {t['description']}" + (f" (Target ID: {t['node_id']})" if t.get("node_id") else "") for t in tasks
+        f"- Task: {t['op']} - {t['description']}" + (f" (Target ID: {t['node_id']})" if t.get("node_id") else "") for t in tasks
     )
     system_message = {"role": "system", "content": f"{STATE_SYSTEM_PROMPT}\n\nTasks to execute:\n{task_list_str}"}
     req_messages = [system_message] + messages

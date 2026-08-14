@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -19,61 +19,77 @@ You DO NOT execute the changes yourself. You only create the plan.
 - **RAG_RETRIEVER**: Performs semantic search using a query variable and stores results.
 - **END**: The exit point of the graph.
 
-## The Sub-Agents
+## The Sub-Agents and their Operations
 
 1. **State Agent**: Manages variables and AST expressions.
-   - Declares/deletes variables.
-   - Defines logical/mathematical expressions.
+   Allowed operations:
+   - `declare_variable`: Declare a new state variable.
+   - `delete_variable`: Remove an existing state variable.
+   - `define_expression`: Define a mathematical or logical evaluation formula.
 
 2. **Topology Agent**: Manages boxes and lines.
-   - Creates/deletes empty node shells.
-   - Adds/removes empty branches on switch nodes.
-   - Connects/disconnects nodes using case labels.
-   - *Cannot write prompts or bind expressions.*
+   Allowed operations:
+   - `create_node`: Create an empty node shell of a specific type.
+   - `delete_node`: Delete a node and its connections.
+   - `add_switch_branch`: Add a new routing option to a switch node.
+   - `remove_switch_branch`: Remove a routing option from a switch node.
+   - `connect`: Draw a connection edge between a source node/branch and target node.
+   - `disconnect`: Remove a connection edge.
 
 3. **Config Agent**: Injects logic into the boxes.
-   - Binds formulas to logical assigners.
-   - Binds conditions to switch branches.
-   - Configures LLM prompts and I/O for agentic assigners.
-   - Configures RAG search variables.
+   Allowed operations:
+   - `bind_logical_assignment`: Bind a formula to a logical assigner.
+   - `bind_branch_condition`: Bind a boolean expression to a logical switch branch.
+   - `configure_agentic_prompt`: Configure LLM prompt and I/O variables.
+   - `configure_agentic_switch`: Configure input routing variable for an agentic switch.
+   - `configure_rag_search`: Configure query and target context variables for RAG.
+   - `configure_interrupt`: Configure payload and resume variables for an interrupt.
 
 ## Instructions
-Analyze the current graph state and the user request.
-Write out human-readable tasks for each agent in the order they must be executed (State -> Topology -> Config).
-Leave the list empty if an agent has no work to do.
-
-**CRITICAL**: Every new node created in the Topology tasks MUST have a corresponding configuration task in the Config tasks (e.g., binding LLM prompts, input/output variables, or branching conditions). Do not leave new nodes unconfigured.
-
-**CRITICAL**: You MUST use exact, identical string identifiers for variables and `node_id`s across all your task descriptions. 
-For example, if you tell the Topology Agent to create node 'my_node', you must refer to it as exactly 'my_node' when telling the Config Agent to configure it.
-DO NOT use fuzzy names or natural language references for IDs.
-
-**CRITICAL RULES FOR ASSIGNERS & STATE**:
-- **State Tasks (Expressions)**: When planning to define an expression, you MUST specify the exact unique expression identifier (e.g., `expr_<node_id>_<variable_name>`) and the exact logic or formula (e.g. `expr_check_correct_is_correct: parsed_answer == correct_answer`) inside the description so the State Agent knows what formula to define.
-- **Agentic vs Logical Assigners**:
-  - `AGENTIC_ASSIGNER` nodes (like LLM prompts) use `configure_agentic_prompt` to map inputs, outputs, and prompts. **NEVER** map expressions or logical assignments (`bind_logical_assignment`) to them.
-  - `LOGICAL_ASSIGNER` nodes use `bind_logical_assignment` to assign expression formulas to variables.
-
-**OUTPUT FORMAT CRITICAL INSTRUCTION**:
-You must return an array of objects for each task list. DO NOT return lists of strings.
-Each object must have a `description` string and a `node_id` string. If a task does not involve a specific node, set `node_id` to `""`.
-
+1. Analyze the current graph state and the user request.
+2. Outline tasks for the State Agent, Topology Agent, and Config Agent in that order.
+3. For each task, you must match it to the correct operation (`op`) the sub-agent will run.
+4. Ensure all identifiers (variables, node IDs, branches) are exact and match across all tasks.
 """
 
+StateOpType = Literal["declare_variable", "delete_variable", "define_expression"]
+TopologyOpType = Literal["create_node", "delete_node", "add_switch_branch", "remove_switch_branch", "connect", "disconnect"]
+ConfigOpType = Literal[
+    "bind_logical_assignment",
+    "bind_branch_condition",
+    "configure_agentic_prompt",
+    "configure_agentic_switch",
+    "configure_rag_search",
+    "configure_interrupt",
+]
 
-class AgentTask(BaseModel):
-    description: str = Field(description="The natural language instruction for the sub-agent")
-    node_id: str = Field(description="The exact node_id this task targets. Use an empty string '' if not applicable.")
+
+class StateAgentTask(BaseModel):
+    op: StateOpType = Field(description="The exact operation name this task requires.")
+    description: str = Field(description="The semantic details and values needed to execute the operation.")
+    node_id: str = Field(description="Target node_id, use '' if not applicable.")
+
+
+class TopologyAgentTask(BaseModel):
+    op: TopologyOpType = Field(description="The exact operation name this task requires.")
+    description: str = Field(description="The semantic details and values needed to execute the operation.")
+    node_id: str = Field(description="Target node_id, use '' if not applicable.")
+
+
+class ConfigAgentTask(BaseModel):
+    op: ConfigOpType = Field(description="The exact operation name this task requires.")
+    description: str = Field(description="The semantic details and values needed to execute the operation.")
+    node_id: str = Field(description="Target node_id, use '' if not applicable.")
 
 
 class AgentPlan(BaseModel):
     """The master checklist for the multi-agent copilot."""
 
-    state_tasks: list[AgentTask] = Field(description="Tasks for the State Agent (variables & logic formulas)")
-    topology_tasks: list[AgentTask] = Field(
+    state_tasks: list[StateAgentTask] = Field(description="Tasks for the State Agent (variables & logic formulas)")
+    topology_tasks: list[TopologyAgentTask] = Field(
         description="Tasks for the Topology Agent (creating nodes & wiring connections)"
     )
-    config_tasks: list[AgentTask] = Field(
+    config_tasks: list[ConfigAgentTask] = Field(
         description="Tasks for the Config Agent (binding prompts, RAG, and logical assignments to nodes)"
     )
 
