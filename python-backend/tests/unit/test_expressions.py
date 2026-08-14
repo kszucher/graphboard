@@ -58,6 +58,7 @@ def test_expression_safety_and_rules() -> None:
     assert parse_expression("str(10)") == "str(10)"
     assert parse_expression("random.choice(items)") == "random.choice(items)"
     assert parse_expression("random.sample(items, 2)") == "random.sample(items, 2)"
+    assert parse_expression("random.sample(['A', 'B', 'C', 'D'], 2)") == "random.sample(['A', 'B', 'C', 'D'], 2)"
 
     # Test illegal functions/attributes
     with pytest.raises(ValidationError, match="Function call 'eval' is not allowed"):
@@ -101,6 +102,23 @@ def test_structured_expression_pydantic_parsing() -> None:
     )
     assert record.expr is not None
     assert record.expr.to_string() == "(score + 1)"
+
+    # Test with list literal value
+    record_list = ExpressionRecord.model_validate(
+        {
+            "id": "expr_fifty_fifty_lifeline",
+            "expr": {
+                "type": "call",
+                "func": "random.sample",
+                "args": [
+                    {"type": "literal", "value": ["A", "B", "C", "D"]},
+                    {"type": "literal", "value": 2},
+                ],
+            },
+        }
+    )
+    assert record_list.expr is not None
+    assert record_list.expr.to_string() == "random.sample(['A', 'B', 'C', 'D'], 2)"
 
 
 def test_copilot_tools_schema_restrictions() -> None:

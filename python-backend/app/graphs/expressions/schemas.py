@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class LiteralExpr(BaseModel):
     type: Literal["literal"] = "literal"
-    value: str | int | float | bool | None
+    value: str | int | float | bool | list[str | int | float | bool] | None
 
     def to_string(self) -> str:
         return repr(self.value)

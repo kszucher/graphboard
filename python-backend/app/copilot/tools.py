@@ -125,10 +125,10 @@ _CONFIG_OPS = {
     "configure_interrupt",
 }
 
-# upsert_expression owns the full AST schema — depth 1 is enough:
+# define_expression owns the full AST schema — depth 2 is enough:
 # top-level variants are fully described; recursive children are stubbed as {type:object}.
 # Other tools (assigner/switch) carry no AST at all — depth irrelevant.
-_EXPR_DEPTH: dict[str, int] = {"upsert_expression": 1}
+_EXPR_DEPTH: dict[str, int] = {"define_expression": 2}
 
 for cls in operation_classes:
     op_name = cls.model_fields["op"].default
