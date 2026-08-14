@@ -1,23 +1,23 @@
 from pydantic import ValidationError
 
-from app.graphs.nodes import (
+from app.modules.graphs.nodes import (
     Branch,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
 )
-from app.graphs.operations import sort_operations_by_dependency
-from app.graphs.operations.pipeline import GraphOperation
-from app.graphs.operations.rename_ops import RenameVariableOp
-from app.graphs.operations.topology_ops import ConnectNodesOp, connect_nodes
-from app.graphs.operations.upsert_ops import UpsertLogicalSwitchOp
-from app.graphs.schemas import (
+from app.modules.graphs.operations import sort_operations_by_dependency
+from app.modules.graphs.operations import GraphOperation
+from app.modules.graphs.operations.rename_ops import RenameVariableOp
+from app.modules.graphs.operations.topology_ops import ConnectNodesOp, connect_nodes
+from app.modules.graphs.operations.upsert_ops import UpsertLogicalSwitchOp
+from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     ExpressionRecord,
     GraphFlowData,
 )
-from app.graphs.serializer import serialize_flow_to_code
+from app.modules.graphs.serializer import serialize_flow_to_code
 
 
 def test_serialize_flow_to_code() -> None:

@@ -17,11 +17,11 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
-from app.copilot.models import CopilotState
-from app.copilot.workflow import copilot_graph
-from app.graphs import operations
-from app.graphs.operations import GraphOperation
-from app.graphs.serializer import serialize_flow_to_code
+from app.modules.copilot.models import CopilotState
+from app.modules.copilot import copilot_graph
+from app.modules.graphs import operations
+from app.modules.graphs.operations import GraphOperation
+from app.modules.graphs.serializer import serialize_flow_to_code
 from tests.evals.scenarios import SCENARIOS, EvalScenario
 
 # Colors for terminal output

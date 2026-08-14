@@ -29,5 +29,5 @@ These baseline guidelines apply to all development tasks in this repository.
 - **Always** run typecheck and build validation after modifying frontend source code.
 - Run build verification using the local project build scripts (e.g., `npm run build`).
 - **NEVER** try to open up a browser to validate UI functionality; the user will always handle visual validation.
-- **NEVER** read or manually edit `schema.ts` or `openapi.json`. Always run the API generator (`npm run generate:api` in `frontend/`) to update frontend type schemas when API routes or structures change. To inspect data models token-efficiently, read the source Pydantic models directly in `python-backend/app/graphs/schemas.py`. Never commit `openapi.json` (untracked transient file).
+- **NEVER** read or manually edit `schema.ts` or `openapi.json`. Always run the API generator (`npm run generate:api` in `frontend/`) to update frontend type schemas when API routes or structures change. To inspect data models token-efficiently, read the source Pydantic models directly in `../python-backend/app/modules/graphs/schemas.py`. Never commit `openapi.json` (untracked transient file).
 

@@ -1,14 +1,14 @@
 import ast
 
-from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
-from app.graphs.nodes import (
+from app.modules.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
+from app.modules.graphs.nodes import (
     AgenticAssignerNode,
     Branch,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
 )
-from app.graphs.schemas import (
+from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
@@ -40,7 +40,7 @@ async def test_generate_graph_code_with_variables() -> None:
 
 
 async def test_generate_graph_code_with_logical_assigner() -> None:
-    from app.graphs.schemas import ExpressionRecord
+    from app.modules.graphs.schemas import ExpressionRecord
 
     flow_data = GraphFlowData(
         nodes=[
@@ -78,7 +78,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
 
 
 async def test_generate_graph_code_with_switch_node() -> None:
-    from app.graphs.schemas import ExpressionRecord
+    from app.modules.graphs.schemas import ExpressionRecord
 
     flow_data = GraphFlowData(
         nodes=[
@@ -141,7 +141,7 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
 
 
 async def test_default_example_graph_ast_compilation() -> None:
-    from app.graphs.defaults import build_default_trivia_graph_flow_data
+    from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
 
     flow_data = build_default_trivia_graph_flow_data()
     code = DirectLangGraphCompiler(flow_data).compile()

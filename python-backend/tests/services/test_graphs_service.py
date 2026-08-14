@@ -7,8 +7,8 @@ from sqlalchemy import select
 
 from app.constants import EventName
 from app.core.context import UnitOfWork
-from app.graphs import service as graphs_service
-from app.graphs.operations.upsert_ops import UpsertLogicalAssignerOp
+from app.modules.graphs import service as graphs_service
+from app.modules.graphs.operations.upsert_ops import UpsertLogicalAssignerOp
 from app.core.base.models import Graph, GraphHistory, User
 
 

@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import graphs, users
+from app.modules import graphs, users, copilot
 from app.api import ws
 from app.core.config import settings
 from app.core.exceptions import GraphboardError
@@ -39,8 +39,6 @@ def create_app() -> FastAPI:
             status_code=500,
             content={"detail": "Internal Server Error", "error": str(exc)},
         )
-
-    from app import copilot
 
     app.include_router(users.router)
     app.include_router(graphs.router)

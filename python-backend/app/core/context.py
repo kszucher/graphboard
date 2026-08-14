@@ -9,8 +9,8 @@ from app.constants import EventName
 from app.api.events import GraphEventBroker
 
 if TYPE_CHECKING:
-    from app.graphs.repository import GraphHistoryRepository, GraphRepository
-    from app.users.repository import UserRepository
+    from app.modules.graphs.repository import GraphHistoryRepository, GraphRepository
+    from app.modules.users.repository import UserRepository
 
 
 class UnitOfWork:
@@ -28,7 +28,7 @@ class UnitOfWork:
     @property
     def graphs(self) -> GraphRepository:
         if self._graphs is None:
-            from app.graphs.repository import GraphRepository
+            from app.modules.graphs.repository import GraphRepository
 
             self._graphs = GraphRepository(self.session)
         return self._graphs
@@ -36,7 +36,7 @@ class UnitOfWork:
     @property
     def graph_history(self) -> GraphHistoryRepository:
         if self._graph_history is None:
-            from app.graphs.repository import GraphHistoryRepository
+            from app.modules.graphs.repository import GraphHistoryRepository
 
             self._graph_history = GraphHistoryRepository(self.session)
         return self._graph_history
@@ -44,7 +44,7 @@ class UnitOfWork:
     @property
     def users(self) -> UserRepository:
         if self._users is None:
-            from app.users.repository import UserRepository
+            from app.modules.users.repository import UserRepository
 
             self._users = UserRepository(self.session)
         return self._users

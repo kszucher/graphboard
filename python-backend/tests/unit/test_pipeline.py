@@ -1,8 +1,8 @@
-from app.graphs.operations.pipeline import GraphOperation, apply_patch, sort_operations_by_dependency
-from app.graphs.operations.rename_ops import RenameVariableOp
-from app.graphs.operations.topology_ops import ConnectNodesOp, DeleteNodeOp
-from app.graphs.operations.upsert_ops import AssignmentSchema, UpsertLogicalAssignerOp
-from app.graphs.schemas import GraphFlowData
+from app.modules.graphs.operations import GraphOperation, apply_patch, sort_operations_by_dependency
+from app.modules.graphs.operations.rename_ops import RenameVariableOp
+from app.modules.graphs.operations.topology_ops import ConnectNodesOp, DeleteNodeOp
+from app.modules.graphs.operations.upsert_ops import AssignmentSchema, UpsertLogicalAssignerOp
+from app.modules.graphs.schemas import GraphFlowData
 
 
 def test_pipeline_basic() -> None:

@@ -5,8 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.graphs.defaults import build_default_trivia_graph_flow_data
-from app.graphs.nodes import (
+from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
+from app.modules.graphs.nodes import (
     Branch,
     EndNode,
     LogicalAssignerNode,
@@ -14,7 +14,7 @@ from app.graphs.nodes import (
     LogicalSwitchNode,
     StartNode,
 )
-from app.graphs.schemas import (
+from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     ExpressionRecord,

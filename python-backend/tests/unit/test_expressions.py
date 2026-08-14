@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.exceptions import ValidationError
-from app.graphs.expressions import (
+from app.modules.graphs import (
     expression_to_code,
     get_expression_variables,
     parse_expression,
@@ -51,7 +51,7 @@ def test_expression_to_code() -> None:
 
 
 def test_expression_safety_and_rules() -> None:
-    from app.graphs.expressions import parse_expression
+    from app.modules.graphs import parse_expression
 
     # Test allowed functions
     assert parse_expression("len(name)") == "len(name)"
@@ -72,7 +72,7 @@ def test_expression_safety_and_rules() -> None:
 
 
 def test_parse_comparison_expression() -> None:
-    from app.graphs.expressions import parse_comparison_expression
+    from app.modules.graphs import parse_comparison_expression
 
     # Valid comparisons
     assert parse_comparison_expression("x > 5") == "x > 5"
@@ -86,7 +86,7 @@ def test_parse_comparison_expression() -> None:
 
 
 def test_translate_polars_to_python() -> None:
-    from app.graphs.expressions.translator import translate_polars_to_python
+    from app.modules.graphs import translate_polars_to_python
 
     # Valid translations
     assert translate_polars_to_python("col('score').eq(5)") == "score == 5"

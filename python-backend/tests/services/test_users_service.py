@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.core.context import UnitOfWork
 from app.core.base.models import Graph, GraphHistory, User
-from app.users import service as users_service
+from app.modules.users import service as users_service
 
 
 @pytest.mark.asyncio
