@@ -1,7 +1,6 @@
 import pytest
 
 from app.exceptions import ValidationError
-from app.graphs.expressions.schemas import BinaryExpr, LiteralExpr, VariableExpr
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.nodes import (
     AgenticAssignerNode,
@@ -79,27 +78,19 @@ def base_flow() -> GraphFlowData:
     expressions = {
         "expr_1": ExpressionRecord(
             id="expr_1",
-            expr=BinaryExpr(
-                left=VariableExpr(name="x"),
-                op="==",
-                right=LiteralExpr(value=10),
-            ),
+            expr="x == 10",
         ),
         "expr_2": ExpressionRecord(
             id="expr_2",
-            expr=LiteralExpr(value=True),
+            expr="True",
         ),
         "expr_3": ExpressionRecord(
             id="expr_3",
-            expr=BinaryExpr(
-                left=VariableExpr(name="x"),
-                op="+",
-                right=LiteralExpr(value=1),
-            ),
+            expr="x + 1",
         ),
         "expr_4": ExpressionRecord(
             id="expr_4",
-            expr=LiteralExpr(value=True),
+            expr="True",
         ),
     }
 

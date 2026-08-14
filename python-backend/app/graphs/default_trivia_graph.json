@@ -388,111 +388,51 @@
   "expressions": {
     "expr_init_game_score": {
       "id": "expr_init_game_score",
-      "expr": {
-        "type": "literal",
-        "value": 0
-      }
+      "expr": "0"
     },
     "expr_init_game_more_questions": {
       "id": "expr_init_game_more_questions",
-      "expr": {
-        "type": "literal",
-        "value": true
-      }
+      "expr": "True"
     },
     "expr_init_game_correct_answer": {
       "id": "expr_init_game_correct_answer",
-      "expr": {
-        "type": "literal",
-        "value": "A"
-      }
+      "expr": "'A'"
     },
     "expr_init_game_topic": {
       "id": "expr_init_game_topic",
-      "expr": {
-        "type": "literal",
-        "value": "Space Exploration"
-      }
+      "expr": "'Space Exploration'"
     },
     "expr_init_game_retrieved_facts": {
       "id": "expr_init_game_retrieved_facts",
-      "expr": {
-        "type": "literal",
-        "value": ""
-      }
+      "expr": "''"
     },
     "expr_loop_questions_yes": {
       "id": "expr_loop_questions_yes",
-      "expr": {
-        "type": "variable",
-        "name": "more_questions"
-      }
+      "expr": "more_questions"
     },
     "expr_loop_questions_no": {
       "id": "expr_loop_questions_no",
-      "expr": {
-        "type": "unary",
-        "op": "not",
-        "argument": {
-          "type": "variable",
-          "name": "more_questions"
-        }
-      }
+      "expr": "not more_questions"
     },
     "expr_parse_answer_parsed_answer": {
       "id": "expr_parse_answer_parsed_answer",
-      "expr": {
-        "type": "variable",
-        "name": "user_answer"
-      }
+      "expr": "user_answer"
     },
     "expr_check_correct_is_correct": {
       "id": "expr_check_correct_is_correct",
-      "expr": {
-        "type": "binary",
-        "left": {
-          "type": "variable",
-          "name": "parsed_answer"
-        },
-        "op": "==",
-        "right": {
-          "type": "variable",
-          "name": "correct_answer"
-        }
-      }
+      "expr": "parsed_answer == correct_answer"
     },
     "expr_result_switch_correct": {
       "id": "expr_result_switch_correct",
-      "expr": {
-        "type": "variable",
-        "name": "is_correct"
-      }
+      "expr": "is_correct"
     },
     "expr_result_switch_wrong": {
       "id": "expr_result_switch_wrong",
-      "expr": {
-        "type": "unary",
-        "op": "not",
-        "argument": {
-          "type": "variable",
-          "name": "is_correct"
-        }
-      }
+      "expr": "not is_correct"
     },
     "expr_increment_score_score": {
       "id": "expr_increment_score_score",
-      "expr": {
-        "type": "binary",
-        "left": {
-          "type": "variable",
-          "name": "score"
-        },
-        "op": "+",
-        "right": {
-          "type": "literal",
-          "value": 1
-        }
-      }
+      "expr": "score + 1"
     }
   }
 }

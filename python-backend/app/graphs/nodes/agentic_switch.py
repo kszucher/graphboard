@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
@@ -45,16 +45,6 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
         for branch in self.branches:
             if branch.id.startswith(f"{old_id}_"):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
-
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        parts = []
-        if self.agentic_input:
-            parts.append(f"in={self.agentic_input}")
-        branches_str = [b.label for b in self.branches]
-        if branches_str:
-            parts.append(f"branches=[{', '.join(branches_str)}]")
-        parts_str = f" {' '.join(parts)}" if parts else ""
-        return [f"  - {self.id} [{self.node_type.value}]{parts_str}"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

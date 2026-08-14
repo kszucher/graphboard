@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,19 +18,6 @@ class AgenticAssignerConfig(BaseModel):
 
 
 class AgenticAssignerNode(BaseNode, AgenticAssignerConfig):
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        parts = []
-        if self.agentic_inputs:
-            parts.append(f"in=[{', '.join(self.agentic_inputs)}]")
-        if self.agentic_outputs:
-            parts.append(f"out=[{', '.join(self.agentic_outputs)}]")
-        if self.prompt:
-            # Keep prompt compact and escape double quotes
-            prompt_escaped = self.prompt.replace('"', '\\"')
-            parts.append(f'prompt="{prompt_escaped}"')
-        parts_str = f" {' '.join(parts)}" if parts else ""
-        return [f"  - {self.id} [{self.node_type.value}]{parts_str}"]
-
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,15 +19,6 @@ class RagRetrieverConfig(BaseModel):
 
 
 class RagRetrieverNode(BaseNode, RagRetrieverConfig):
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        parts = [
-            f"query={self.query_var}",
-            f"out={self.context_output_var}",
-            f"kb={self.knowledge_base}",
-            f"top_k={self.top_k}",
-        ]
-        return [f"  - {self.id} [{self.node_type.value}] {' '.join(parts)}"]
-
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError
 

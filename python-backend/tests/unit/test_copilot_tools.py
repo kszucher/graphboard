@@ -1,7 +1,5 @@
-import pytest
 from pydantic import ValidationError
 
-from app.graphs.expressions.schemas import LiteralExpr
 from app.graphs.nodes import (
     Branch,
     LogicalAssignerNode,
@@ -10,8 +8,9 @@ from app.graphs.nodes import (
 )
 from app.graphs.operations import sort_operations_by_dependency
 from app.graphs.operations.pipeline import GraphOperation
-from app.graphs.operations.state_ops import DeclareVariableOp
-from app.graphs.operations.topology_ops import ConnectOp, CreateNodeOp
+from app.graphs.operations.rename_ops import RenameVariableOp
+from app.graphs.operations.topology_ops import ConnectNodesOp, connect_nodes
+from app.graphs.operations.upsert_ops import UpsertLogicalSwitchOp
 from app.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
@@ -25,8 +24,8 @@ def test_serialize_flow_to_code() -> None:
     flow = GraphFlowData(
         state=[DefinerVariableSchema(id="v1", key="score", type="number", default_value=10)],
         expressions={
-            "expr_1": ExpressionRecord(id="expr_1", expr=LiteralExpr(value=10)),
-            "expr_2": ExpressionRecord(id="expr_2", expr=LiteralExpr(value=True)),
+            "expr_1": ExpressionRecord(id="expr_1", expr="10"),
+            "expr_2": ExpressionRecord(id="expr_2", expr="True"),
         },
         nodes=[
             LogicalAssignerNode(
@@ -51,47 +50,55 @@ def test_serialize_flow_to_code() -> None:
             ),
         ],
         edges=[
-            EdgeRead(source="start", target="init"),
             EdgeRead(source="init", target="check"),
             EdgeRead(source="check", source_handle="check_yes", target="end"),
         ],
     )
 
     serialized = serialize_flow_to_code(flow)
-    assert "- score: number = 10" in serialized
-    assert "init [LOGICAL_ASSIGNER] assignments={score=expr_1}" in serialized
-    assert "check [LOGICAL_SWITCH] branches=[Yes(expr_2)]" in serialized
+    assert "score: int = 10" in serialized
+    assert "init: LOGICAL_ASSIGNER(score=10) -> check" in serialized
+    assert "check: LOGICAL_SWITCH(Yes=True -> end)" in serialized
 
 
 def test_sort_operations_by_dependency() -> None:
     ops: list[GraphOperation] = [
-        ConnectOp(op="connect", source="a", target="b"),
-        CreateNodeOp(op="create_node", node_id="a", node_type="LOGICAL_SWITCH"),
-        DeclareVariableOp(op="declare_variable", key="x", type="number"),
+        ConnectNodesOp(op="connect_nodes", source="a", target="b"),
+        UpsertLogicalSwitchOp(op="upsert_logical_switch", node_id="a"),
+        RenameVariableOp(op="rename_variable", old_key="x", new_key="y"),
     ]
     sorted_ops = sort_operations_by_dependency(ops)
-    assert sorted_ops[0].op == "declare_variable"
-    assert sorted_ops[1].op == "create_node"
-    assert sorted_ops[2].op == "connect"
-
+    assert sorted_ops[0].op == "rename_variable"
+    assert sorted_ops[1].op == "upsert_logical_switch"
+    assert sorted_ops[2].op == "connect_nodes"
 
 
 def test_strict_validation_forbids_extra_fields() -> None:
-    # Extra/invalid fields on CreateNodeOp should raise ValidationError
-    with pytest.raises(ValidationError):
-        CreateNodeOp(
-            op="create_node",
-            node_id="test",
-            node_type="LOGICAL_SWITCH",
+    # Extra/invalid fields on ConnectNodesOp should raise ValidationError
+    try:
+        ConnectNodesOp(
+            op="connect_nodes",
+            source="a",
+            target="b",
             invalid_extra_field="hello",
         )
+        raise AssertionError("Should have raised ValidationError")
+    except ValidationError:
+        pass
 
 
-def test_connect_op_case_resolution() -> None:
-    # Verify that case field in ConnectOp gets resolved to source_handle
-    op = ConnectOp(op="connect", source="switch_node", target="end", case="Submit")
-    assert op.source_handle == "switch_node_submit"
+def test_connect_nodes_case_resolution() -> None:
+    # Verify that case label in connect_nodes gets resolved to source_handle in flow_data.edges
+    flow = GraphFlowData(
+        nodes=[
+            LogicalSwitchNode(id="switch_node", branches=[Branch(id="switch_node_submit", label="Submit")]),
+            LogicalAssignerNode(id="end"),
+        ],
+        edges=[],
+    )
 
-    op2 = ConnectOp(op="connect", source="switch_node", target="end", source_handle="Submit")
-    assert op2.source_handle == "switch_node_submit"
-    assert op2.case == "Submit"
+    op = ConnectNodesOp(op="connect_nodes", source="switch_node", target="end", source_handle="Submit")
+    flow = connect_nodes(flow, op)
+
+    assert len(flow.edges) == 1
+    assert flow.edges[0].source_handle == "switch_node_submit"

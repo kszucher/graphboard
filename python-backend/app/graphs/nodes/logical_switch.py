@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
@@ -47,17 +47,6 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
         for branch in self.branches:
             if branch.id.startswith(f"{old_id}_"):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
-
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        branches_str = []
-        for b in self.branches:
-            expr_str = b.expr_id or ""
-            # Strip enclosing parenthesis if present in branch expression to be consistent
-            if expr_str.startswith("(") and expr_str.endswith(")"):
-                expr_str = expr_str[1:-1]
-            branches_str.append(f"{b.label}({expr_str})")
-        branches_joined = f" branches=[{', '.join(branches_str)}]" if branches_str else ""
-        return [f"  - {self.id} [{self.node_type.value}]{branches_joined}"]
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.exceptions import ValidationError

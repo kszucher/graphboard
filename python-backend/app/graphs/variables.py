@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.graphs.expressions.utils import get_variables_from_ast
+from app.graphs.expressions import get_expression_variables
 from app.graphs.nodes import (
     AgenticAssignerNode,
     AgenticSwitchNode,
@@ -25,13 +25,13 @@ def get_node_variable_references(node: NodeRead, expressions: dict[str, Expressi
                 if a.target_var_key:
                     refs.add(a.target_var_key)
                 if a.expr_id and a.expr_id in expressions:
-                    refs.update(get_variables_from_ast(expressions[a.expr_id].expr))
+                    refs.update(get_expression_variables(expressions[a.expr_id].expr))
         case LogicalSwitchNode():
             for b in node.branches:
                 if b.target_var_key:
                     refs.add(b.target_var_key)
                 if b.expr_id and b.expr_id in expressions:
-                    refs.update(get_variables_from_ast(expressions[b.expr_id].expr))
+                    refs.update(get_expression_variables(expressions[b.expr_id].expr))
         case AgenticAssignerNode():
             if node.agentic_inputs:
                 refs.update(node.agentic_inputs)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,11 +14,6 @@ def _make_slot_id(node_id: str, label: str) -> str:
 class BaseNode(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = ""
-
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        node_type = getattr(self, "node_type", None)
-        type_str = node_type.value if node_type else "unknown"
-        return [f"  - {self.id} [{type_str}]"]
 
     @property
     def supports_branches(self) -> bool:

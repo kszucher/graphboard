@@ -111,8 +111,7 @@ class DirectLangGraphCompiler:
         for i in valid_items:
             expr_id = getattr(i, "expr_id", None)
             record = self.flow_data.expressions.get(expr_id) if expr_id else None
-            expr = record.expr if record else None
-            expr_str = expr.to_string() if expr else None
+            expr_str = record.expr if record else None
             val_code = expression_to_code(expr_str, self.valid_keys)
             pairs.append(f"{repr(i.target_var_key)}: {val_code}")
         return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
@@ -166,8 +165,7 @@ class DirectLangGraphCompiler:
             raw = branch.label or f"Branch {idx + 1}"
             expr_id = branch.expr_id
             record = self.flow_data.expressions.get(expr_id) if expr_id else None
-            expr = record.expr if record else None
-            expr_str = expr.to_string() if expr else None
+            expr_str = record.expr if record else None
             if idx == len(node.branches) - 1 and expr_str == "True":
                 if_branches.append(f"    else:\n        return {repr(raw)}")
             else:

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.constants import EventName
 from app.context import UnitOfWork
 from app.graphs import service as graphs_service
-from app.graphs.operations.topology_ops import CreateNodeOp
+from app.graphs.operations.upsert_ops import UpsertLogicalAssignerOp
 from app.models import Graph, GraphHistory, User
 
 
@@ -53,10 +53,10 @@ async def test_add_node(
 ) -> None:
     # Action: add a node of type LOGICAL_ASSIGNER using apply_patch
     patch = [
-        CreateNodeOp(
-            op="create_node",
+        UpsertLogicalAssignerOp(
+            op="upsert_logical_assigner",
             node_id="logical_assigner_1",
-            node_type="LOGICAL_ASSIGNER",
+            assignments=[],
         )
     ]
     result = await graphs_service.apply_patch(uow=real_uow, graph_id=dummy_graph.id, patch=patch)
@@ -89,19 +89,19 @@ async def test_versions_graph_flow(
 
     # Mutation 1 -> Sequence 1 (Add node)
     patch1 = [
-        CreateNodeOp(
-            op="create_node",
+        UpsertLogicalAssignerOp(
+            op="upsert_logical_assigner",
             node_id="la_1",
-            node_type="LOGICAL_ASSIGNER",
+            assignments=[],
         )
     ]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch1)
     # Mutation 2 -> Sequence 2 (Add another node)
     patch2 = [
-        CreateNodeOp(
-            op="create_node",
+        UpsertLogicalAssignerOp(
+            op="upsert_logical_assigner",
             node_id="la_2",
-            node_type="LOGICAL_ASSIGNER",
+            assignments=[],
         )
     ]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch2)
@@ -131,7 +131,7 @@ async def test_get_graph_flow_returns_versions(
     dummy_graph: Graph,
 ) -> None:
     # Mutation -> Sequence 1
-    patch = [CreateNodeOp(op="create_node", node_id="la_1", node_type="LOGICAL_ASSIGNER")]
+    patch = [UpsertLogicalAssignerOp(op="upsert_logical_assigner", node_id="la_1", assignments=[])]
     await graphs_service.apply_patch(real_uow, dummy_graph.id, patch)
     await real_uow.session.commit()
 
@@ -167,7 +167,7 @@ async def test_run_graph_flow_success(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": {"type": "literal", "value": 42}}},
+        "expressions": {"expr_1": {"id": "expr_1", "expr": "42"}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)
@@ -247,33 +247,19 @@ async def test_run_graph_flow_switch_routing(
         "expressions": {
             "expr_switch_a": {
                 "id": "expr_switch_a",
-                "expr": {
-                    "type": "binary",
-                    "left": {"type": "variable", "name": "x"},
-                    "op": ">",
-                    "right": {"type": "literal", "value": 0},
-                },
+                "expr": "x > 0",
             },
             "expr_switch_b": {
                 "id": "expr_switch_b",
-                "expr": {
-                    "type": "literal",
-                    "value": True,
-                },
+                "expr": "True",
             },
             "expr_assign_a": {
                 "id": "expr_assign_a",
-                "expr": {
-                    "type": "literal",
-                    "value": 100,
-                },
+                "expr": "100",
             },
             "expr_assign_b": {
                 "id": "expr_assign_b",
-                "expr": {
-                    "type": "literal",
-                    "value": 200,
-                },
+                "expr": "200",
             },
         },
     }
@@ -329,7 +315,7 @@ async def test_run_graph_flow_invalid_state_ref(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": {"type": "literal", "value": 42}}},
+        "expressions": {"expr_1": {"id": "expr_1", "expr": "42"}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)

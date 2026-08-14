@@ -85,39 +85,23 @@ def test_parse_comparison_expression() -> None:
         parse_comparison_expression("x + 5")
 
 
-def test_structured_expression_pydantic_parsing() -> None:
-    from app.graphs.schemas import ExpressionRecord
+def test_translate_polars_to_python() -> None:
+    from app.graphs.expressions.translator import translate_polars_to_python
 
-    # Test ExpressionRecord parsing structured JSON into a string
-    record = ExpressionRecord.model_validate(
-        {
-            "id": "expr_score_plus_1",
-            "expr": {
-                "type": "binary",
-                "left": {"type": "variable", "name": "score"},
-                "op": "+",
-                "right": {"type": "literal", "value": 1},
-            },
-        }
-    )
-    assert record.expr is not None
-    assert record.expr.to_string() == "(score + 1)"
+    # Valid translations
+    assert translate_polars_to_python("col('score').eq(5)") == "score == 5"
+    assert translate_polars_to_python("col('score').ne(5)") == "score != 5"
+    assert translate_polars_to_python("col('score').gt(10) & col('more').lt(20)") == "score > 10 and more < 20"
+    assert translate_polars_to_python("col('facts').len().gt(0)") == "len(facts) > 0"
+    assert translate_polars_to_python("~col('more')") == "not more"
+    assert translate_polars_to_python("col('answer').is_in(['A', 'B'])") == "answer in ['A', 'B']"
 
-    # Test with list literal value
-    record_list = ExpressionRecord.model_validate(
-        {
-            "id": "expr_fifty_fifty_lifeline",
-            "expr": {
-                "type": "call",
-                "func": "random.sample",
-                "args": [
-                    {"type": "literal", "value": ["A", "B", "C", "D"]},
-                    {"type": "literal", "value": 2},
-                ],
-            },
-        }
-    )
-    assert record_list.expr is not None
-    assert record_list.expr.to_string() == "random.sample(['A', 'B', 'C', 'D'], 2)"
+    # Validation errors
+    with pytest.raises(ValidationError, match="Unsupported method or attribute call"):
+        translate_polars_to_python("col('score').non_existent_method()")
 
+    with pytest.raises(ValidationError, match="must be referenced using col"):
+        translate_polars_to_python("score.eq(5)")
 
+    with pytest.raises(ValidationError, match="is not defined in the graph state"):
+        translate_polars_to_python("col('not_real').eq(5)", valid_variables={"score"})

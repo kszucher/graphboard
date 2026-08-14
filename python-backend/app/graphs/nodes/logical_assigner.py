@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,7 +24,4 @@ class LogicalAssignerConfig(BaseModel):
 
 
 class LogicalAssignerNode(BaseNode, LogicalAssignerConfig):
-    def serialize_compact(self, *args: Any, **kwargs: Any) -> list[str]:
-        assigns = [f"{a.target_var_key}={a.expr_id or ''}" for a in self.assignments]
-        assigns_str = f" assignments={{{', '.join(assigns)}}}" if assigns else ""
-        return [f"  - {self.id} [{self.node_type.value}]{assigns_str}"]
+    pass

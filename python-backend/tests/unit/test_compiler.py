@@ -1,7 +1,6 @@
 import ast
 
 from app.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
-from app.graphs.expressions.schemas import BinaryExpr, LiteralExpr, VariableExpr
 from app.graphs.nodes import (
     AgenticAssignerNode,
     Branch,
@@ -66,7 +65,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
         expressions={
             "expr_status": ExpressionRecord(
                 id="expr_status",
-                expr=LiteralExpr(value="processed"),
+                expr="'processed'",
             )
         },
     )
@@ -101,11 +100,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
         expressions={
             "expr_active": ExpressionRecord(
                 id="expr_active",
-                expr=BinaryExpr(
-                    left=VariableExpr(name="status"),
-                    op="==",
-                    right=LiteralExpr(value="active"),
-                ),
+                expr="status == 'active'",
             )
         },
     )

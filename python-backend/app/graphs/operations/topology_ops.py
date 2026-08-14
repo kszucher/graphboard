@@ -3,111 +3,35 @@ from __future__ import annotations
 import uuid
 from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.constants import NodeType
 from app.exceptions import ValidationError
-from app.graphs.nodes import NODE_CLASS_MAP, AgenticSwitchNode, LogicalSwitchNode, NodeRead
 from app.graphs.schemas import EdgeRead, GraphFlowData
 
 SENTINEL_NODE_TYPES = {NodeType.START, NodeType.END}
 
 
-def _resolve_case_handle_fields(
-    source: str, case: str | None, source_handle: str | None
-) -> tuple[str | None, str | None]:
-    case_val = case
-    if not case_val and source_handle and not source_handle.startswith(f"{source}_"):
-        case_val = source_handle
-    if case_val:
+def _resolve_handle(flow_data: GraphFlowData, node_id: str, handle: str | None) -> str | None:
+    if not handle:
+        return None
+    node = next((n for n in flow_data.nodes if n.id == node_id), None)
+    if node and hasattr(node, "branches"):
+        if handle.startswith(f"{node_id}_"):
+            return handle
         from app.graphs.nodes import _make_slot_id
 
-        return _make_slot_id(source, case_val), case_val
-    return source_handle, case
-
-
-class CreateNodeOp(BaseModel):
-    """Create an empty node shell of the specified type."""
-
-    model_config = ConfigDict(extra="forbid")
-    op: Literal["create_node"] = "create_node"
-    node_id: str = Field(description="The unique identifier for the new node to create.")
-    node_type: NodeType = Field(description="The functional type of the node.")
+        for b in getattr(node, "branches", []):
+            if b.label == handle or b.id == handle:
+                return cast(str, b.id)
+        return _make_slot_id(node_id, handle)
+    return handle
 
 
 class DeleteNodeOp(BaseModel):
-    """Delete a node and all of its incoming/outgoing connections."""
-
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
-    node_id: str = Field(description="The ID of the node to delete.")
-
-
-class ConnectOp(BaseModel):
-    """Draw a connection edge from a source node/branch to a target node. The branch (case label) must already exist on the switch node prior to connecting."""
-
-    model_config = ConfigDict(extra="forbid")
-    op: Literal["connect"] = "connect"
-    source: str = Field(description="The ID of the source node originating the connection.")
-    source_handle: SkipJsonSchema[str | None] = None
-    target: str = Field(description="The ID of the target node receiving the connection.")
-    target_handle: SkipJsonSchema[str | None] = None
-    case: str | None = Field(default=None, description="The case label / branch option name if connecting from a switch node branch.")
-
-    @model_validator(mode="after")
-    def resolve_case_handle(self) -> ConnectOp:
-        self.source_handle, self.case = _resolve_case_handle_fields(self.source, self.case, self.source_handle)
-        return self
-
-
-class DisconnectOp(BaseModel):
-    """Remove a connection edge between a source node/handle and target node/handle."""
-
-    model_config = ConfigDict(extra="forbid")
-    op: Literal["disconnect"] = "disconnect"
-    source: str = Field(description="The ID of the source node.")
-    source_handle: SkipJsonSchema[str | None] = None
-    target: str = Field(description="The ID of the target node.")
-    target_handle: SkipJsonSchema[str | None] = None
-    case: str | None = Field(default=None, description="The case label / branch option name of the switch branch connection to disconnect.")
-
-    @model_validator(mode="after")
-    def resolve_case_handle(self) -> DisconnectOp:
-        self.source_handle, self.case = _resolve_case_handle_fields(self.source, self.case, self.source_handle)
-        return self
-
-
-class AddSwitchBranchOp(BaseModel):
-    """Add a new empty branch to a switch node."""
-
-    model_config = ConfigDict(extra="forbid")
-    op: Literal["add_switch_branch"] = "add_switch_branch"
-    node_id: str = Field(description="The ID of the switch node to add the branch to.")
-    label: str = Field(description="The routing label for the new branch option.")
-
-
-class RemoveSwitchBranchOp(BaseModel):
-    """Remove a branch from a switch node and clean up its outgoing connections."""
-
-    model_config = ConfigDict(extra="forbid")
-    op: Literal["remove_switch_branch"] = "remove_switch_branch"
-    node_id: str = Field(description="The ID of the switch node.")
-    label: str = Field(description="The routing label of the branch option to remove.")
-
-
-def create_node(flow_data: GraphFlowData, op: CreateNodeOp) -> GraphFlowData:
-    nodes = flow_data.nodes
-    if any(n.id == op.node_id for n in nodes):
-        raise ValidationError(f"Node '{op.node_id}' already exists.")
-
-    node_cls = NODE_CLASS_MAP.get(op.node_type)
-    if not node_cls:
-        raise ValidationError(f"Unsupported node type: {op.node_type}")
-
-    new_node = node_cls.model_validate({"id": op.node_id, "node_type": op.node_type})
-    nodes.append(cast(NodeRead, new_node))
-    return flow_data
+    node_id: str
 
 
 def delete_node(flow_data: GraphFlowData, op: DeleteNodeOp) -> GraphFlowData:
@@ -127,7 +51,19 @@ def delete_node(flow_data: GraphFlowData, op: DeleteNodeOp) -> GraphFlowData:
     return flow_data
 
 
-def connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
+class ConnectNodesOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["connect_nodes"] = "connect_nodes"
+    source: str = Field(description="The ID of the source node.")
+    target: str = Field(description="The ID of the target node.")
+    source_handle: str | None = Field(
+        default=None,
+        description="The branch label / case option name if connecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH)."
+    )
+    target_handle: str | None = Field(default=None, description="The target handle option name. Usually None.")
+
+
+def connect_nodes(flow_data: GraphFlowData, op: ConnectNodesOp) -> GraphFlowData:
     nodes = flow_data.nodes
     edges = flow_data.edges
 
@@ -139,88 +75,58 @@ def connect(flow_data: GraphFlowData, op: ConnectOp) -> GraphFlowData:
     if not target_node:
         raise ValidationError(f"Target Node '{op.target}' not found.")
 
-    if hasattr(source_node, "branches"):
-        if not op.source_handle:
-            raise ValidationError(f"Source node '{op.source}' requires a case label or source_handle to connect.")
-        if not any(b.id == op.source_handle for b in getattr(source_node, "branches", [])):
-            raise ValidationError(
-                f"Source handle/case '{op.case or op.source_handle}' not found on node '{op.source}'."
-            )
+    resolved_source_handle = _resolve_handle(flow_data, op.source, op.source_handle)
+    resolved_target_handle = _resolve_handle(flow_data, op.target, op.target_handle)
 
-    if op.source_handle:
-        flow_data.edges = [e for e in edges if not (e.source == op.source and e.source_handle == op.source_handle)]
+    if hasattr(source_node, "branches"):
+        if not resolved_source_handle:
+            raise ValidationError(f"Source node '{op.source}' requires a case label or source_handle to connect.")
+        if not any(b.id == resolved_source_handle for b in getattr(source_node, "branches", [])):
+            raise ValidationError(f"Source handle/case '{op.source_handle}' not found on node '{op.source}'.")
+
+    # De-duplicate: remove any matching connection from same output handle
+    if resolved_source_handle:
+        flow_data.edges = [
+            e for e in edges if not (e.source == op.source and e.source_handle == resolved_source_handle)
+        ]
     else:
         flow_data.edges = [e for e in edges if not (e.source == op.source and e.source_handle is None)]
 
     new_edge = EdgeRead(
         id=uuid.uuid4(),
         source=op.source,
-        source_handle=op.source_handle,
+        source_handle=resolved_source_handle,
         target=op.target,
-        target_handle=op.target_handle,
+        target_handle=resolved_target_handle,
     )
     flow_data.edges.append(new_edge)
     return flow_data
 
 
-def disconnect(flow_data: GraphFlowData, op: DisconnectOp) -> GraphFlowData:
+class DisconnectNodesOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    op: Literal["disconnect_nodes"] = "disconnect_nodes"
+    source: str = Field(description="The ID of the source node.")
+    target: str = Field(description="The ID of the target node.")
+    source_handle: str | None = Field(
+        default=None,
+        description="The branch label / case option name if disconnecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH)."
+    )
+    target_handle: str | None = Field(default=None, description="The target handle option name. Usually None.")
+
+
+def disconnect_nodes(flow_data: GraphFlowData, op: DisconnectNodesOp) -> GraphFlowData:
+    resolved_source_handle = _resolve_handle(flow_data, op.source, op.source_handle)
+    resolved_target_handle = _resolve_handle(flow_data, op.target, op.target_handle)
+
     flow_data.edges = [
         e
         for e in flow_data.edges
         if not (
             e.source == op.source
-            and e.source_handle == op.source_handle
+            and e.source_handle == resolved_source_handle
             and e.target == op.target
-            and e.target_handle == op.target_handle
+            and e.target_handle == resolved_target_handle
         )
     ]
-    return flow_data
-
-
-def add_switch_branch(flow_data: GraphFlowData, op: AddSwitchBranchOp) -> GraphFlowData:
-    target_node = next((n for n in flow_data.nodes if n.id == op.node_id), None)
-    if not target_node:
-        raise ValidationError(f"Node '{op.node_id}' not found.")
-
-    if not target_node.supports_branches:
-        raise ValidationError(f"Node '{op.node_id}' does not support branches.")
-
-    if any(b.label == op.label for b in getattr(target_node, "branches", [])):
-        raise ValidationError(f"Branch '{op.label}' already exists on node '{op.node_id}'.")
-
-    from app.graphs.nodes import AgenticBranch, Branch, _make_slot_id
-
-    if isinstance(target_node, LogicalSwitchNode):
-        logical_branch = Branch(label=op.label)
-        logical_branch.id = _make_slot_id(target_node.id, op.label)
-        target_node.branches.append(logical_branch)
-    elif isinstance(target_node, AgenticSwitchNode):
-        agentic_branch = AgenticBranch(label=op.label)
-        agentic_branch.id = _make_slot_id(target_node.id, op.label)
-        target_node.branches.append(agentic_branch)
-    return flow_data
-
-
-def remove_switch_branch(flow_data: GraphFlowData, op: RemoveSwitchBranchOp) -> GraphFlowData:
-    nodes = flow_data.nodes
-    edges = flow_data.edges
-    node_id = op.node_id
-    label = op.label
-
-    target_node = next((n for n in nodes if n.id == node_id), None)
-    if not target_node:
-        raise ValidationError(f"Node '{node_id}' not found.")
-
-    if not target_node.supports_branches:
-        raise ValidationError(f"Node '{node_id}' of type '{target_node.node_type}' does not support branches.")
-
-    if isinstance(target_node, LogicalSwitchNode):
-        target_node.branches = [b for b in target_node.branches if b.label != label]
-    elif isinstance(target_node, AgenticSwitchNode):
-        target_node.branches = [b for b in target_node.branches if b.label != label]
-
-    from app.graphs.nodes import _make_slot_id
-
-    branch_handle_id = _make_slot_id(node_id, label)
-    flow_data.edges = [e for e in edges if not (e.source == node_id and e.source_handle == branch_handle_id)]
     return flow_data
