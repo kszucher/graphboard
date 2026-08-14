@@ -4,9 +4,9 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
-from app.context import UnitOfWork
+from app.core.context import UnitOfWork
 from app.copilot.workflow import copilot_graph
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.schemas import GraphFlowData
 from app.graphs.serializer import serialize_flow_to_code
 

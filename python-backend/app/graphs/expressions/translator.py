@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 
 
 class PolarsToPythonTransformer(ast.NodeTransformer):

@@ -47,7 +47,7 @@ class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
                 branch.id = branch.id.replace(f"{old_id}_", f"{new_id}_", 1)
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
-        from app.exceptions import ValidationError
+        from app.core.exceptions import ValidationError
 
         for branch in self.branches:
             if (self.id, branch.id) not in edge_sources:

@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.events import broker
+from app.api.events import broker
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 

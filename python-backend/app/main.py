@@ -4,9 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import graphs, users, ws
-from app.config import settings
-from app.exceptions import GraphboardError
+from app import graphs, users
+from app.api import ws
+from app.core.config import settings
+from app.core.exceptions import GraphboardError
 
 logger = logging.getLogger(__name__)
 

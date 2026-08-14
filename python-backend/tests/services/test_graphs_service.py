@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import select
 
 from app.constants import EventName
-from app.context import UnitOfWork
+from app.core.context import UnitOfWork
 from app.graphs import service as graphs_service
 from app.graphs.operations.upsert_ops import UpsertLogicalAssignerOp
-from app.models import Graph, GraphHistory, User
+from app.core.base.models import Graph, GraphHistory, User
 
 
 @pytest.mark.asyncio

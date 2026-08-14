@@ -19,7 +19,7 @@ class AgenticAssignerConfig(BaseModel):
 
 class AgenticAssignerNode(BaseNode, AgenticAssignerConfig):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
-        from app.exceptions import ValidationError
+        from app.core.exceptions import ValidationError
 
         if not self.prompt or not self.prompt.strip():
             raise ValidationError(f"Node '{self.id}' has an empty prompt.")

@@ -20,7 +20,7 @@ class RagRetrieverConfig(BaseModel):
 
 class RagRetrieverNode(BaseNode, RagRetrieverConfig):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
-        from app.exceptions import ValidationError
+        from app.core.exceptions import ValidationError
 
         if not self.query_var:
             raise ValidationError(f"RAG node '{self.id}' requires a query_var.")

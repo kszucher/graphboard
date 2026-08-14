@@ -1,6 +1,6 @@
 import pytest
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.expressions import (
     expression_to_code,
     get_expression_variables,

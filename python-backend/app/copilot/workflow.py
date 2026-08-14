@@ -12,7 +12,7 @@ from pydantic import TypeAdapter
 from app.copilot.agents.planner import generate_plan
 from app.copilot.logger import log_validation_error
 from app.copilot.models import CopilotState
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs import operations
 from app.graphs.operations import GraphOperation
 from app.graphs.schemas import GraphFlowData

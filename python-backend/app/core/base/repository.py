@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Base
+from app.core.base.models import Base
 
 T = TypeVar("T", bound=Base)
 CreateSchema = TypeVar("CreateSchema", bound=BaseModel)

@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from .config import settings
-from .events import GraphEventBroker, get_broker
+from app.core.config import settings
+from app.api.events import GraphEventBroker, get_broker
 
 if TYPE_CHECKING:
-    from .context import UnitOfWork
+    from app.core.context import UnitOfWork
 
 
 def _build_engine() -> AsyncEngine:

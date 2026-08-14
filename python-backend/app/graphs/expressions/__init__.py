@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.expressions.schemas import ComparisonExpression as ComparisonExpression
 from app.graphs.expressions.schemas import Expression as Expression
 from app.graphs.expressions.translator import translate_polars_to_python as translate_polars_to_python

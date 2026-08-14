@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.schemas import GraphFlowData
 
 

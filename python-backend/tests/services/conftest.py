@@ -6,9 +6,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.context import UnitOfWork
-from app.events import GraphEventBroker
-from app.models import Base, Graph, GraphHistory, User
+from app.core.context import UnitOfWork
+from app.api.events import GraphEventBroker
+from app.core.base.models import Base, Graph, GraphHistory, User
 
 
 @pytest.fixture(scope="session")

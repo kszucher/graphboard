@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.nodes import StartNode
 from app.graphs.schemas import GraphFlowData
 from app.graphs.variables import get_node_variable_references

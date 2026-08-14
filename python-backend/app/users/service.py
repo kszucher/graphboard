@@ -4,7 +4,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.context import UnitOfWork
+    from app.core.context import UnitOfWork
 
 
 async def get_or_create_user(uow: UnitOfWork) -> uuid.UUID:

@@ -5,7 +5,7 @@ from typing import Annotated, TypeAlias
 
 from pydantic import Field
 
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.schemas import GraphFlowData
 
 from .rename_ops import (

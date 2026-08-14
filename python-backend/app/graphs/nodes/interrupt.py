@@ -18,7 +18,7 @@ class InterruptConfig(BaseModel):
 
 class InterruptNode(BaseNode, InterruptConfig):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
-        from app.exceptions import ValidationError
+        from app.core.exceptions import ValidationError
 
         if not self.resume_var:
             raise ValidationError(f"Interrupt node '{self.id}' must have a valid resume_var.")

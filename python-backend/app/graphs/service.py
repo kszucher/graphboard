@@ -5,14 +5,14 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from app.constants import EventName
-from app.exceptions import ValidationError
+from app.core.exceptions import ValidationError
 from app.graphs.compiler import generate_graph_code
 from app.graphs.integrity import assert_flow_is_complete
 from app.graphs.operations import GraphOperation
 from app.graphs.schemas import GraphFlowData
 
 if TYPE_CHECKING:
-    from app.context import UnitOfWork
+    from app.core.context import UnitOfWork
 
 
 async def create_graph(

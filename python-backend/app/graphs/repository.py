@@ -6,9 +6,9 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import models
+from app.core.base import models
 from app.graphs.schemas import GraphCreate
-from app.repository import BaseRepository
+from app.core.base.repository import BaseRepository
 
 
 class GraphRepository(BaseRepository[models.Graph, GraphCreate, GraphCreate]):

@@ -3,9 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.context import UnitOfWork
+from app.core.context import UnitOfWork
 from app.copilot import service as copilot_service
-from app.db import get_uow
+from app.core.db import get_uow
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 

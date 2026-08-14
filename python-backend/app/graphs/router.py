@@ -3,8 +3,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, status
 
-from app.context import UnitOfWork
-from app.db import get_uow
+from app.core.context import UnitOfWork
+from app.core.db import get_uow
 from app.graphs import service as graph_service
 from app.graphs.schemas import (
     GraphCodeRead,
