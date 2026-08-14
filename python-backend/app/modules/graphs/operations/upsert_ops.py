@@ -132,6 +132,8 @@ class UpsertAgenticAssignerOp(BaseModel):
 
 
 def upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssignerOp) -> GraphFlowData:
+    import re
+
     from app.modules.graphs.nodes.agentic_assigner import AgenticAssignerNode
 
     node = next((n for n in flow_data.nodes if n.id == op.node_id), None)
@@ -142,13 +144,18 @@ def upsert_agentic_assigner(flow_data: GraphFlowData, op: UpsertAgenticAssignerO
         node = AgenticAssignerNode(id=op.node_id)
         flow_data.nodes.append(node)
 
-    ensure_variables_initialized(flow_data, set(op.agentic_inputs), op.node_id)
+    # Auto-infer variables referenced in the prompt that match valid state keys
+    valid_keys = {v.key for v in flow_data.state if v.key}
+    prompt_vars = {var for var in re.findall(r"\{([a-zA-Z0-9_]+)\}", op.prompt or "") if var in valid_keys}
+    merged_inputs = list(set(op.agentic_inputs) | prompt_vars)
+
+    ensure_variables_initialized(flow_data, set(merged_inputs), op.node_id)
 
     for out in op.agentic_outputs:
         default_val = get_default_value_for_type(out.type)
         auto_declare_variable(flow_data, out.key, out.type, default_val, out.description)
 
-    node.agentic_inputs = op.agentic_inputs
+    node.agentic_inputs = merged_inputs
     node.agentic_outputs = [out.key for out in op.agentic_outputs]
     node.prompt = op.prompt
     return flow_data

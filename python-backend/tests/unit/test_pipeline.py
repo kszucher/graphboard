@@ -64,3 +64,39 @@ def test_pipeline_basic() -> None:
     assert len(flow.state) == 1
     assert flow.state[0].key == "score"
     assert "expr_check_guaranteed_win" not in flow.expressions
+
+
+def test_upsert_agentic_assigner_auto_infer() -> None:
+    from app.modules.graphs.operations.upsert_ops import UpsertAgenticAssignerOp
+    from app.modules.graphs.schemas import DefinerVariableSchema
+
+    # Initial state with some variables
+    flow = GraphFlowData(
+        nodes=[],
+        edges=[],
+        state=[
+            DefinerVariableSchema(id="1", key="score", type="number", default_value=0),
+            DefinerVariableSchema(id="2", key="topic", type="string", default_value="Space"),
+            DefinerVariableSchema(id="3", key="display_text", type="string", default_value=""),
+        ],
+    )
+
+    # Upsert agentic assigner where prompt references "topic" and "display_text"
+    # and has literal JSON braces (which should not be extracted).
+    # agentic_inputs is empty, but it should auto-infer ["topic", "display_text"]
+    flow = apply_patch(
+        flow,
+        [
+            UpsertAgenticAssignerOp(
+                op="upsert_agentic_assigner",
+                node_id="agentic_node",
+                agentic_inputs=[],
+                agentic_outputs=[],
+                prompt="Prompt using {topic} and {display_text} and literal json snippet: {'key': 'value'}",
+            )
+        ],
+    )
+
+    node = next(n for n in flow.nodes if n.id == "agentic_node")
+    # Verify inputs were auto-inferred
+    assert set(node.agentic_inputs) == {"topic", "display_text"}
