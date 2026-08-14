@@ -28,9 +28,9 @@ class BindLogicalAssignmentOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["bind_logical_assignment"] = "bind_logical_assignment"
-    node_id: str
-    target_var_key: str
-    expr_id: str
+    node_id: str = Field(description="The ID of the logical assigner node to bind the assignment to.")
+    target_var_key: str = Field(description="The state variable name/key targeted by this assignment.")
+    expr_id: str = Field(description="The ID of the evaluation expression to assign to the variable.")
 
 
 class BindBranchConditionOp(BaseModel):
@@ -38,9 +38,9 @@ class BindBranchConditionOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["bind_branch_condition"] = "bind_branch_condition"
-    node_id: str
-    branch_label: str
-    expr_id: str
+    node_id: str = Field(description="The ID of the logical switch node containing the branch.")
+    branch_label: str = Field(description="The human-readable label of the branch to bind the expression to.")
+    expr_id: str = Field(description="The ID of the boolean condition expression to bind.")
 
 
 class ConfigureAgenticPromptOp(BaseModel):
@@ -48,10 +48,10 @@ class ConfigureAgenticPromptOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["configure_agentic_prompt"] = "configure_agentic_prompt"
-    node_id: str
-    prompt: str
-    agentic_inputs: list[str] = Field(default_factory=list)
-    agentic_outputs: list[str] = Field(default_factory=list)
+    node_id: str = Field(description="The ID of the agentic assigner node to configure.")
+    prompt: str = Field(description="The system/user prompt template with variable brackets (e.g. {var}).")
+    agentic_inputs: list[str] = Field(default_factory=list, description="List of variable keys injected into the prompt templates.")
+    agentic_outputs: list[str] = Field(default_factory=list, description="List of variable keys outputted by this prompt/LLM invocation.")
 
 
 class ConfigureAgenticSwitchOp(BaseModel):
@@ -59,8 +59,8 @@ class ConfigureAgenticSwitchOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["configure_agentic_switch"] = "configure_agentic_switch"
-    node_id: str
-    agentic_input: str
+    node_id: str = Field(description="The ID of the agentic switch node to configure.")
+    agentic_input: str = Field(description="The state variable key evaluated by the agentic switch to route downstream.")
 
 
 class ConfigureRagSearchOp(BaseModel):
@@ -68,11 +68,11 @@ class ConfigureRagSearchOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["configure_rag_search"] = "configure_rag_search"
-    node_id: str
-    knowledge_base: str = "trivia"
-    top_k: int = 3
-    query_var: str
-    context_output_var: str
+    node_id: str = Field(description="The ID of the RAG retriever node to configure.")
+    knowledge_base: str = Field(default="trivia", description="The knowledge base namespace/table name to query.")
+    top_k: int = Field(default=3, description="The maximum number of document chunks to retrieve.")
+    query_var: str = Field(description="The state variable containing the text query to search.")
+    context_output_var: str = Field(description="The state variable where the aggregated retrieval context should be stored.")
 
 
 class ConfigureInterruptOp(BaseModel):
@@ -80,9 +80,9 @@ class ConfigureInterruptOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["configure_interrupt"] = "configure_interrupt"
-    node_id: str
-    payload_vars: list[str] = Field(default_factory=list)
-    resume_var: str
+    node_id: str = Field(description="The ID of the interrupt node to configure.")
+    payload_vars: list[str] = Field(default_factory=list, description="The list of state variable keys sent to the user as payload.")
+    resume_var: str = Field(description="The state variable key that stores the user's resumed response.")
 
 
 def bind_logical_assignment(flow_data: GraphFlowData, op: BindLogicalAssignmentOp) -> GraphFlowData:

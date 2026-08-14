@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.constants import NodeType
@@ -32,8 +32,8 @@ class CreateNodeOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["create_node"] = "create_node"
-    node_id: str
-    node_type: NodeType
+    node_id: str = Field(description="The unique identifier for the new node to create.")
+    node_type: NodeType = Field(description="The functional type of the node.")
 
 
 class DeleteNodeOp(BaseModel):
@@ -41,7 +41,7 @@ class DeleteNodeOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["delete_node"] = "delete_node"
-    node_id: str
+    node_id: str = Field(description="The ID of the node to delete.")
 
 
 class ConnectOp(BaseModel):
@@ -49,11 +49,11 @@ class ConnectOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["connect"] = "connect"
-    source: str
+    source: str = Field(description="The ID of the source node originating the connection.")
     source_handle: SkipJsonSchema[str | None] = None
-    target: str
+    target: str = Field(description="The ID of the target node receiving the connection.")
     target_handle: SkipJsonSchema[str | None] = None
-    case: str | None = None
+    case: str | None = Field(default=None, description="The case label / branch option name if connecting from a switch node branch.")
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> ConnectOp:
@@ -66,11 +66,11 @@ class DisconnectOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["disconnect"] = "disconnect"
-    source: str
+    source: str = Field(description="The ID of the source node.")
     source_handle: SkipJsonSchema[str | None] = None
-    target: str
+    target: str = Field(description="The ID of the target node.")
     target_handle: SkipJsonSchema[str | None] = None
-    case: str | None = None
+    case: str | None = Field(default=None, description="The case label / branch option name of the switch branch connection to disconnect.")
 
     @model_validator(mode="after")
     def resolve_case_handle(self) -> DisconnectOp:
@@ -83,8 +83,8 @@ class AddSwitchBranchOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["add_switch_branch"] = "add_switch_branch"
-    node_id: str
-    label: str
+    node_id: str = Field(description="The ID of the switch node to add the branch to.")
+    label: str = Field(description="The routing label for the new branch option.")
 
 
 class RemoveSwitchBranchOp(BaseModel):
@@ -92,8 +92,8 @@ class RemoveSwitchBranchOp(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     op: Literal["remove_switch_branch"] = "remove_switch_branch"
-    node_id: str
-    label: str
+    node_id: str = Field(description="The ID of the switch node.")
+    label: str = Field(description="The routing label of the branch option to remove.")
 
 
 def create_node(flow_data: GraphFlowData, op: CreateNodeOp) -> GraphFlowData:

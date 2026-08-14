@@ -1,9 +1,6 @@
-import json
-
 import pytest
 from pydantic import ValidationError
 
-from app.copilot.tools import translate_tool_calls_to_operations
 from app.graphs.expressions.schemas import LiteralExpr
 from app.graphs.nodes import (
     Branch,
@@ -77,33 +74,6 @@ def test_sort_operations_by_dependency() -> None:
     assert sorted_ops[1].op == "create_node"
     assert sorted_ops[2].op == "connect"
 
-
-class MockToolCallFunction:
-    def __init__(self, name: str, arguments: str):
-        self.name = name
-        self.arguments = arguments
-
-
-class MockToolCall:
-    def __init__(self, func_name: str, arguments: str):
-        self.id = "mock_call"
-        self.type = "function"
-        self.function = MockToolCallFunction(func_name, arguments)
-
-
-def test_translate_tool_calls_to_operations() -> None:
-    tool_calls = [
-        MockToolCall("declare_variable", json.dumps({"key": "score", "type": "number", "default_value": 0})),
-        MockToolCall("connect", json.dumps({"source": "test_node", "target": "end", "case": "Yes"})),
-    ]
-
-    ops = translate_tool_calls_to_operations(tool_calls)
-    assert len(ops) == 2
-    assert isinstance(ops[0], DeclareVariableOp)
-    assert ops[0].key == "score"
-
-    assert isinstance(ops[1], ConnectOp)
-    assert ops[1].source_handle == "test_node_yes"
 
 
 def test_strict_validation_forbids_extra_fields() -> None:

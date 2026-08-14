@@ -71,13 +71,13 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 * **AST Expressions Consolidation**: Centralized expression-to-code, variable tracking, and cascading renames into the expression module, deleting duplicate recursive traversals across the codebase.
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
-* **Dual-Stage LangGraph Copilot**: Implemented a multi-stage planner/executor workflow using Groq LLM tool-calling. A `planner_node` establishes a high-level checklist; an `executor_node` translates it into structured `GraphOperation` patches.
+* **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.
 * **Human-in-the-Loop Interruption**: Configured LangGraph state interrupts (`wait_for_plan_node`, `wait_for_apply_node`) to pause execution at each stage for user review before committing changes.
-* **Dry-Run Validation**: Agent-generated patches are validated against the backend's mutations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
-* **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary.
+* **Dry-Run Validation**: Planner-generated patches are validated against the backend's mutations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
+* **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary. The earlier multi-agent (planner → 3 sub-agent LLMs) design was abandoned because sub-agents consistently hallucinated argument values and swapped tool parameters despite receiving pre-filled params.
 * **🔮 Next Steps / Active R&D**:
-  * **Self-Correction Retry Loops**: Route compiler and dry-run traceback exceptions back into the LangGraph state machine so the LLM agent can auto-correct its operations on validation failure.
-  * **Automated Agent Evals**: Set up regression-testing suites and an LLM-as-a-judge eval harness to measure agent accuracy across common graph editing scenarios.
+  * **Self-Correction Retry Loops**: Route compiler and dry-run traceback exceptions back into the LangGraph state machine so the LLM planner can auto-correct its operations on validation failure.
+  * **Automated Agent Evals**: Set up regression-testing suites and an LLM-as-a-judge eval harness to measure planner accuracy across common graph editing scenarios.
 
 ---
 

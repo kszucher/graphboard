@@ -7,39 +7,17 @@ from typing import Any, Literal
 from groq import AsyncGroq
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from pydantic import TypeAdapter
 
-from app.copilot.agents.config_agent import execute_config_tasks
 from app.copilot.agents.planner import generate_plan
-from app.copilot.agents.state_agent import execute_state_tasks
-from app.copilot.agents.topology_agent import execute_topology_tasks
 from app.copilot.logger import log_validation_error
 from app.copilot.models import CopilotState
-from app.copilot.tools import translate_tool_calls_to_operations
 from app.exceptions import ValidationError
 from app.graphs import operations
+from app.graphs.operations import GraphOperation
 from app.graphs.schemas import GraphFlowData
-from app.graphs.serializer import serialize_flow_to_code
 
 logger = logging.getLogger(__name__)
-
-
-def _get_current_state_message(state: CopilotState) -> str:
-    """Computes the current graph state by applying accumulated operations."""
-    flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
-    current_ops_raw = state.get("operations") or []
-
-    if current_ops_raw:
-        from pydantic import TypeAdapter
-
-        from app.graphs.operations import GraphOperation
-
-        ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in current_ops_raw]
-        sorted_ops = operations.sort_operations_by_dependency(ops)
-        operations.apply_patch(flow_data, sorted_ops)
-
-    current_serialized_state = serialize_flow_to_code(flow_data)
-
-    return f"## Current Graph State:\n{current_serialized_state}\n\n## User Request:\n{state['user_prompt']}"
 
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
@@ -63,88 +41,28 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     return {
         "agent_checklist": checklist,
         "operations": [],
-        "plan": [],  # We will populate this in the aggregation node for the UI
+        "plan": [],
     }
 
 
-async def state_agent_node(state: CopilotState) -> dict[str, Any]:
-    """Invokes the State Agent to execute variable and expression tasks."""
+def translate_plan_node(state: CopilotState) -> dict[str, Any]:
+    """Deterministically validates planner operations.
+
+    No LLM call — just dict-to-Pydantic validation.
+    """
     checklist = state.get("agent_checklist") or {}
-    tasks = checklist.get("state_tasks", [])
-    if not tasks:
-        return {}
+    raw_ops = checklist.get("operations") or []
 
-    api_key = os.environ.get("GROQ_API_KEY")
-    client = AsyncGroq(api_key=api_key)
+    ops: list[dict[str, Any]] = []
+    for op in raw_ops:
+        validated_op: GraphOperation = TypeAdapter(GraphOperation).validate_python(op)
+        ops.append(validated_op.model_dump(mode="json"))
 
-    messages = [
-        {
-            "role": "user",
-            "content": _get_current_state_message(state),
-        },
-    ]
-
-    tool_calls = await execute_state_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
-    ops = translate_tool_calls_to_operations(tool_calls)
-
-    current_ops = state.get("operations") or []
-    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
-
-
-async def topology_agent_node(state: CopilotState) -> dict[str, Any]:
-    """Invokes the Topology Agent to execute node creation and wiring tasks."""
-    checklist = state.get("agent_checklist") or {}
-    tasks = checklist.get("topology_tasks", [])
-    if not tasks:
-        return {}
-
-    api_key = os.environ.get("GROQ_API_KEY")
-    client = AsyncGroq(api_key=api_key)
-
-    messages = [
-        {
-            "role": "user",
-            "content": _get_current_state_message(state),
-        },
-    ]
-
-    tool_calls = await execute_topology_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
-    ops = translate_tool_calls_to_operations(tool_calls)
-
-    current_ops = state.get("operations") or []
-    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
-
-
-async def config_agent_node(state: CopilotState) -> dict[str, Any]:
-    """Invokes the Config Agent to execute logic and prompt injection tasks."""
-    checklist = state.get("agent_checklist") or {}
-    tasks = checklist.get("config_tasks", [])
-    if not tasks:
-        return {}
-
-    api_key = os.environ.get("GROQ_API_KEY")
-    client = AsyncGroq(api_key=api_key)
-
-    messages = [
-        {
-            "role": "user",
-            "content": _get_current_state_message(state),
-        },
-    ]
-
-    tool_calls = await execute_config_tasks(client, state["trace_id"], state.get("graph_id", ""), messages, tasks)
-    ops = translate_tool_calls_to_operations(tool_calls)
-
-    current_ops = state.get("operations") or []
-    return {"operations": current_ops + [op.model_dump(mode="json") for op in ops]}
+    return {"operations": ops}
 
 
 def aggregation_node(state: CopilotState) -> dict[str, Any]:
     """Aggregates all operations into a human-readable plan for the UI."""
-    from pydantic import TypeAdapter
-
-    from app.graphs.operations import GraphOperation
-
     state_ops = state.get("operations") or []
     try:
         validated_ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
@@ -175,10 +93,6 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         return {}
 
     try:
-        from pydantic import TypeAdapter
-
-        from app.graphs.operations import GraphOperation
-
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
         state_ops = state.get("operations") or []
         ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
@@ -226,9 +140,7 @@ def route_after_apply(state: CopilotState) -> Literal["apply_node", "__end__"]:
 workflow = StateGraph(CopilotState)
 
 workflow.add_node("planner_node", planner_node)
-workflow.add_node("state_agent_node", state_agent_node)
-workflow.add_node("topology_agent_node", topology_agent_node)
-workflow.add_node("config_agent_node", config_agent_node)
+workflow.add_node("translate_plan_node", translate_plan_node)
 workflow.add_node("aggregation_node", aggregation_node)
 workflow.add_node("wait_for_plan_node", wait_for_plan_node)
 workflow.add_node("validation_node", validation_node)
@@ -236,10 +148,8 @@ workflow.add_node("wait_for_apply_node", wait_for_apply_node)
 workflow.add_node("apply_node", apply_node)
 
 workflow.add_edge(START, "planner_node")
-workflow.add_edge("planner_node", "state_agent_node")
-workflow.add_edge("state_agent_node", "topology_agent_node")
-workflow.add_edge("topology_agent_node", "config_agent_node")
-workflow.add_edge("config_agent_node", "aggregation_node")
+workflow.add_edge("planner_node", "translate_plan_node")
+workflow.add_edge("translate_plan_node", "aggregation_node")
 workflow.add_edge("aggregation_node", "wait_for_plan_node")
 workflow.add_conditional_edges("wait_for_plan_node", route_after_plan)
 workflow.add_edge("validation_node", "wait_for_apply_node")
