@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 

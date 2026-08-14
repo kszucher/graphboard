@@ -58,7 +58,7 @@ class ConnectNodesOp(BaseModel):
     target: str = Field(description="The ID of the target node.")
     source_handle: str | None = Field(
         default=None,
-        description="The branch label / case option name if connecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH)."
+        description="The branch label / case option name if connecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH).",
     )
     target_handle: str | None = Field(default=None, description="The target handle option name. Usually None.")
 
@@ -110,7 +110,7 @@ class DisconnectNodesOp(BaseModel):
     target: str = Field(description="The ID of the target node.")
     source_handle: str | None = Field(
         default=None,
-        description="The branch label / case option name if disconnecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH)."
+        description="The branch label / case option name if disconnecting from a switch node. REQUIRED if the source node is a switch (LOGICAL_SWITCH or AGENTIC_SWITCH).",
     )
     target_handle: str | None = Field(default=None, description="The target handle option name. Usually None.")
 

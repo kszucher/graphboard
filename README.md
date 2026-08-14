@@ -12,7 +12,7 @@ Second iteration of this idea, building directly on **Mapboard** (a previous cli
 ---
 
 ## 🌟 Core Engineering Highlights
-* **Agentic LangGraph Copilot:** Orchestrates modifications using a dual-stage (Planner $\rightarrow$ Executor) LangGraph agent with human-in-the-loop validation checkpoints.
+* **Agentic LangGraph Copilot:** Orchestrates modifications using a single-call Planner and deterministic translation LangGraph workflow with human-in-the-loop validation checkpoints.
 * **Real-time AST Compiler:** Dynamically compiles the visual graph schema directly into native Python LangGraph code.
 * **Transactional Patch Protocol:** Modifies graph topology programmatically via structured `GraphOperation` patches, ensuring referential integrity and cascading updates.
 * **Isolated Subprocess Sandbox:** Runs compiled user workflows inside a dedicated spawned subprocess with a hard 5-second timeout, terminating it explicitly to protect the main FastAPI server from infinite loops.
@@ -66,14 +66,14 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 * **Subprocess Isolation**: Compiled scripts run in a dedicated spawned subprocess with a hard timeout, preventing infinite loops from hanging the main API thread.
 
 ### Phase 3: Coarse-Grained Patch Mutations & Type Safety
-* **Consolidated mutations**: Unified topology and operations alterations under a single `mutations.py` module.
+* **Consolidated mutations**: Unified topology and operations alterations under the `operations` package (`app/graphs/operations/`) driven by a central pipeline.
 * **Discriminator Config Union**: Refactored `UpsertNodeOp` configuration payloads to be dynamically parsed and validated into strongly-typed config models (`LogicalAssignerConfig`, etc.) via Pydantic model validators.
 * **AST Expressions Consolidation**: Centralized expression-to-code, variable tracking, and cascading renames into the expression module, deleting duplicate recursive traversals across the codebase.
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
 * **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.
 * **Human-in-the-Loop Interruption**: Configured LangGraph state interrupts (`wait_for_plan_node`, `wait_for_apply_node`) to pause execution at each stage for user review before committing changes.
-* **Dry-Run Validation**: Planner-generated patches are validated against the backend's mutations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
+* **Dry-Run Validation**: Planner-generated patches are validated against the backend's operations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
 * **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary. The earlier multi-agent (planner → 3 sub-agent LLMs) design was abandoned because sub-agents consistently hallucinated argument values and swapped tool parameters despite receiving pre-filled params.
 * **🔮 Next Steps / Active R&D**:
   * **Self-Correction Retry Loops**: Route compiler and dry-run traceback exceptions back into the LangGraph state machine so the LLM planner can auto-correct its operations on validation failure.
@@ -93,16 +93,16 @@ graph TD
     classDef store fill:#181825,stroke:#a6e3a1,stroke-width:1px,color:#a6e3a1;
 
     User([👤 User]) -->|"Natural language prompt"| Planner["🧠 Planner Node"]
-    Planner -->|"Checklist approved"| Executor["⚡ Executor Node"]
-    Executor -->|"GraphOperation patches"| Validator["✅ Dry-run Validator"]
-    Validator -->|"Patch applied"| Mutations["⚙️ mutations.py"]
-    Mutations -->|"New snapshot"| History[("🗄️ Snapshot History")]
+    Planner -->|"Checklist"| Translator["⚡ Translation Node"]
+    Translator -->|"GraphOperation patches"| Validator["✅ Dry-run Validator"]
+    Validator -->|"Patch applied"| Operations["⚙️ operations/pipeline.py"]
+    Operations -->|"New snapshot"| History[("🗄️ Snapshot History")]
     History -->|"Compile"| Compiler["📝 AST Compiler"]
     Compiler -->|"Python script"| Canvas["💻 React Flow Canvas"]
     History -.->|"GRAPH_UPDATED via WebSocket"| Canvas
 
-    class Planner,Executor copilot;
-    class Validator,Mutations,Compiler backend;
+    class Planner,Translator copilot;
+    class Validator,Operations,Compiler backend;
     class History store;
     class Canvas ui;
     class User default;
