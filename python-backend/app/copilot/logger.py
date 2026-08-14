@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +32,7 @@ def log_llm_call(
             logged_messages.append(msg_copy)
 
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "graph_id": graph_id,
             "node_name": node_name,
             "model": model,
@@ -107,7 +107,7 @@ def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> Non
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "graph_id": graph_id,
             "step": "validation",
             "error": error,

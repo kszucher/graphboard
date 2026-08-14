@@ -76,11 +76,13 @@ def test_sort_operations_by_dependency() -> None:
 def test_strict_validation_forbids_extra_fields() -> None:
     # Extra/invalid fields on ConnectNodesOp should raise ValidationError
     try:
-        ConnectNodesOp(
-            op="connect_nodes",
-            source="a",
-            target="b",
-            invalid_extra_field="hello",
+        ConnectNodesOp.model_validate(
+            {
+                "op": "connect_nodes",
+                "source": "a",
+                "target": "b",
+                "invalid_extra_field": "hello",
+            }
         )
         raise AssertionError("Should have raised ValidationError")
     except ValidationError:

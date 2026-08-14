@@ -26,9 +26,9 @@ async def initiate_copilot_workflow(
     prompt: str,
 ) -> dict[str, Any]:
     """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     trace_id = f"{timestamp}_{graph_id}"
 
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)

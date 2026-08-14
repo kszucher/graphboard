@@ -1,4 +1,4 @@
-from app.graphs.operations.pipeline import apply_patch, sort_operations_by_dependency
+from app.graphs.operations.pipeline import GraphOperation, apply_patch, sort_operations_by_dependency
 from app.graphs.operations.rename_ops import RenameVariableOp
 from app.graphs.operations.topology_ops import ConnectNodesOp, DeleteNodeOp
 from app.graphs.operations.upsert_ops import AssignmentSchema, UpsertLogicalAssignerOp
@@ -9,7 +9,7 @@ def test_pipeline_basic() -> None:
     flow = GraphFlowData(nodes=[], edges=[], state=[])
 
     # 1. Test operation sorting
-    patch = [
+    patch: list[GraphOperation] = [
         ConnectNodesOp(op="connect_nodes", source="init", target="check"),
         UpsertLogicalAssignerOp(
             op="upsert_logical_assigner",
