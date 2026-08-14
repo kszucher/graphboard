@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.constants import EventName
+from app.core.constants import EventName
 
 
 # Shared event model

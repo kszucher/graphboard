@@ -17,8 +17,8 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
-from app.modules.copilot.models import CopilotState
 from app.modules.copilot import copilot_graph
+from app.modules.copilot.models import CopilotState
 from app.modules.graphs import operations
 from app.modules.graphs.operations import GraphOperation
 from app.modules.graphs.serializer import serialize_flow_to_code

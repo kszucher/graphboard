@@ -5,7 +5,7 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.constants import NodeType
+from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
 from app.modules.graphs.schemas import EdgeRead, GraphFlowData
 

@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from app.schemas import GraphEvent
+from app.api.schemas import GraphEvent
 
 
 class GraphEventBroker:

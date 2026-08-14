@@ -1,13 +1,13 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-LOGS_DIR = BASE_DIR / "logs"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+LOGS_DIR = BASE_DIR / "logs" / "copilot_runs"
 
 
 def log_llm_call(
@@ -32,7 +32,7 @@ def log_llm_call(
             logged_messages.append(msg_copy)
 
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "graph_id": graph_id,
             "node_name": node_name,
             "model": model,
@@ -107,7 +107,7 @@ def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> Non
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "graph_id": graph_id,
             "step": "validation",
             "error": error,

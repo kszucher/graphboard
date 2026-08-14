@@ -14,7 +14,7 @@ def _execute_langgraph_in_thread(code: str) -> dict[str, Any]:
     except Exception as e:
         return {"variables": [], "error": f"Compilation/Execution failed: {str(e)}"}
 
-    app = exec_globals.get("../..")
+    app = exec_globals.get("app")
     if not app:
         return {"variables": [], "error": "Compiled workflow does not define 'app'"}
 

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core.context import UnitOfWork
+from app.core.database import get_uow
 from app.modules.copilot import service as copilot_service
-from app.core.db import get_uow
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 

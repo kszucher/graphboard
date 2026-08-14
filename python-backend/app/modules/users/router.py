@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, status
 
 from app.core.context import UnitOfWork
-from app.core.db import get_uow
+from app.core.database import get_uow
 from app.modules.users import service as user_service
 from app.modules.users.schemas import ActiveGraphResponse, SetActiveGraph, UserCreate
 

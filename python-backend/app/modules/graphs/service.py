@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from app.constants import EventName
+from app.core.constants import EventName
 from app.core.exceptions import ValidationError
 from app.modules.graphs.compiler import generate_graph_code
 from app.modules.graphs.integrity import assert_flow_is_complete

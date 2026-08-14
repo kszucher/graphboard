@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, status
 
 from app.core.context import UnitOfWork
-from app.core.db import get_uow
+from app.core.database import get_uow
 from app.modules.graphs import service as graph_service
 from app.modules.graphs.schemas import (
     GraphCodeRead,

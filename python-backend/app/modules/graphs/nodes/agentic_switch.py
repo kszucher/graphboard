@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from app.constants import NodeType
+from app.core.constants import NodeType
 
 from .base import BaseNode, _make_slot_id
 

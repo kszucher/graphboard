@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
 from app.core.context import UnitOfWork
-from app.modules.copilot.workflow import copilot_graph
 from app.core.exceptions import ValidationError
+from app.modules.copilot.workflow import copilot_graph
 from app.modules.graphs.schemas import GraphFlowData
 from app.modules.graphs.serializer import serialize_flow_to_code
 
@@ -26,9 +27,9 @@ async def initiate_copilot_workflow(
     prompt: str,
 ) -> dict[str, Any]:
     """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     trace_id = f"{timestamp}_{graph_id}"
 
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)

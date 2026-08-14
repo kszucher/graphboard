@@ -6,8 +6,7 @@ from app.modules.graphs.nodes import (
     LogicalAssignmentSchema,
     LogicalSwitchNode,
 )
-from app.modules.graphs.operations import sort_operations_by_dependency
-from app.modules.graphs.operations import GraphOperation
+from app.modules.graphs.operations import GraphOperation, sort_operations_by_dependency
 from app.modules.graphs.operations.rename_ops import RenameVariableOp
 from app.modules.graphs.operations.topology_ops import ConnectNodesOp, connect_nodes
 from app.modules.graphs.operations.upsert_ops import UpsertLogicalSwitchOp

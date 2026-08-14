@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.constants import NodeType
+from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
 from app.modules.graphs.schemas import DefinerVariableSchema, ExpressionRecord, GraphFlowData, VariableType
 

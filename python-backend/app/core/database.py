@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from app.core.config import settings
 from app.api.events import GraphEventBroker, get_broker
+from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.core.context import UnitOfWork

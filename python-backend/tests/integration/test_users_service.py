@@ -3,8 +3,8 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from app.core.context import UnitOfWork
 from app.core.base.models import Graph, GraphHistory, User
+from app.core.context import UnitOfWork
 from app.modules.users import service as users_service
 
 

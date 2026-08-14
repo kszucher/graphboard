@@ -4,7 +4,7 @@ from typing import Annotated, TypeAlias
 
 from pydantic import Field
 
-from app.constants import NodeType
+from app.core.constants import NodeType
 
 from .agentic_assigner import AgenticAssignerConfig, AgenticAssignerNode
 from .agentic_switch import AgenticBranch, AgenticSwitchConfig, AgenticSwitchNode
