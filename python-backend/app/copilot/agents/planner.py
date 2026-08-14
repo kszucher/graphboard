@@ -46,12 +46,23 @@ class OperationPlan(BaseModel):
     )
 
 
+def prune_json_schema(schema: Any) -> Any:
+    """Recursively removes title metadata from the JSON schema to save token overhead."""
+    if isinstance(schema, dict):
+        return {k: prune_json_schema(v) for k, v in schema.items() if k != "title"}
+    elif isinstance(schema, list):
+        return [prune_json_schema(item) for item in schema]
+    return schema
+
+
 async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]]) -> OperationPlan:
     """Invokes the LLM to produce a structured operation plan."""
     import json
+    import os
 
     from app.copilot.logger import log_llm_call
 
+    model_name = os.environ.get("COPILOT_MODEL", "llama-3.3-70b-versatile")
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
     tool_schema = {
@@ -59,13 +70,13 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
         "function": {
             "name": "submit_plan",
             "description": "Submits the flat list of graph operations.",
-            "parameters": OperationPlan.model_json_schema(),
+            "parameters": prune_json_schema(OperationPlan.model_json_schema()),
         },
     }
 
     try:
         response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=model_name,
             messages=req_messages,
             tools=[tool_schema],
             tool_choice={"type": "function", "function": {"name": "submit_plan"}},
@@ -74,7 +85,7 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
         log_llm_call(
             trace_id=trace_id,
             node_name="planner_node",
-            model="llama-3.3-70b-versatile",
+            model=model_name,
             messages=req_messages,
             response=response,
             graph_id=graph_id,
@@ -83,7 +94,7 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
         log_llm_call(
             trace_id=trace_id,
             node_name="planner_node",
-            model="llama-3.3-70b-versatile",
+            model=model_name,
             messages=req_messages,
             error=str(e),
             graph_id=graph_id,
