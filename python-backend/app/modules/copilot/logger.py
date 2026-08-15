@@ -10,6 +10,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 LOGS_DIR = BASE_DIR / "logs" / "copilot_runs"
 
 
+def _append_to_log_file(log_file: Path, entry: dict[str, Any]) -> None:
+    entries = []
+    if log_file.exists():
+        try:
+            with open(log_file, encoding="utf-8") as f:
+                entries = json.load(f)
+                if not isinstance(entries, list):
+                    entries = [entries]
+        except Exception:
+            entries = []
+    entries.append(entry)
+    with open(log_file, "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+
+
 def log_llm_call(
     trace_id: str,
     node_name: str,
@@ -18,8 +33,9 @@ def log_llm_call(
     response: Any = None,
     error: str | None = None,
     graph_id: str | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Logs LLM request and response details to a separate pretty-printed JSON file per flow run."""
+    """Logs LLM request and response details to two versions of pretty-printed JSON files per flow run."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -78,32 +94,24 @@ def log_llm_call(
             log_entry["response"] = None
             log_entry["usage"] = None
 
+        log_entry_light = log_entry.copy()
+        log_entry_full = log_entry.copy()
+        if tools is not None:
+            log_entry_full["tools"] = tools
+
         run_name = trace_id
+        log_file_light = LOGS_DIR / f"flow_{run_name}.json"
+        log_file_full = LOGS_DIR / f"flow_{run_name}_full.json"
 
-        log_file = LOGS_DIR / f"flow_{run_name}.json"
-
-        # Load existing run entries if the file already exists
-        entries = []
-        if log_file.exists():
-            try:
-                with open(log_file, encoding="utf-8") as f:
-                    entries = json.load(f)
-                    if not isinstance(entries, list):
-                        entries = [entries]
-            except Exception:
-                entries = []
-
-        entries.append(log_entry)
-
-        with open(log_file, "w", encoding="utf-8") as f:
-            json.dump(entries, f, indent=2, ensure_ascii=False)
+        _append_to_log_file(log_file_light, log_entry_light)
+        _append_to_log_file(log_file_full, log_entry_full)
 
     except Exception as e:
         logger.error(f"Failed to log LLM call: {e}", exc_info=True)
 
 
 def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> None:
-    """Logs validation error details to the flow run's JSON file."""
+    """Logs validation error details to both flow run JSON files."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         log_entry: dict[str, Any] = {
@@ -113,22 +121,11 @@ def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> Non
             "error": error,
         }
         run_name = trace_id
+        log_file_light = LOGS_DIR / f"flow_{run_name}.json"
+        log_file_full = LOGS_DIR / f"flow_{run_name}_full.json"
 
-        log_file = LOGS_DIR / f"flow_{run_name}.json"
-        entries = []
-        if log_file.exists():
-            try:
-                with open(log_file, encoding="utf-8") as f:
-                    entries = json.load(f)
-                    if not isinstance(entries, list):
-                        entries = [entries]
-            except Exception:
-                entries = []
-
-        entries.append(log_entry)
-
-        with open(log_file, "w", encoding="utf-8") as f:
-            json.dump(entries, f, indent=2, ensure_ascii=False)
+        _append_to_log_file(log_file_light, log_entry)
+        _append_to_log_file(log_file_full, log_entry)
     except Exception as e:
         logger.error(f"Failed to log validation error: {e}", exc_info=True)
 

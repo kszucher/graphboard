@@ -232,6 +232,7 @@ async def generate_plan(
             messages=req_messages,
             response=response,
             graph_id=graph_id,
+            tools=tools,
         )
     except Exception as e:
         log_llm_call(
@@ -241,6 +242,7 @@ async def generate_plan(
             messages=req_messages,
             error=str(e),
             graph_id=graph_id,
+            tools=tools,
         )
         raise e
 
