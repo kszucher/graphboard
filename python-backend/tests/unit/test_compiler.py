@@ -65,13 +65,13 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
         expressions={
             "expr_status": ExpressionRecord(
                 id="expr_status",
-                expr="'processed'",
+                expr={"set": "processed"},
             )
         },
     )
     code = await generate_graph_code(flow_data)
     assert "def assigner_1(state: State) -> dict:" in code
-    assert '"status": "processed"' in code
+    assert '"status": "processed"' in code or "'status': 'processed'" in code
     assert 'workflow.add_node("assigner_1", assigner_1)' in code
     assert 'workflow.add_edge(START, "assigner_1")' in code
     assert 'workflow.add_edge("assigner_1", END)' in code
@@ -100,13 +100,13 @@ async def test_generate_graph_code_with_switch_node() -> None:
         expressions={
             "expr_active": ExpressionRecord(
                 id="expr_active",
-                expr="status == 'active'",
+                expr={"status": {"equals": "active"}},
             )
         },
     )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
-    assert "if state.get('status') == 'active':" in code or 'if state.get("status") == "active":' in code
+    assert "state.get('status') == 'active'" in code or 'state.get("status") == "active"' in code
     assert 'return "is_active"' in code
     assert "workflow.add_conditional_edges(" in code
 

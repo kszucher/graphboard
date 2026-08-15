@@ -112,7 +112,7 @@ class DirectLangGraphCompiler:
             expr_id = getattr(i, "expr_id", None)
             record = self.flow_data.expressions.get(expr_id) if expr_id else None
             expr_str = record.expr if record else None
-            val_code = expression_to_code(expr_str, self.valid_keys)
+            val_code = expression_to_code(expr_str, self.valid_keys, target_var_key=i.target_var_key)
             pairs.append(f"{repr(i.target_var_key)}: {val_code}")
         return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 

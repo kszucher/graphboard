@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import select
 
 from app.core.base.models import Graph, GraphHistory, User
-from app.core.constants import EventName
+from app.core.constants import EventName, NodeType
 from app.core.context import UnitOfWork
 from app.modules.graphs import service as graphs_service
-from app.modules.graphs.operations.upsert_ops import UpsertLogicalAssignerOp
+from app.modules.graphs.operations import GraphUpdateInput, NodeUpsertInput
 
 
 @pytest.mark.asyncio
@@ -51,15 +51,19 @@ async def test_add_node(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Action: add a node of type LOGICAL_ASSIGNER using apply_patch
-    patch = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
-            node_id="logical_assigner_1",
-            assignments=[],
-        )
-    ]
-    result = await graphs_service.apply_patch(uow=real_uow, graph_id=dummy_graph.id, patch=patch)
+    # Action: add a node of type LOGICAL_ASSIGNER using apply_graph_update
+    update = GraphUpdateInput(
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="logical_assigner_1",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[],
+                )
+            ]
+        }
+    )
+    result = await graphs_service.apply_graph_update(uow=real_uow, graph_id=dummy_graph.id, update=update)
 
     await real_uow.commit()
 
@@ -88,23 +92,31 @@ async def test_versions_graph_flow(
     initial_count = len(init_snap.flow_json["nodes"])
 
     # Mutation 1 -> Sequence 1 (Add node)
-    patch1 = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
-            node_id="la_1",
-            assignments=[],
-        )
-    ]
-    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch1)
+    update1 = GraphUpdateInput(
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="la_1",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[],
+                )
+            ]
+        }
+    )
+    await graphs_service.apply_graph_update(real_uow, dummy_graph.id, update1)
     # Mutation 2 -> Sequence 2 (Add another node)
-    patch2 = [
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
-            node_id="la_2",
-            assignments=[],
-        )
-    ]
-    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch2)
+    update2 = GraphUpdateInput(
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="la_2",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[],
+                )
+            ]
+        }
+    )
+    await graphs_service.apply_graph_update(real_uow, dummy_graph.id, update2)
 
     await real_uow.session.commit()
 
@@ -131,8 +143,10 @@ async def test_get_graph_flow_returns_versions(
     dummy_graph: Graph,
 ) -> None:
     # Mutation -> Sequence 1
-    patch = [UpsertLogicalAssignerOp(op="upsert_logical_assigner", node_id="la_1", assignments=[])]
-    await graphs_service.apply_patch(real_uow, dummy_graph.id, patch)
+    update = GraphUpdateInput(
+        nodes={"upsert": [NodeUpsertInput(id="la_1", node_type=NodeType.LOGICAL_ASSIGNER, assignments=[])]}
+    )
+    await graphs_service.apply_graph_update(real_uow, dummy_graph.id, update)
     await real_uow.session.commit()
 
     # Fetching flow should return versions list and current_version
@@ -167,7 +181,7 @@ async def test_run_graph_flow_success(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": "42"}},
+        "expressions": {"expr_1": {"id": "expr_1", "expr": {"set": 42}}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)
@@ -247,19 +261,19 @@ async def test_run_graph_flow_switch_routing(
         "expressions": {
             "expr_switch_a": {
                 "id": "expr_switch_a",
-                "expr": "x > 0",
+                "expr": {"x": {"gt": 0}},
             },
             "expr_switch_b": {
                 "id": "expr_switch_b",
-                "expr": "True",
+                "expr": True,
             },
             "expr_assign_a": {
                 "id": "expr_assign_a",
-                "expr": "100",
+                "expr": {"set": 100},
             },
             "expr_assign_b": {
                 "id": "expr_assign_b",
-                "expr": "200",
+                "expr": {"set": 200},
             },
         },
     }
@@ -315,7 +329,7 @@ async def test_run_graph_flow_invalid_state_ref(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": "42"}},
+        "expressions": {"expr_1": {"id": "expr_1", "expr": {"set": 42}}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)

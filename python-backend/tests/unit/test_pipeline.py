@@ -1,102 +1,129 @@
-from app.modules.graphs.operations import GraphOperation, apply_patch, sort_operations_by_dependency
-from app.modules.graphs.operations.rename_ops import RenameVariableOp
-from app.modules.graphs.operations.topology_ops import ConnectNodesOp, DeleteNodeOp
-from app.modules.graphs.operations.upsert_ops import AssignmentSchema, UpsertLogicalAssignerOp
+import pytest
+
+from app.core.constants import NodeType
+from app.core.exceptions import ValidationError
+from app.modules.graphs.operations import (
+    AssignmentInput,
+    GraphUpdateInput,
+    NodeUpsertInput,
+    RenameInput,
+    VariableUpsertInput,
+    apply_graph_update,
+)
 from app.modules.graphs.schemas import GraphFlowData
 
 
 def test_pipeline_basic() -> None:
-    flow = GraphFlowData(nodes=[], edges=[], state=[])
+    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
 
-    # 1. Test operation sorting
-    patch: list[GraphOperation] = [
-        ConnectNodesOp(op="connect_nodes", source="init", target="check"),
-        UpsertLogicalAssignerOp(
-            op="upsert_logical_assigner",
-            node_id="init",
-            assignments=[AssignmentSchema(target_var_key="score", expression="0")],
-        ),
-        DeleteNodeOp(op="delete_node", node_id="old_node"),
-        RenameVariableOp(op="rename_variable", old_key="points", new_key="score"),
-    ]
-
-    sorted_patch = sort_operations_by_dependency(patch)
-    assert sorted_patch[0].op == "rename_variable"
-    assert sorted_patch[1].op == "delete_node"
-    assert sorted_patch[2].op == "upsert_logical_assigner"
-    assert sorted_patch[3].op == "connect_nodes"
-
-    # 2. Test apply_patch with implicit variable declaration & type inference
-    # Initialize score = 0 (creates score as number)
-    flow = apply_patch(
-        flow,
-        [
-            UpsertLogicalAssignerOp(
-                op="upsert_logical_assigner",
-                node_id="init",
-                assignments=[AssignmentSchema(target_var_key="score", expression="0")],
-            )
-        ],
+    # 1. Test variable declaration and logical assignment
+    update = GraphUpdateInput(
+        variables={
+            "upsert": [
+                VariableUpsertInput(key="score", type="number", default_value=0),
+            ]
+        },
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="init",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[AssignmentInput(target_var_key="score", expression={"set": 0})],
+                    target="check",
+                )
+            ]
+        },
+        start_target="init",
     )
+
+    flow = apply_graph_update(flow, update)
     assert len(flow.state) == 1
     assert flow.state[0].key == "score"
-    assert flow.state[0].type == "number"
+    assert len(flow.nodes) == 1
+    assert flow.nodes[0].id == "init"
+    assert len(flow.edges) == 2  # start -> init, init -> check
+    assert "expr_init_score" in flow.expressions
 
-    # Set guaranteed_win = score == 5 (creates guaranteed_win as boolean, referencing score)
-    flow = apply_patch(
-        flow,
-        [
-            UpsertLogicalAssignerOp(
-                op="upsert_logical_assigner",
-                node_id="check",
-                assignments=[AssignmentSchema(target_var_key="guaranteed_win", expression="col('score').eq(5)")],
-            )
-        ],
+    # 2. Test strict declaration check (assigning to undeclared variable)
+    invalid_update = GraphUpdateInput(
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="check",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression={"score": {"equals": 5}})],
+                )
+            ]
+        }
     )
+    with pytest.raises(ValidationError, match="is not defined in the graph state"):
+        apply_graph_update(flow, invalid_update)
+
+    # 3. Correctly declare and assign
+    valid_update = GraphUpdateInput(
+        variables={
+            "upsert": [
+                VariableUpsertInput(key="guaranteed_win", type="boolean", default_value=False),
+            ]
+        },
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="check",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression={"score": {"equals": 5}})],
+                )
+            ]
+        },
+    )
+    flow = apply_graph_update(flow, valid_update)
     assert len(flow.state) == 2
     assert flow.state[1].key == "guaranteed_win"
-    assert flow.state[1].type == "boolean"
     assert "expr_check_guaranteed_win" in flow.expressions
 
-    # 3. Test automatic dead-variable and expression pruning
-    # Deleting the check node should prune guaranteed_win and its expression because they are no longer referenced.
-    flow = apply_patch(flow, [DeleteNodeOp(op="delete_node", node_id="check")])
+    # 4. Test delete node (which garbage collects expression and edges)
+    delete_update = GraphUpdateInput(nodes={"delete": ["check"]}, variables={"delete": ["guaranteed_win"]})
+    flow = apply_graph_update(flow, delete_update)
+    assert len(flow.nodes) == 1
     assert len(flow.state) == 1
-    assert flow.state[0].key == "score"
     assert "expr_check_guaranteed_win" not in flow.expressions
+    assert len(flow.edges) == 1  # only start -> init remaining (init -> check pruned)
 
 
-def test_upsert_agentic_assigner_auto_infer() -> None:
-    from app.modules.graphs.operations.upsert_ops import UpsertAgenticAssignerOp
-    from app.modules.graphs.schemas import DefinerVariableSchema
+def test_renames_cascading() -> None:
+    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
 
-    # Initial state with some variables
-    flow = GraphFlowData(
-        nodes=[],
-        edges=[],
-        state=[
-            DefinerVariableSchema(id="1", key="score", type="number", default_value=0),
-            DefinerVariableSchema(id="2", key="topic", type="string", default_value="Space"),
-            DefinerVariableSchema(id="3", key="display_text", type="string", default_value=""),
-        ],
+    # Initialize graph
+    setup = GraphUpdateInput(
+        variables={
+            "upsert": [
+                VariableUpsertInput(key="points", type="number", default_value=0),
+            ]
+        },
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="score_node",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[AssignmentInput(target_var_key="points", expression={"increment": 1})],
+                    target="end",
+                )
+            ]
+        },
+        start_target="score_node",
     )
+    flow = apply_graph_update(flow, setup)
 
-    # Upsert agentic assigner where prompt references "topic" and "display_text"
-    # and has literal JSON braces (which should not be extracted).
-    # agentic_inputs is empty, but it should auto-infer ["topic", "display_text"]
-    flow = apply_patch(
-        flow,
-        [
-            UpsertAgenticAssignerOp(
-                op="upsert_agentic_assigner",
-                node_id="agentic_node",
-                agentic_inputs=[],
-                agentic_outputs=[],
-                prompt="Prompt using {topic} and {display_text} and literal json snippet: {'key': 'value'}",
-            )
-        ],
-    )
+    # Rename variable points -> score
+    rename_var_update = GraphUpdateInput(rename_variables=[RenameInput(old_key="points", new_key="score")])
+    flow = apply_graph_update(flow, rename_var_update)
+    assert flow.state[0].key == "score"
+    assert flow.nodes[0].assignments[0].target_var_key == "score"
+    assert flow.expressions[flow.nodes[0].assignments[0].expr_id].expr == {"increment": 1}
 
-    node = next(n for n in flow.nodes if n.id == "agentic_node")
-    # Verify inputs were auto-inferred
-    assert set(node.agentic_inputs) == {"topic", "display_text"}
+    # Rename node score_node -> points_node
+    rename_node_update = GraphUpdateInput(rename_nodes=[RenameInput(old_key="score_node", new_key="points_node")])
+    flow = apply_graph_update(flow, rename_node_update)
+    assert flow.nodes[0].id == "points_node"
+    assert any(e.source == "start" and e.target == "points_node" for e in flow.edges)
+    assert any(e.source == "points_node" and e.target == "end" for e in flow.edges)

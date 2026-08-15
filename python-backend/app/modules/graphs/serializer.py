@@ -1,6 +1,61 @@
-from __future__ import annotations
+from typing import Any
 
 from app.modules.graphs.schemas import GraphFlowData
+
+
+def format_serialized_expression(expr: Any) -> str:
+    """Formats structured JSON expression into a readable string for the prompt."""
+    if not isinstance(expr, dict):
+        return str(expr)
+
+    if "var" in expr:
+        return str(expr["var"])
+
+    # Logical composite
+    if "AND" in expr:
+        parts = [format_serialized_expression(p) for p in expr["AND"]]
+        return f"({' and '.join(parts)})"
+    if "OR" in expr:
+        parts = [format_serialized_expression(p) for p in expr["OR"]]
+        return f"({' or '.join(parts)})"
+    if "NOT" in expr:
+        return f"(not {format_serialized_expression(expr['NOT'])})"
+
+    # Atomic operations
+    if "increment" in expr:
+        return f"+ {expr['increment']}"
+    if "decrement" in expr:
+        return f"- {expr['decrement']}"
+    if "multiply" in expr:
+        return f"* {expr['multiply']}"
+    if "divide" in expr:
+        return f"/ {expr['divide']}"
+    if "set" in expr:
+        return format_serialized_expression(expr["set"])
+
+    # Comparisons
+    parts = []
+    for var, filter_block in expr.items():
+        if isinstance(filter_block, dict):
+            for op, val in filter_block.items():
+                op_symbol = {
+                    "equals": "==",
+                    "eq": "==",
+                    "not": "!=",
+                    "ne": "!=",
+                    "lt": "<",
+                    "lte": "<=",
+                    "gt": ">",
+                    "gte": ">=",
+                }.get(op, op)
+                val_str = format_serialized_expression(val)
+                parts.append(f"{var} {op_symbol} {val_str}")
+        else:
+            parts.append(f"{var} == {filter_block}")
+
+    if len(parts) == 1:
+        return parts[0]
+    return f"({' and '.join(parts)})"
 
 
 def serialize_flow_to_code(flow: GraphFlowData) -> str:
@@ -54,7 +109,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                 for a in getattr(node, "assignments", []):
                     expr_str = ""
                     if a.expr_id and flow.expressions and a.expr_id in flow.expressions:
-                        expr_str = flow.expressions[a.expr_id].expr
+                        expr_str = format_serialized_expression(flow.expressions[a.expr_id].expr)
                         if expr_str.startswith("(") and expr_str.endswith(")"):
                             expr_str = expr_str[1:-1]
                     assignments_str_list.append(f"{a.target_var_key}={expr_str}")
@@ -91,7 +146,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                     target_str = f" -> {edge.target}" if edge else ""
                     expr_str = ""
                     if b.expr_id and flow.expressions and b.expr_id in flow.expressions:
-                        expr_str = flow.expressions[b.expr_id].expr
+                        expr_str = format_serialized_expression(flow.expressions[b.expr_id].expr)
                         if expr_str.startswith("(") and expr_str.endswith(")"):
                             expr_str = expr_str[1:-1]
                     branches_str_list.append(f"{b.label}={expr_str}{target_str}")

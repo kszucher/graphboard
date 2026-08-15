@@ -67,14 +67,10 @@ async def initiate_copilot_workflow(
     if state_values.get("applied") and not state_values.get("validation_error"):
         import uuid
 
-        from pydantic import TypeAdapter
-
         from app.modules.graphs import service as graphs_service
-        from app.modules.graphs.operations import GraphOperation
+        from app.modules.graphs.operations import GraphUpdateInput
 
-        ops: list[GraphOperation] = [
-            TypeAdapter(GraphOperation).validate_python(op) for op in state_values.get("operations") or []
-        ]
-        await graphs_service.apply_patch(uow, uuid.UUID(str(graph_id)), ops)
+        update = GraphUpdateInput.model_validate(state_values.get("operations") or {})
+        await graphs_service.apply_graph_update(uow, uuid.UUID(str(graph_id)), update)
 
     return format_copilot_response(state_values)

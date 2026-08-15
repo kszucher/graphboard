@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from app.core.constants import EventName
 from app.core.exceptions import ValidationError
 from app.modules.graphs.compiler import generate_graph_code
 from app.modules.graphs.integrity import assert_flow_is_complete
-from app.modules.graphs.operations import GraphOperation
+from app.modules.graphs.operations import GraphUpdateInput
 from app.modules.graphs.schemas import GraphFlowData
 
 if TYPE_CHECKING:
@@ -146,16 +145,16 @@ async def _prepare_response_flow(
     return res
 
 
-async def apply_patch(
+async def apply_graph_update(
     uow: UnitOfWork,
     graph_id: uuid.UUID,
-    patch: Sequence[GraphOperation],
+    update: GraphUpdateInput,
 ) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.modules.graphs import operations
+    from app.modules.graphs.operations import apply_graph_update as db_apply_update
 
     # Mutations are always applied to the latest version
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
@@ -163,8 +162,7 @@ async def apply_patch(
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
-    sorted_patch = operations.sort_operations_by_dependency(patch)
-    mutated = operations.apply_patch(flow_data, sorted_patch)
+    mutated = db_apply_update(flow_data, update)
 
     # Save as next version
     next_seq = latest_snapshot.sequence_number + 1

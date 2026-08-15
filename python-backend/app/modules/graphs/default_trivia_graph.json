@@ -9,37 +9,6 @@
       "node_type": "END"
     },
     {
-      "id": "init_game",
-      "node_type": "LOGICAL_ASSIGNER",
-      "assignments": [
-        {
-          "id": "71619488-2cad-4f2a-aec7-fa322677f0ef",
-          "target_var_key": "score",
-          "expr_id": "expr_init_game_score"
-        },
-        {
-          "id": "f36b92ee-8262-4456-a9bc-ff781a913dd4",
-          "target_var_key": "more_questions",
-          "expr_id": "expr_init_game_more_questions"
-        },
-        {
-          "id": "83fd3460-cbe0-4b6e-b5e9-4d8bc018934e",
-          "target_var_key": "correct_answer",
-          "expr_id": "expr_init_game_correct_answer"
-        },
-        {
-          "id": "1a2b3c4d-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
-          "target_var_key": "topic",
-          "expr_id": "expr_init_game_topic"
-        },
-        {
-          "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
-          "target_var_key": "retrieved_facts",
-          "expr_id": "expr_init_game_retrieved_facts"
-        }
-      ]
-    },
-    {
       "id": "loop_questions",
       "node_type": "LOGICAL_SWITCH",
       "branches": [
@@ -196,13 +165,6 @@
     {
       "id": "1e510bb0-20da-4fa0-ac1d-8fb7d680c8f2",
       "source": "start",
-      "source_handle": null,
-      "target": "init_game",
-      "target_handle": null
-    },
-    {
-      "id": "58819136-2de0-45af-b683-fe79ceab8b7b",
-      "source": "init_game",
       "source_handle": null,
       "target": "loop_questions",
       "target_handle": null
@@ -386,53 +348,33 @@
     }
   ],
   "expressions": {
-    "expr_init_game_score": {
-      "id": "expr_init_game_score",
-      "expr": "0"
-    },
-    "expr_init_game_more_questions": {
-      "id": "expr_init_game_more_questions",
-      "expr": "True"
-    },
-    "expr_init_game_correct_answer": {
-      "id": "expr_init_game_correct_answer",
-      "expr": "'A'"
-    },
-    "expr_init_game_topic": {
-      "id": "expr_init_game_topic",
-      "expr": "'Space Exploration'"
-    },
-    "expr_init_game_retrieved_facts": {
-      "id": "expr_init_game_retrieved_facts",
-      "expr": "''"
-    },
     "expr_loop_questions_yes": {
       "id": "expr_loop_questions_yes",
-      "expr": "more_questions"
+      "expr": { "more_questions": { "equals": true } }
     },
     "expr_loop_questions_no": {
       "id": "expr_loop_questions_no",
-      "expr": "not more_questions"
+      "expr": { "more_questions": { "equals": false } }
     },
     "expr_parse_answer_parsed_answer": {
       "id": "expr_parse_answer_parsed_answer",
-      "expr": "user_answer"
+      "expr": { "set": { "var": "user_answer" } }
     },
     "expr_check_correct_is_correct": {
       "id": "expr_check_correct_is_correct",
-      "expr": "parsed_answer == correct_answer"
+      "expr": { "parsed_answer": { "equals": { "var": "correct_answer" } } }
     },
     "expr_result_switch_correct": {
       "id": "expr_result_switch_correct",
-      "expr": "is_correct"
+      "expr": { "is_correct": { "equals": true } }
     },
     "expr_result_switch_wrong": {
       "id": "expr_result_switch_wrong",
-      "expr": "not is_correct"
+      "expr": { "is_correct": { "equals": false } }
     },
     "expr_increment_score_score": {
       "id": "expr_increment_score_score",
-      "expr": "score + 1"
+      "expr": { "increment": 1 }
     }
   }
 }

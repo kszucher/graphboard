@@ -7,14 +7,12 @@ from typing import Any, Literal
 from groq import AsyncGroq
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
-from pydantic import TypeAdapter
 
 from app.core.exceptions import ValidationError
 from app.modules.copilot.agents.planner import generate_plan
 from app.modules.copilot.logger import log_validation_error
 from app.modules.copilot.models import CopilotState
-from app.modules.graphs import operations
-from app.modules.graphs.operations import GraphOperation
+from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
 from app.modules.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)
@@ -40,44 +38,79 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
 
     return {
         "agent_checklist": checklist,
-        "operations": [],
+        "operations": None,
         "plan": [],
     }
 
 
 def translate_plan_node(state: CopilotState) -> dict[str, Any]:
-    """Deterministically validates planner operations.
+    """Deterministically validates planner operations and maps them straight to the update object."""
+    from app.modules.copilot.agents.planner_schemas import OperationPlan
 
-    No LLM call — just dict-to-Pydantic validation.
-    """
     checklist = state.get("agent_checklist") or {}
-    raw_ops = checklist.get("operations") or []
+    plan = OperationPlan.model_validate(checklist)
 
-    ops: list[dict[str, Any]] = []
-    for op in raw_ops:
-        validated_op: GraphOperation = TypeAdapter(GraphOperation).validate_python(op)
-        ops.append(validated_op.model_dump(mode="json"))
-
-    return {"operations": ops}
+    # Output standard json dictionary for DB transaction update
+    return {"operations": plan.update.model_dump(mode="json")}
 
 
 def aggregation_node(state: CopilotState) -> dict[str, Any]:
-    """Aggregates all operations into a human-readable plan for the UI."""
-    state_ops = state.get("operations") or []
+    """Aggregates the transaction update into a list of human-readable plan steps for the UI."""
+    state_ops = state.get("operations") or {}
     try:
-        validated_ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
+        update = GraphUpdateInput.model_validate(state_ops)
     except Exception as e:
-        raise ValidationError(f"Agents generated invalid mutations: {str(e)}")
+        raise ValidationError(f"Agents generated invalid updates: {str(e)}")
 
     plan_steps = []
-    for op in validated_ops:
+    if update.start_target:
         plan_steps.append(
             {
-                "action": op.op,
-                "description": f"Apply {op.op} operation",
-                "details": op.model_dump(exclude={"op"}),
+                "action": "set_start_target",
+                "description": f"Set starting node to '{update.start_target}'",
+                "details": {},
             }
         )
+    if update.rename_variables:
+        for ru in update.rename_variables:
+            plan_steps.append(
+                {
+                    "action": "rename_variable",
+                    "description": f"Rename variable '{ru.old_key}' to '{ru.new_key}'",
+                    "details": {},
+                }
+            )
+    if update.rename_nodes:
+        for rn in update.rename_nodes:
+            plan_steps.append(
+                {"action": "rename_node", "description": f"Rename node '{rn.old_key}' to '{rn.new_key}'", "details": {}}
+            )
+    if update.variables:
+        if update.variables.delete:
+            for d in update.variables.delete:
+                plan_steps.append({"action": "delete_variable", "description": f"Delete variable '{d}'", "details": {}})
+        if update.variables.upsert:
+            for u in update.variables.upsert:
+                plan_steps.append(
+                    {
+                        "action": "upsert_variable",
+                        "description": f"Upsert variable '{u.key}' (type: {u.type})",
+                        "details": u.model_dump(),
+                    }
+                )
+    if update.nodes:
+        if update.nodes.delete:
+            for dn in update.nodes.delete:
+                plan_steps.append({"action": "delete_node", "description": f"Delete node '{dn}'", "details": {}})
+        if update.nodes.upsert:
+            for un in update.nodes.upsert:
+                plan_steps.append(
+                    {
+                        "action": "upsert_node",
+                        "description": f"Upsert node '{un.id}' (type: {un.node_type})",
+                        "details": un.model_dump(),
+                    }
+                )
 
     return {"plan": plan_steps}
 
@@ -94,12 +127,11 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
 
     try:
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
-        state_ops = state.get("operations") or []
-        ops: list[GraphOperation] = [TypeAdapter(GraphOperation).validate_python(op) for op in state_ops]
-        sorted_ops = operations.sort_operations_by_dependency(ops)
+        state_ops = state.get("operations") or {}
+        update = GraphUpdateInput.model_validate(state_ops)
 
         # Dry-run patch application
-        operations.apply_patch(flow_data, sorted_ops)
+        apply_graph_update(flow_data, update)
         return {"validation_error": None}
     except Exception as e:
         logger.warning("Agent operation dry-run failed: %s", str(e))

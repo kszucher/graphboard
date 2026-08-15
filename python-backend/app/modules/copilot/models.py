@@ -14,7 +14,7 @@ class CopilotState(TypedDict):
     plan: list[dict[str, Any]] | None
     plan_approved: bool | None
 
-    operations: list[dict[str, Any]] | None
+    operations: dict[str, Any] | None
     validation_error: str | None
 
     apply_approved: bool | None
