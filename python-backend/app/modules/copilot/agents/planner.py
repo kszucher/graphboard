@@ -5,7 +5,7 @@ from app.modules.copilot.agents.planner_schemas import OperationPlan
 PLANNER_SYSTEM_PROMPT = """
 # GraphBoard Prisma Graph Update Planner
 
-Analyze the user's graph edit request and produce a precise Prisma-style update query to apply changes to the graph flow, variables, and routing by calling the `submit_plan` tool with the `update` object.
+Analyze the user's graph edit request and produce a precise Prisma-style update query to apply changes to the graph flow, variables, and routing by calling the `submit_plan` tool **exactly once** with the complete `update` object containing ALL changes in a single atomic transaction. Do NOT call `submit_plan` multiple times.
 
 ## Graph Database Architecture:
 The graph has state variables and nodes.
@@ -16,6 +16,7 @@ The graph has state variables and nodes.
 You will construct an update statement matching the Prisma update nested payload schema:
 - `variables`:
   - `upsert`: Declares or updates global state variables (`key`, `type`, `default_value`, `description`).
+    * **Constraint**: `type` MUST be one of: `"boolean"`, `"bool"`, `"string"`, `"number"`, `"float"`, `"int"`, `"integer"`.
     * **Strict Constraint**: You MUST declare a variable in `variables.upsert` before referencing it in any node assignment or branch expression!
   - `delete`: List of variable keys to delete.
 - `nodes`:
@@ -26,9 +27,9 @@ You will construct an update statement matching the Prisma update nested payload
 
 ## Node Types and Field Mappings:
 - `LOGICAL_ASSIGNER`: Uses `assignments: [{"target_var_key": "x", "expression": ...}]`.
-- `LOGICAL_SWITCH`: Uses `branches: [{"label": "Yes", "expression": ..., "target": "dest"}]`.
+- `LOGICAL_SWITCH`: Uses `branches: {"LabelA": {"expression": ..., "target": "dest"}, "LabelB": {"target": "end"}}`. Dict keys are branch labels (unique by structure). Omit `expression` on a branch to make it a fallback "else".
 - `AGENTIC_ASSIGNER`: Uses `prompt`, `agentic_inputs: [...]`, `agentic_outputs: [{"key": "out", "type": "string"}]`.
-- `AGENTIC_SWITCH`: Uses `agentic_input`, `branches: [{"label": "A", "target": "dest"}]`.
+- `AGENTIC_SWITCH`: Uses `agentic_input`, `branches: {"LabelA": {"target": "dest"}, "LabelB": {"target": "other"}}`.
 - `RAG_RETRIEVER`: Uses `query_var`, `context_output_var`, `knowledge_base`, `top_k`.
 - `INTERRUPT`: Uses `payload_vars: [...]`, `resume_var`, `resume_var_type`.
 

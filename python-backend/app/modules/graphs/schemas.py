@@ -25,7 +25,7 @@ class GraphRead(OrmModel):
     user_id: uuid.UUID
 
 
-VariableType: TypeAlias = Literal["boolean", "string", "number", "float"]
+VariableType: TypeAlias = Literal["boolean", "bool", "string", "number", "float", "int", "integer"]
 
 
 class DefinerVariableSchema(BaseModel):

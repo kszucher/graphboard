@@ -15,27 +15,34 @@ from app.modules.graphs.nodes.logical_assigner import LogicalAssignmentSchema
 from app.modules.graphs.nodes.logical_switch import Branch
 from app.modules.graphs.schemas import DefinerVariableSchema, EdgeRead, ExpressionRecord, GraphFlowData, VariableType
 
+# Snake-case identifier pattern: must start with a letter, only letters/digits/underscores.
+_IDENTIFIER_PATTERN = r"^[a-z][a-z0-9_]*$"
+
 
 class AssignmentInput(BaseModel):
-    target_var_key: str
+    target_var_key: str = Field(min_length=1, pattern=_IDENTIFIER_PATTERN)
     expression: Expression
 
 
-class BranchInput(BaseModel):
-    label: str
+class BranchValueInput(BaseModel):
     expression: ComparisonExpression | None = None
     target: str | None = None
 
 
+class AgenticOutputInput(BaseModel):
+    key: str = Field(min_length=1, pattern=_IDENTIFIER_PATTERN)
+    type: VariableType
+
+
 class VariableUpsertInput(BaseModel):
-    key: str
+    key: str = Field(min_length=1, pattern=_IDENTIFIER_PATTERN)
     type: VariableType
     default_value: Any = None
     description: str | None = None
 
 
 class NodeUpsertInput(BaseModel):
-    id: str
+    id: str = Field(min_length=1, pattern=_IDENTIFIER_PATTERN)
     node_type: NodeType
     target: str | None = None
 
@@ -44,11 +51,11 @@ class NodeUpsertInput(BaseModel):
 
     # AGENTIC_ASSIGNER
     agentic_inputs: list[str] | None = None
-    agentic_outputs: list[VariableUpsertInput] | None = None
+    agentic_outputs: list[AgenticOutputInput] | None = None
     prompt: str | None = None
 
     # LOGICAL_SWITCH / AGENTIC_SWITCH
-    branches: list[BranchInput] | None = None
+    branches: dict[str, BranchValueInput] | None = Field(default=None, min_length=1)
     agentic_input: str | None = None
 
     # RAG_RETRIEVER
@@ -162,8 +169,16 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
             if not isinstance(u_var, VariableUpsertInput):
                 u_var = VariableUpsertInput(**u_var)
             existing = next((v for v in flow_data.state if v.key == u_var.key), None)
+
+            # Normalize type to standard frontend representations
+            norm_type = u_var.type
+            if norm_type in {"int", "integer"}:
+                norm_type = "number"
+            elif norm_type == "bool":
+                norm_type = "boolean"
+
             if existing:
-                existing.type = u_var.type
+                existing.type = cast(VariableType, norm_type)
                 existing.default_value = u_var.default_value
                 existing.description = u_var.description
             else:
@@ -171,7 +186,7 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
                     DefinerVariableSchema(
                         id=str(uuid.uuid4()),
                         key=u_var.key,
-                        type=u_var.type,
+                        type=cast(VariableType, norm_type),
                         default_value=u_var.default_value,
                         description=u_var.description,
                     )
@@ -298,22 +313,21 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
                 if u_node.branches is None:
                     raise ValidationError(f"Node '{u_node.id}' of type LOGICAL_SWITCH must specify 'branches'.")
                 logical_branches = []
-                for br in u_node.branches:
-                    branch_id = _make_slot_id(u_node.id, br.label)
+                for label, br in u_node.branches.items():
+                    branch_id = _make_slot_id(u_node.id, label)
                     expr_id = f"expr_{u_node.id}_{branch_id}"
 
-                    if br.expression is None:
-                        raise ValidationError(f"Branch '{br.label}' on node '{u_node.id}' must specify an expression.")
+                    expr_val = br.expression if br.expression is not None else True
 
-                    referenced = get_expression_variables(br.expression)
+                    referenced = get_expression_variables(expr_val)
                     for ref in referenced:
                         if ref not in valid_keys:
                             raise ValidationError(
                                 f"Variable '{ref}' referenced in branch expression is not defined in the graph state."
                             )
 
-                    flow_data.expressions[expr_id] = ExpressionRecord(id=expr_id, expr=br.expression)
-                    logical_branches.append(Branch(id=branch_id, label=br.label, expr_id=expr_id))
+                    flow_data.expressions[expr_id] = ExpressionRecord(id=expr_id, expr=expr_val)
+                    logical_branches.append(Branch(id=branch_id, label=label, expr_id=expr_id))
 
                     # Update branch target edge
                     if br.target is not None:
@@ -340,9 +354,9 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
 
                 upserted_node.agentic_input = u_node.agentic_input
                 agentic_branches = []
-                for br in u_node.branches:
-                    branch_id = _make_slot_id(u_node.id, br.label)
-                    agentic_branches.append(AgenticBranch(id=branch_id, label=br.label))
+                for label, br in u_node.branches.items():
+                    branch_id = _make_slot_id(u_node.id, label)
+                    agentic_branches.append(AgenticBranch(id=branch_id, label=label))
 
                     if br.target is not None:
                         flow_data.edges = [
@@ -383,8 +397,9 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
                     referenced_exprs.add(a.expr_id)
         if hasattr(n, "branches"):
             for br in getattr(n, "branches", []):
-                if br.expr_id:
-                    referenced_exprs.add(br.expr_id)
+                br_expr_id = getattr(br, "expr_id", None)
+                if br_expr_id:
+                    referenced_exprs.add(br_expr_id)
 
     flow_data.expressions = {k: v for k, v in flow_data.expressions.items() if k in referenced_exprs}
 
