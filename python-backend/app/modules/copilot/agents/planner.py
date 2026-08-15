@@ -1,52 +1,64 @@
 from typing import Any
 
-from app.modules.copilot.agents.planner_schemas import OperationPlan
-
 PLANNER_SYSTEM_PROMPT = """
-# GraphBoard Prisma Graph Update Planner
+# GraphBoard Graph Operations Planner
 
-Analyze the user's graph edit request and produce a precise Prisma-style update query to apply changes to the graph flow, variables, and routing by calling the `submit_plan` tool **exactly once** with the complete `update` object containing ALL changes in a single atomic transaction. Do NOT call `submit_plan` multiple times.
+Analyze the user's graph edit request, view the current graph state (variables and nodes), and call the appropriate operations tools to apply the requested changes.
 
 ## Graph Database Architecture:
 The graph has state variables and nodes.
-- Control flow (routing) is defined inline inside node definitions via the `target` parameter or switch branch `target` properties.
-- Use `start_target` to configure the start entrypoint node.
+- Edges define the control flow transitions (routing) from node to node.
+- Decoupled Edge Routing: Nodes themselves do NOT contain routing targets. Routing is defined explicitly by calling edge tools:
+  - **Linear Nodes** (logical_assigner, agentic_assigner, rag_retriever, interrupt) only have a single transition. Connect them using:
+    `upsert_linear_edge(source, target)`
+  - **Switch Nodes** (logical_switch, agentic_switch) have multiple conditional branch paths. Connect them using:
+    `upsert_switch_edge(source, branch_label, target)` (where branch_label is strictly required, e.g. "Yes", "No", "correct", "wrong").
+- Every node in the flow MUST be reachable; do NOT create orphan nodes (nodes that are not targeted by any other node or the entrypoint). If you create a new node, you MUST call `upsert_*_edge` to point to it from a preceding node.
+- Variable Declarations: You MUST call `upsert_variable` to define any new state variable (with type and default value) before referencing it in assignments, increment/decrement instructions, or switch comparison expressions.
+- Unique Nodes: Do NOT create duplicate nodes or define multiple IDs to perform the same task. Ensure every created node is uniquely named and fully connected.
+- Logical Milestones: If the request depends on tracking occurrence thresholds (e.g. "every 5th event"), ensure you define and read from a dedicated counter variable (e.g. `request_count`) rather than comparing against other state variables (e.g. payload data).
+- Threshold Logic: When securing a baseline/safety floor upon reaching a milestone, verify if the tracking variable is greater than or equal to (`gte`) the milestone threshold (do not check if it is less than/`lt`).
 
-## Prisma Update API Schema:
-You will construct an update statement matching the Prisma update nested payload schema:
-- `variables`:
-  - `upsert`: Declares or updates global state variables (`key`, `type`, `default_value`, `description`).
-    * **Constraint**: `type` MUST be one of: `"boolean"`, `"bool"`, `"string"`, `"number"`, `"float"`, `"int"`, `"integer"`.
-    * **Strict Constraint**: You MUST declare a variable in `variables.upsert` before referencing it in any node assignment or branch expression!
-  - `delete`: List of variable keys to delete.
-- `nodes`:
-  - `upsert`: List of node definitions to create or update.
-  - `delete`: List of node IDs to delete.
-- `rename_variables`: List of variable renames (`old_key`, `new_key`).
-- `rename_nodes`: List of node renames (`old_key`, `new_key`).
 
-## Node Types and Field Mappings:
-- `LOGICAL_ASSIGNER`: Uses `assignments: [{"target_var_key": "x", "expression": ...}]`.
-- `LOGICAL_SWITCH`: Uses `branches: {"LabelA": {"expression": ..., "target": "dest"}, "LabelB": {"target": "end"}}`. Dict keys are branch labels (unique by structure). Omit `expression` on a branch to make it a fallback "else".
-- `AGENTIC_ASSIGNER`: Uses `prompt`, `agentic_inputs: [...]`, `agentic_outputs: [{"key": "out", "type": "string"}]`.
-- `AGENTIC_SWITCH`: Uses `agentic_input`, `branches: {"LabelA": {"target": "dest"}, "LabelB": {"target": "other"}}`.
-- `RAG_RETRIEVER`: Uses `query_var`, `context_output_var`, `knowledge_base`, `top_k`.
-- `INTERRUPT`: Uses `payload_vars: [...]`, `resume_var`, `resume_var_type`.
+## Available Node Types:
+1. `LOGICAL_ASSIGNER`: Sets state variables based on expressions, e.g. `assignments: [{"target_var_key": "x", "expression": ...}]`.
+2. `LOGICAL_SWITCH`: Conditional routing using branches, e.g. `branches: {"LabelA": ComparisonExpression, "LabelB": null}` (where LabelB is fallback). Does not contain targets inline.
+3. `AGENTIC_ASSIGNER`: LLM instruction prompt to populate variables.
+4. `AGENTIC_SWITCH`: LLM decision routing using branches, e.g. `branches: ["LabelA", "LabelB"]`.
+5. `RAG_RETRIEVER`: Knowledge base context retrieval.
+6. `INTERRUPT`: Pauses execution for human input.
 
-## Rules for Prisma Filter Expressions:
-Logical switch branch expressions are defined as Prisma-style nested query objects:
-- Standard comparison: `{"score": {"gt": 5}}` or `{"more_questions": {"equals": false}}`
-- Reference another variable: `{"parsed_answer": {"equals": {"var": "correct_answer"}}}`
-- Operators supported: `equals`, `not`, `in`, `lt`, `lte`, `gt`, `gte`
-- Logical composition:
-  - `{"AND": [{"score": {"gt": 5}}, {"more_questions": {"equals": false}}]}`
-  - `{"OR": [...]}`
-  - `{"NOT": {"score": {"equals": 0}}}`
 
-## Rules for Prisma Atomic Update Assignments:
-Assignments inside `LOGICAL_ASSIGNER` use standard atomic update structures:
-- Set value: `{"set": 10}` or `{"set": {"var": "user_input"}}` or simply a scalar value like `10` or `"topic"`
-- Numeric operators: `{"increment": 1}`, `{"decrement": 5}`, `{"multiply": 2}`, `{"divide": 3}`
+## Expression Formats:
+- Switch branches use Prisma-style nested query objects for comparisons:
+  - Standard comparison: `{"error_count": {"gt": 5}}` or `{"is_active": {"equals": false}}`
+  - Reference another variable: `{"received_token": {"equals": {"var": "valid_token"}}}`
+  - Operators: `equals`, `not`, `in`, `lt`, `lte`, `gt`, `gte`
+  - Logic composition: `{"AND": [{"error_count": {"gt": 5}}, {"is_active": {"equals": false}}]}`
+- Assigners use atomic update structures:
+  - Set: `{"set": 10}` or `{"set": {"var": "user_input"}}` or scalar `10` / `"topic"`
+  - Numeric: `{"increment": 1}`, `{"decrement": 5}`, `{"multiply": 2}`, `{"divide": 3}`
+
+## Examples of Flow Modification:
+
+### Example 1: Inserting a node between linear nodes
+Request: "Add a log_payload node after start_session but before process_data"
+Current Flow:
+  start_session() -> process_data
+  process_data -> end_session
+Tool Calls:
+1. upsert_agentic_assigner(id="log_payload", agentic_inputs=["session_id"], agentic_outputs=[], prompt="Write session metadata log.")
+2. upsert_linear_edge(source="start_session", target="log_payload")
+3. upsert_linear_edge(source="log_payload", target="process_data")
+
+### Example 2: Inserting a node inside a switch branch
+Request: "Increment error counter inside the error branch of validate_router before return_to_start"
+Current Flow:
+  validate_router: LOGICAL_SWITCH(success=cond -> process_data, error=!cond -> return_to_start)
+Tool Calls:
+1. upsert_logical_assigner(id="error_incrementer", assignments=[{"target_var_key": "error_count", "expression": {"increment": 1}}])
+2. upsert_switch_edge(source="validate_router", branch_label="error", target="error_incrementer")
+3. upsert_linear_edge(source="error_incrementer", target="return_to_start")
 """
 
 
@@ -59,32 +71,158 @@ def prune_json_schema(schema: Any) -> Any:
     return schema
 
 
-async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: list[dict[str, Any]]) -> OperationPlan:
-    """Invokes the LLM to produce a structured operation plan."""
-    import json
+async def generate_plan(
+    client: Any,
+    trace_id: str,
+    graph_id: str,
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Invokes the LLM with granular tools to produce a sequence of operations."""
     import os
 
+    from app.modules.copilot.agents import planner_schemas
     from app.modules.copilot.logger import log_llm_call
 
     model_name = os.environ.get("COPILOT_MODEL", "llama-3.3-70b-versatile")
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
-    tool_schema = {
-        "type": "function",
-        "function": {
-            "name": "submit_plan",
-            "description": "Submits the Prisma update graph payload.",
-            "parameters": prune_json_schema(OperationPlan.model_json_schema()),
+    # Define the 16 granular tools dynamically from planner_schemas
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_variable",
+                "description": "Create or update a state variable definition.",
+                "parameters": prune_json_schema(planner_schemas.UpsertVariable.model_json_schema()),
+            },
         },
-    }
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_variable",
+                "description": "Delete a state variable definition.",
+                "parameters": prune_json_schema(planner_schemas.DeleteVariable.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "rename_variable",
+                "description": "Rename an existing state variable and update all node references.",
+                "parameters": prune_json_schema(planner_schemas.RenameVariable.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_logical_assigner",
+                "description": "Create or update a logical assignment node. Routing MUST be set via upsert_linear_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertLogicalAssigner.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_agentic_assigner",
+                "description": "Create or update an agentic assignment prompt node. Routing MUST be set via upsert_linear_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertAgenticAssigner.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_logical_switch",
+                "description": "Create or update a conditional switch node. Defines branches with conditional logic. Routing MUST be set via upsert_switch_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertLogicalSwitch.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_agentic_switch",
+                "description": "Create or update an agentic routing switch node. Defines case labels. Routing MUST be set via upsert_switch_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertAgenticSwitch.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_rag_retriever",
+                "description": "Create or update a RAG context retrieval node. Routing MUST be set via upsert_linear_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertRagRetriever.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_interrupt",
+                "description": "Create or update a human input interrupt checkpoint node. Routing MUST be set via upsert_linear_edge.",
+                "parameters": prune_json_schema(planner_schemas.UpsertInterrupt.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_node",
+                "description": "Delete a node from the graph.",
+                "parameters": prune_json_schema(planner_schemas.DeleteNode.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "rename_node",
+                "description": "Rename a node ID and update all transition targets.",
+                "parameters": prune_json_schema(planner_schemas.RenameNode.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "set_start_target",
+                "description": "Set the starting entrypoint node ID of the graph flow.",
+                "parameters": prune_json_schema(planner_schemas.SetStartTarget.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_linear_edge",
+                "description": "Create or update a connection edge from a linear node to a target node.",
+                "parameters": prune_json_schema(planner_schemas.UpsertLinearEdge.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "upsert_switch_edge",
+                "description": "Create or update a connection edge from a switch node's branch to a target node.",
+                "parameters": prune_json_schema(planner_schemas.UpsertSwitchEdge.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_linear_edge",
+                "description": "Disconnect the edge exiting from a linear node.",
+                "parameters": prune_json_schema(planner_schemas.DeleteLinearEdge.model_json_schema()),
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_switch_edge",
+                "description": "Disconnect the edge exiting from a switch node's branch.",
+                "parameters": prune_json_schema(planner_schemas.DeleteSwitchEdge.model_json_schema()),
+            },
+        },
+    ]
 
     try:
         response = await client.chat.completions.create(
             model=model_name,
             messages=req_messages,
-            tools=[tool_schema],
-            tool_choice={"type": "function", "function": {"name": "submit_plan"}},
-            parallel_tool_calls=False,
+            tools=tools,
             temperature=0.0,
         )
         log_llm_call(
@@ -108,10 +246,13 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
 
     tool_calls = response.choices[0].message.tool_calls
     if not tool_calls:
-        raise Exception("Planner failed to generate a plan tool call.")
+        raise Exception("Planner failed to generate any tool calls.")
 
-    try:
-        args = json.loads(tool_calls[0].function.arguments)
-        return OperationPlan.model_validate(args)
-    except Exception as e:
-        raise Exception(f"Failed to validate planner tool call arguments: {str(e)}")
+    # Return serialized tool calls lists
+    return [
+        {
+            "name": tc.function.name,
+            "arguments": tc.function.arguments,
+        }
+        for tc in tool_calls
+    ]
