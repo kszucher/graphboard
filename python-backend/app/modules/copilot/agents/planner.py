@@ -84,6 +84,7 @@ async def generate_plan(client: Any, trace_id: str, graph_id: str, messages: lis
             messages=req_messages,
             tools=[tool_schema],
             tool_choice={"type": "function", "function": {"name": "submit_plan"}},
+            parallel_tool_calls=False,
             temperature=0.0,
         )
         log_llm_call(
