@@ -35,7 +35,7 @@ def log_llm_call(
     graph_id: str | None = None,
     tools: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Logs LLM request and response details to two versions of pretty-printed JSON files per flow run."""
+    """Logs full LLM request and response details to flow run JSON file."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -53,65 +53,92 @@ def log_llm_call(
             "node_name": node_name,
             "model": model,
             "messages": logged_messages,
+            "tools": tools,
             "error": error,
         }
 
         if response and not error:
-            choice = response.choices[0]
-            message_info: dict[str, Any] = {
-                "role": choice.message.role,
-                "content": choice.message.content,
-            }
-            if choice.message.tool_calls:
-                message_info["tool_calls"] = []
-                for tc in choice.message.tool_calls:
-                    args_val = tc.function.arguments
+            if hasattr(response, "choices"):
+                choice = response.choices[0]
+                message_info: dict[str, Any] = {
+                    "role": choice.message.role,
+                    "content": choice.message.content,
+                }
+                if choice.message.tool_calls:
+                    message_info["tool_calls"] = []
+                    for tc in choice.message.tool_calls:
+                        args_val = tc.function.arguments
+                        try:
+                            args_val = json.loads(tc.function.arguments)
+                        except Exception:
+                            pass
+                        message_info["tool_calls"].append(
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": args_val,
+                                },
+                            }
+                        )
+
+                log_entry["response"] = message_info
+
+                usage = getattr(response, "usage", None)
+                if usage:
+                    log_entry["usage"] = {
+                        "prompt_tokens": usage.prompt_tokens,
+                        "completion_tokens": usage.completion_tokens,
+                        "total_tokens": usage.total_tokens,
+                    }
+            else:
+                # Gemini response format
+                function_calls = getattr(response, "function_calls", None)
+                text_content = None
+                if not function_calls:
                     try:
-                        args_val = json.loads(tc.function.arguments)
+                        text_content = response.text
                     except Exception:
                         pass
-                    message_info["tool_calls"].append(
+
+                message_info = {
+                    "role": "model",
+                    "content": text_content,
+                }
+                if function_calls:
+                    message_info["tool_calls"] = [
                         {
-                            "id": tc.id,
-                            "type": tc.type,
+                            "id": f"call_{idx}",
+                            "type": "function",
                             "function": {
-                                "name": tc.function.name,
-                                "arguments": args_val,
+                                "name": fc.name,
+                                "arguments": fc.args,
                             },
                         }
-                    )
-
-            log_entry["response"] = message_info
-
-            usage = getattr(response, "usage", None)
-            if usage:
-                log_entry["usage"] = {
-                    "prompt_tokens": usage.prompt_tokens,
-                    "completion_tokens": usage.completion_tokens,
-                    "total_tokens": usage.total_tokens,
-                }
+                        for idx, fc in enumerate(function_calls)
+                    ]
+                log_entry["response"] = message_info
+                usage = getattr(response, "usage_metadata", None)
+                if usage:
+                    log_entry["usage"] = {
+                        "prompt_tokens": usage.prompt_token_count,
+                        "completion_tokens": usage.candidates_token_count,
+                        "total_tokens": usage.total_token_count,
+                    }
         else:
             log_entry["response"] = None
             log_entry["usage"] = None
 
-        log_entry_light = log_entry.copy()
-        log_entry_full = log_entry.copy()
-        if tools is not None:
-            log_entry_full["tools"] = tools
-
-        run_name = trace_id
-        log_file_light = LOGS_DIR / f"flow_{run_name}.json"
-        log_file_full = LOGS_DIR / f"flow_{run_name}_full.json"
-
-        _append_to_log_file(log_file_light, log_entry_light)
-        _append_to_log_file(log_file_full, log_entry_full)
+        log_file = LOGS_DIR / f"flow_{trace_id}_full.json"
+        _append_to_log_file(log_file, log_entry)
 
     except Exception as e:
         logger.error(f"Failed to log LLM call: {e}", exc_info=True)
 
 
 def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> None:
-    """Logs validation error details to both flow run JSON files."""
+    """Logs validation error details to the flow run JSON file."""
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         log_entry: dict[str, Any] = {
@@ -120,16 +147,7 @@ def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> Non
             "step": "validation",
             "error": error,
         }
-        run_name = trace_id
-        log_file_light = LOGS_DIR / f"flow_{run_name}.json"
-        log_file_full = LOGS_DIR / f"flow_{run_name}_full.json"
-
-        _append_to_log_file(log_file_light, log_entry)
-        _append_to_log_file(log_file_full, log_entry)
+        log_file = LOGS_DIR / f"flow_{trace_id}_full.json"
+        _append_to_log_file(log_file, log_entry)
     except Exception as e:
         logger.error(f"Failed to log validation error: {e}", exc_info=True)
-
-
-def add_feedback_to_log(graph_id: str, feedback_data: dict[str, Any]) -> bool:
-    """Obsolete feedback logger helper."""
-    return False

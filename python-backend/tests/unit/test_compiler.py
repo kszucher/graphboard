@@ -137,7 +137,7 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
     assert 'workflow.add_node("agentic_1", agentic_1)' in code
     assert 'workflow.add_edge(START, "agentic_1")' in code
     assert 'workflow.add_edge("agentic_1", END)' in code
-    assert "client = Groq()" in code
+    assert "client = genai.Client()" in code
 
 
 async def test_default_example_graph_ast_compilation() -> None:

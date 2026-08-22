@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Any, Literal, cast
 
-from groq import AsyncGroq
+from google import genai
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
     """Invokes the Planner LLM to generate the checklist of agent tasks."""
-    api_key = os.environ.get("GROQ_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY")
     if not api_key:
-        raise ValidationError("GROQ_API_KEY environment variable is not set.")
+        raise ValidationError("GEMINI_API_KEY environment variable is not set.")
 
-    client = AsyncGroq(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     messages = [
         {
@@ -76,17 +76,14 @@ def translate_plan_node(state: CopilotState) -> dict[str, Any]:
         "upsert_interrupt": planner_schemas.UpsertInterrupt,
         "delete_node": planner_schemas.DeleteNode,
         "rename_node": planner_schemas.RenameNode,
-        "set_start_target": planner_schemas.SetStartTarget,
-        "upsert_linear_edge": planner_schemas.UpsertLinearEdge,
-        "upsert_switch_edge": planner_schemas.UpsertSwitchEdge,
-        "delete_linear_edge": planner_schemas.DeleteLinearEdge,
-        "delete_switch_edge": planner_schemas.DeleteSwitchEdge,
+        "connect": planner_schemas.Connect,
+        "disconnect": planner_schemas.Disconnect,
     }
 
     upsert_calls = []
     routing_calls = []
     for tc in tool_calls:
-        if tc.get("name") in {"upsert_linear_edge", "upsert_switch_edge", "delete_linear_edge", "delete_switch_edge"}:
+        if tc.get("name") in {"connect", "disconnect"}:
             routing_calls.append(tc)
         else:
             upsert_calls.append(tc)
@@ -122,8 +119,6 @@ def translate_plan_node(state: CopilotState) -> dict[str, Any]:
             update_payload["nodes"]["delete"].append(args["id"])
         elif name == "rename_node":
             update_payload["rename_nodes"].append({"old_key": args["old_id"], "new_key": args["new_id"]})
-        elif name == "set_start_target":
-            update_payload["start_target"] = args["target"]
         elif name == "upsert_logical_switch":
             branches = {}
             for label, expr in args.get("branches", {}).items():
@@ -207,6 +202,36 @@ def translate_plan_node(state: CopilotState) -> dict[str, Any]:
                         edge_target = edge.get("target")
                         break
                 node_update["target"] = edge_target
+
+                if node_type == "LOGICAL_ASSIGNER":
+                    assignments = []
+                    for asgn in initial_node.get("assignments", []):
+                        expr_id = asgn.get("expr_id")
+                        expr_val = None
+                        if expr_id:
+                            expr_record = state.get("initial_flow_data", {}).get("expressions", {}).get(expr_id)
+                            if expr_record:
+                                expr_val = expr_record.get("expr")
+                        assignments.append(
+                            {
+                                "target_var_key": asgn.get("target_var_key"),
+                                "expression": expr_val,
+                            }
+                        )
+                    node_update["assignments"] = assignments
+                elif node_type == "AGENTIC_ASSIGNER":
+                    node_update["agentic_inputs"] = initial_node.get("agentic_inputs", [])
+                    node_update["agentic_outputs"] = initial_node.get("agentic_outputs", [])
+                    node_update["prompt"] = initial_node.get("prompt", "")
+                elif node_type == "RAG_RETRIEVER":
+                    node_update["query_var"] = initial_node.get("query_var")
+                    node_update["context_output_var"] = initial_node.get("context_output_var")
+                    node_update["knowledge_base"] = initial_node.get("knowledge_base")
+                    node_update["top_k"] = initial_node.get("top_k")
+                elif node_type == "INTERRUPT":
+                    node_update["payload_vars"] = initial_node.get("payload_vars", [])
+                    node_update["resume_var"] = initial_node.get("resume_var")
+
             update_payload["nodes"]["upsert"].append(node_update)
             return node_update
         raise ValidationError(f"Cannot route edge from unknown node '{node_id}'.")
@@ -230,47 +255,48 @@ def translate_plan_node(state: CopilotState) -> dict[str, Any]:
 
         args = validated.model_dump(mode="json")
         source_id = args["source"]
+        branch_label = args.get("branch")
 
-        if name == "upsert_linear_edge":
+        if name == "connect":
             target_id = args["target"]
-            node = get_or_create_upsert(source_id)
-            if node["node_type"] in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
-                raise ValidationError(
-                    f"Cannot call upsert_linear_edge for Switch node '{source_id}'. You must use upsert_switch_edge."
-                )
-            node["target"] = target_id
+            if source_id.lower() == "start":
+                update_payload["start_target"] = target_id
+            else:
+                node = get_or_create_upsert(source_id)
+                if node["node_type"] in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
+                    if not branch_label:
+                        raise ValidationError(
+                            f"Cannot connect switch node '{source_id}' without specifying a branch label."
+                        )
+                    if "branches" not in node:
+                        node["branches"] = {}
+                    if branch_label not in node["branches"]:
+                        node["branches"][branch_label] = {}
+                    node["branches"][branch_label]["target"] = target_id
+                else:
+                    if branch_label:
+                        raise ValidationError(f"Cannot specify branch '{branch_label}' for linear node '{source_id}'.")
+                    node["target"] = target_id
 
-        elif name == "upsert_switch_edge":
-            target_id = args["target"]
-            branch_label = args["branch_label"]
-            node = get_or_create_upsert(source_id)
-            if node["node_type"] not in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
-                raise ValidationError(
-                    f"Cannot call upsert_switch_edge for Linear node '{source_id}'. You must use upsert_linear_edge."
-                )
-            if "branches" not in node:
-                node["branches"] = {}
-            if branch_label not in node["branches"]:
-                node["branches"][branch_label] = {}
-            node["branches"][branch_label]["target"] = target_id
-
-        elif name == "delete_linear_edge":
-            node = get_or_create_upsert(source_id)
-            if node["node_type"] in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
-                raise ValidationError(
-                    f"Cannot call delete_linear_edge for Switch node '{source_id}'. You must use delete_switch_edge."
-                )
-            node["target"] = ""
-
-        elif name == "delete_switch_edge":
-            branch_label = args["branch_label"]
-            node = get_or_create_upsert(source_id)
-            if node["node_type"] not in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
-                raise ValidationError(
-                    f"Cannot call delete_switch_edge for Linear node '{source_id}'. You must use delete_linear_edge."
-                )
-            if "branches" in node and branch_label in node["branches"]:
-                node["branches"][branch_label]["target"] = ""
+        elif name == "disconnect":
+            if source_id.lower() == "start":
+                update_payload["start_target"] = None
+            else:
+                node = get_or_create_upsert(source_id)
+                if node["node_type"] in {"LOGICAL_SWITCH", "AGENTIC_SWITCH"}:
+                    if branch_label:
+                        if "branches" not in node:
+                            node["branches"] = {}
+                        if branch_label not in node["branches"]:
+                            node["branches"][branch_label] = {}
+                        node["branches"][branch_label]["target"] = ""
+                    else:
+                        if "branches" in node:
+                            for br in node["branches"].values():
+                                if isinstance(br, dict):
+                                    br["target"] = ""
+                else:
+                    node["target"] = ""
 
     validate_node_connectivity(update_payload, state.get("initial_flow_data"))
 

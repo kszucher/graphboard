@@ -68,9 +68,18 @@ class DirectLangGraphCompiler:
         """Query imports required by a specific node class."""
         match node:
             case AgenticAssignerNode():
-                return {"from pydantic import BaseModel, Field", "from groq import Groq"}
+                return {
+                    "from pydantic import BaseModel, Field",
+                    "from google import genai",
+                    "from google.genai import types",
+                }
             case AgenticSwitchNode():
-                return {"from enum import Enum", "from pydantic import BaseModel, Field", "from groq import Groq"}
+                return {
+                    "from enum import Enum",
+                    "from pydantic import BaseModel, Field",
+                    "from google import genai",
+                    "from google.genai import types",
+                }
             case InterruptNode():
                 return {"from langgraph.types import interrupt"}
             case RagRetrieverNode():
@@ -144,15 +153,21 @@ class DirectLangGraphCompiler:
 
         fn_code = (
             f"def {node.id}(state: State) -> dict:\n"
-            f"    client = Groq()\n"
+            f"    client = genai.Client()\n"
             f"    prompt_text = {repr(node.prompt or '')}\n"
             f"{repl_block}"
-            f"    chat_completion = client.beta.chat.completions.parse(\n"
-            f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
-            f"        model='llama3-8b-8192',\n"
-            f"        response_format={node.id}Output,\n"
+            f"    response = client.models.generate_content(\n"
+            f"        model='gemini-3.6-flash',\n"
+            f"        contents=prompt_text,\n"
+            f"        config=types.GenerateContentConfig(\n"
+            f"            response_mime_type='application/json',\n"
+            f"            response_schema={node.id}Output,\n"
+            f"        ),\n"
             f"    )\n"
-            f"    res = chat_completion.choices[0].message.parsed\n"
+            f"    try:\n"
+            f"        res = {node.id}Output.model_validate_json(response.text)\n"
+            f"    except Exception:\n"
+            f"        return {{}}\n"
             f"    if res is None:\n"
             f"        return {{}}\n"
             f"    return {{{ret_items}}}"
@@ -220,16 +235,22 @@ class DirectLangGraphCompiler:
         fn_code = (
             f"def {node.id}(state: State) -> str:\n"
             f"{declarations_code}\n"
-            f"    client = Groq()\n"
+            f"    client = genai.Client()\n"
             f"    prompt_text = (\n"
             f"{prompt_concatenation}\n"
             f"    )\n"
-            f"    chat_completion = client.beta.chat.completions.parse(\n"
-            f"        messages=[{{'role': 'user', 'content': prompt_text}}],\n"
-            f"        model='llama3-8b-8192',\n"
-            f"        response_format={node.id}Choice,\n"
+            f"    response = client.models.generate_content(\n"
+            f"        model='gemini-3.6-flash',\n"
+            f"        contents=prompt_text,\n"
+            f"        config=types.GenerateContentConfig(\n"
+            f"            response_mime_type='application/json',\n"
+            f"            response_schema={node.id}Choice,\n"
+            f"        ),\n"
             f"    )\n"
-            f"    parsed = chat_completion.choices[0].message.parsed\n"
+            f"    try:\n"
+            f"        parsed = {node.id}Choice.model_validate_json(response.text)\n"
+            f"    except Exception:\n"
+            f"        return {fallback_enum_expr}\n"
             f"    if parsed is not None:\n"
             f"        return parsed.decision.value\n"
             f"    return {fallback_enum_expr}"
