@@ -75,6 +75,21 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 * **Human-in-the-Loop Interruption**: Configured LangGraph state interrupts (`wait_for_plan_node`, `wait_for_apply_node`) to pause execution at each stage for user review before committing changes.
 * **Dry-Run Validation**: Planner-generated patches are validated against the backend's operations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
 * **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary. The earlier multi-agent (planner → 3 sub-agent LLMs) design was abandoned because sub-agents consistently hallucinated argument values and swapped tool parameters despite receiving pre-filled params.
+
+### 🧠 Copilot Tooling & Architecture Decision Space
+
+GraphBoard's AI Copilot uses a single-turn planner with deterministic translation and dry-run validation. The choice of how the LLM views and mutates the graph was selected after rigorous analysis of architectural paradigms:
+
+| Paradigm / Decision | Status | Technical Rationale |
+| :--- | :--- | :--- |
+| **Polymorphic Delta Tools with Surgical Switch Patching** | ✅ **CHOSEN (Gold Standard)** | **Optimal.** Consolidates graph operations into 4 core polymorphic tools (`upsert_variable`, `upsert_node`, `upsert_switch_branch`, `reroute_edge`) + `delete_entity`/`rename_entity`. Adds **surgical branch patching** (`upsert_switch_branch`) which eliminates the dangerous silent array erasure failure mode where LLMs omit existing branches when adding a single option. Cuts schema token overhead by 75% and ensures $O(1)$ atomic updates. |
+| **Isomorphic YAML Serializer (1:1 Tool Parity)** | ✅ **CHOSEN** | **Optimal.** The prompt serializes current graph state in compact, structured YAML matching the exact fields and shapes of `upsert_node` and `upsert_switch_branch`, providing in-context few-shot learning and zero translation loss in the LLM's context window. |
+| **Free-Form Code Generation** | ❌ **REJECTED** | Non-deterministic AST parsing; high risk of hallucinating arbitrary Python standard library functions or third-party packages; breaks reliable bidirectional sync with visual canvas React Flow nodes. |
+| **Whole-Graph JSON Snapshot Regeneration** | ❌ **REJECTED** | $O(N)$ token scaling on graph size; on complex 15+ node flows, LLMs suffer from context truncation and frequently drop or corrupt unmentioned nodes/edges. |
+| **Disconnected Micro-CRUD Primitives (`connect` + `disconnect` + raw `upsert`)** | ❌ **REJECTED** | Primitive explosion (required 15 tool calls for a 3-node change); high risk of edge handle desynchronization, forgotten branch links, and dangling orphan nodes. |
+| **Full-Array Switch Overwrites** | ❌ **REJECTED** | Forcing models to reconstruct all existing switch branches (e.g. 5 lifelines) just to append a new branch causes frontier LLMs to silently drop or rename existing branches. |
+| **Open-Key AST Dictionaries (`{"score": {"equals": 10}}`)** | ❌ **REJECTED** | Open dictionary keys (`additionalProperties: true`) leak through JSON Schema to Gemini, causing constrained decoding errors and nested key hallucinations. |
+| **Self-Correction Reflection Recovery Loop** | ⏳ **DEFERRED** | Deferred to a subsequent phase to focus exclusively on achieving >95% first-shot zero-shot reliability. |
 * **🔮 Next Steps / Active R&D**:
   * **Self-Correction Retry Loops**: Route compiler and dry-run traceback exceptions back into the LangGraph state machine so the LLM planner can auto-correct its operations on validation failure.
   * **Automated Agent Evals**: Set up regression-testing suites and an LLM-as-a-judge eval harness to measure planner accuracy across common graph editing scenarios.

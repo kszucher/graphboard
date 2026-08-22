@@ -213,10 +213,26 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
             upserted_node: BaseNode
             if existing_node:
                 if existing_node.node_type != u_node.node_type:
-                    raise ValidationError(
-                        f"Node '{u_node.id}' already exists but with type {existing_node.node_type} (expected {u_node.node_type})."
-                    )
-                upserted_node = existing_node
+                    node_cls = NODE_CLASS_MAP.get(u_node.node_type)
+                    if not node_cls:
+                        raise ValidationError(f"Unsupported node type '{u_node.node_type}'.")
+                    upserted_node = node_cls(id=u_node.id)
+                    idx = flow_data.nodes.index(existing_node)
+                    flow_data.nodes[idx] = cast(NodeRead, upserted_node)
+
+                    # Clean up outdated outgoing edges if transitioning between switch and linear
+                    is_old_switch = existing_node.node_type in {NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH}
+                    is_new_switch = u_node.node_type in {NodeType.LOGICAL_SWITCH, NodeType.AGENTIC_SWITCH}
+                    if is_old_switch and not is_new_switch:
+                        flow_data.edges = [
+                            e for e in flow_data.edges if not (e.source == u_node.id and e.source_handle is not None)
+                        ]
+                    elif not is_old_switch and is_new_switch:
+                        flow_data.edges = [
+                            e for e in flow_data.edges if not (e.source == u_node.id and e.source_handle is None)
+                        ]
+                else:
+                    upserted_node = existing_node
             else:
                 node_cls = NODE_CLASS_MAP.get(u_node.node_type)
                 if not node_cls:
@@ -347,12 +363,14 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
 
                 if u_node.branches is None:
                     raise ValidationError(f"Node '{u_node.id}' of type AGENTIC_SWITCH must specify 'branches'.")
-                if u_node.agentic_input not in valid_keys:
-                    raise ValidationError(
-                        f"Agentic switch input variable '{u_node.agentic_input}' is not defined in graph state."
-                    )
-
-                upserted_node.agentic_input = u_node.agentic_input
+                if u_node.agentic_input is not None:
+                    if u_node.agentic_input not in valid_keys:
+                        raise ValidationError(
+                            f"Agentic switch input variable '{u_node.agentic_input}' is not defined in graph state."
+                        )
+                    upserted_node.agentic_input = u_node.agentic_input
+                elif not upserted_node.agentic_input:
+                    raise ValidationError(f"Node '{u_node.id}' of type AGENTIC_SWITCH must specify 'agentic_input'.")
                 agentic_branches = []
                 for label, br in u_node.branches.items():
                     branch_id = _make_slot_id(u_node.id, label)

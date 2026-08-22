@@ -6,64 +6,50 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
 
 ## Single-Turn Execution Invariant
 - IMPORTANT: You MUST generate ALL necessary tool calls to completely fulfill the user's request in a SINGLE turn.
-- When creating a node: declare any new variables with `upsert_variable`, create the node with `upsert_<type>`, and connect predecessor/successor transitions with `connect(...)` in the SAME turn.
+- State variables must be defined with `upsert_variable` before being referenced in node assignments or switch conditions.
 
-## Graph Database & Routing Model
-- **Variables**: State variables must be defined with `upsert_variable` before being referenced in node assignments or switch conditions. Use `rename_variable` to rename a variable without losing references.
-- **Node Definitions**: Nodes define computation or routing logic but do NOT contain downstream routing targets.
-- **Routing Transitions**:
-  - `connect(source="start", target="<first_node>")`: Sets the graph entrypoint.
-  - `connect(source="<linear_node>", target="<target_node>")`: Connects linear nodes (logical_assigner, agentic_assigner, rag_retriever, interrupt).
-  - `connect(source="<switch_node>", branch="<branch_label>", target="<target_node>")`: Connects switch branches (logical_switch, agentic_switch).
-  - `disconnect(source="<node_id>", branch="<branch_label_or_null>")`: Disconnects an existing outgoing edge.
-- **Topological Invariant**: Every node in the flow must be reachable from `start` or a predecessor node. Do NOT leave orphan nodes.
+## Core Operations Tools
 
-## Available Node Types
-1. `LOGICAL_ASSIGNER`: Deterministic state variable assignments.
-   - Example: `assignments=[{"target_var_key": "score", "expression": 0}]`
-2. `LOGICAL_SWITCH`: Conditional branching based on expressions.
-   - Example: `branches={"High": {"score": {"gt": 10}}, "Default": null}` (use `null` for fallback).
-3. `AGENTIC_ASSIGNER`: LLM-driven structured state updates.
-   - Example: `prompt="Analyze sentiment...", agentic_inputs=["user_comment"], agentic_outputs=[{"key": "sentiment", "type": "str"}]`
-4. `AGENTIC_SWITCH`: LLM-driven classification routing.
-   - Example: `agentic_input="user_choice", branches=["OptionA", "OptionB"]`
-5. `RAG_RETRIEVER`: Knowledge base context retrieval.
-   - Example: `query_var="user_query", context_output_var="docs", knowledge_base="kb", top_k=3`
-6. `INTERRUPT`: Pauses execution for human input.
-   - Example: `payload_vars=["question"], resume_var="user_reply"`
+1. `upsert_variable(key, type, default_value=null, description=null)`
+   - Creates or updates a state variable definition.
 
-## Expression Formats
-- **Switch Comparison Expressions** (Prisma-style nested query objects):
-  - Standard comparison: `{"error_count": {"gt": 5}}` or `{"is_active": {"equals": false}}`
-  - Reference another variable: `{"received_token": {"equals": {"var": "valid_token"}}}`
-  - Supported operators: `equals`, `not`, `in`, `lt`, `lte`, `gt`, `gte`
-  - Logic composition: `{"AND": [{"score": {"gt": 10}}, {"retries": {"lt": 3}}]}`
-  - Note: Use plain keys directly, e.g. `{"score": {"gt": 10}}` (do NOT wrap keys in escaped quotes).
-- **Assigner Expressions**:
-  - Direct value: `10` or `"value"` or `{"var": "other_var"}`
-  - Numeric delta: `{"increment": 1}`, `{"decrement": 1}`, `{"multiply": 2}`, `{"divide": 3}`
+2. `upsert_node(id, node_type, config, target=null)`
+   - Creates or updates a node with its complete configuration.
+   - For linear nodes (`LOGICAL_ASSIGNER`, `AGENTIC_ASSIGNER`, `RAG_RETRIEVER`, `INTERRUPT`), specify downstream `target="<node_id_or_end>"`.
+   - Node Configurations:
+     - `LOGICAL_ASSIGNER`: `config={"assignments": [{"target_var_key": "score", "assignment": {"value": 10}}]}`
+     - `AGENTIC_ASSIGNER`: `config={"prompt": "...", "agentic_inputs": ["topic"], "agentic_outputs": [{"key": "out", "type": "string"}]}`
+     - `RAG_RETRIEVER`: `config={"query_var": "q", "context_output_var": "docs", "knowledge_base": "kb", "top_k": 3}`
+     - `INTERRUPT`: `config={"resume_var": "ans", "payload_vars": ["display_text"]}`
+     - `LOGICAL_SWITCH`: `config={"branches": [{"label": "Yes", "condition": {"logic": "ALL", "conditions": [{"var": "score", "op": "gte", "literal_value": 10}]}, "target": "node_a"}, {"label": "Default", "condition": null, "target": "node_b"}]}`
+     - `AGENTIC_SWITCH`: `config={"agentic_input": "user_choice", "branches": [{"label": "Audience", "target": "poll_audience"}, {"label": "Phone", "target": "call_phone"}]}`
 
-## Examples of Flow Modification
+3. `upsert_switch_branch(node_id, label, target, condition=null)`
+   - Surgically adds or updates a single branch on an existing switch without overwriting or reconstructing other branches.
+   - For `LOGICAL_SWITCH`, specify `condition` (or `null` for fallback).
+   - For `AGENTIC_SWITCH`, `condition` is `null`.
 
-### Example 1: Inserting a node between linear nodes
-Request: "Add a log_payload node after start_session but before process_data"
-Current Flow:
-  start() -> start_session
-  start_session -> process_data
-  process_data -> end()
-Tool Calls:
-1. upsert_agentic_assigner(id="log_payload", prompt="Write session metadata log.", agentic_inputs=["session_id"], agentic_outputs=[])
-2. connect(source="start_session", target="log_payload")
-3. connect(source="log_payload", target="process_data")
+4. `reroute_edge(source, branch=null, new_target=null)`
+   - Redirects an existing connection without re-specifying the node config.
+   - `reroute_edge(source="start", new_target="first_node")`: Changes graph entrypoint.
+   - `reroute_edge(source="assigner_a", new_target="new_node")`: Redirects a linear node.
+   - `reroute_edge(source="my_switch", branch="Yes", new_target="new_node")`: Redirects a switch branch. Set `new_target=null` to disconnect.
 
-### Example 2: Inserting a node inside a switch branch
-Request: "Increment error counter inside the error branch of validate_router before return_to_start"
-Current Flow:
-  validate_router: LOGICAL_SWITCH(success=cond -> process_data, error=!cond -> return_to_start)
-Tool Calls:
-1. upsert_logical_assigner(id="error_incrementer", assignments=[{"target_var_key": "error_count", "expression": {"increment": 1}}])
-2. connect(source="validate_router", branch="error", target="error_incrementer")
-3. connect(source="error_incrementer", target="return_to_start")
+5. `delete_entity(kind, id, parent_id=null)`
+   - `kind="node"`: Deletes a node (`id="node_id"`).
+   - `kind="variable"`: Deletes a state variable (`id="var_key"`).
+   - `kind="switch_branch"`: Deletes a switch branch (`id="branch_label", parent_id="switch_node_id"`).
+
+6. `rename_entity(kind, old_name, new_name)`
+   - `kind="node"` or `kind="variable"`.
+
+## Closed-Schema Expressions
+- **Comparisons**: `{"var": "score", "op": "equals", "literal_value": 10}` or `{"var": "parsed", "op": "equals", "compare_var": "correct"}`
+- **Supported operators**: `equals`, `not_equals`, `gt`, `gte`, `lt`, `lte`, `in`
+- **Assignments**:
+  - Literal: `{"value": 10}` or `{"value": true}` or `{"value": "A"}`
+  - Variable copy: `{"var": "source_var"}`
+  - Numeric delta: `{"op": "increment", "amount": 1}` or `{"op": "decrement", "amount": 1}`
 """
 
 
@@ -104,6 +90,7 @@ async def generate_plan(
     trace_id: str,
     graph_id: str,
     messages: list[dict[str, Any]],
+    initial_flow: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Invokes the LLM with granular tools to produce a sequence of operations."""
     import json
@@ -117,7 +104,7 @@ async def generate_plan(
     model_name = os.environ.get("COPILOT_MODEL", "gemini-3.6-flash")
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
-    # Define the 13 consolidated tools dynamically from planner_schemas
+    # Define closed-schema tools dynamically from planner_schemas
     tools_declarations = [
         types.FunctionDeclaration(
             name="upsert_variable",
@@ -127,85 +114,38 @@ async def generate_plan(
             ),
         ),
         types.FunctionDeclaration(
-            name="delete_variable",
-            description="Delete a state variable definition.",
+            name="upsert_node",
+            description="Create or update a node with its complete type configuration and inline target.",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.DeleteVariable.model_json_schema())
+                dereference_schema(planner_schemas.UpsertNode.model_json_schema())
             ),
         ),
         types.FunctionDeclaration(
-            name="rename_variable",
-            description="Rename an existing state variable and update all node references.",
+            name="upsert_switch_branch",
+            description="Surgically add or update a single branch on an existing switch node without overwriting other branches.",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.RenameVariable.model_json_schema())
+                dereference_schema(planner_schemas.UpsertSwitchBranch.model_json_schema())
             ),
         ),
         types.FunctionDeclaration(
-            name="upsert_logical_assigner",
-            description="Create or update a logical assignment node. Routing MUST be set via connect.",
+            name="reroute_edge",
+            description="Reroute an existing outgoing transition from a source node or 'start' to a new target (or null to disconnect).",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertLogicalAssigner.model_json_schema())
+                dereference_schema(planner_schemas.RerouteEdge.model_json_schema())
             ),
         ),
         types.FunctionDeclaration(
-            name="upsert_agentic_assigner",
-            description="Create or update an agentic assignment prompt node. Routing MUST be set via connect.",
+            name="delete_entity",
+            description="Delete a node, state variable, or switch branch.",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertAgenticAssigner.model_json_schema())
+                dereference_schema(planner_schemas.DeleteEntity.model_json_schema())
             ),
         ),
         types.FunctionDeclaration(
-            name="upsert_logical_switch",
-            description="Create or update a conditional switch node. Defines branches with conditional logic. Routing MUST be set via connect with branch.",
+            name="rename_entity",
+            description="Rename a node ID or state variable key and update all graph references.",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertLogicalSwitch.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="upsert_agentic_switch",
-            description="Create or update an agentic routing switch node. Defines case labels. Routing MUST be set via connect with branch.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertAgenticSwitch.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="upsert_rag_retriever",
-            description="Create or update a RAG context retrieval node. Routing MUST be set via connect.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertRagRetriever.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="upsert_interrupt",
-            description="Create or update a human input interrupt checkpoint node. Routing MUST be set via connect.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertInterrupt.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="delete_node",
-            description="Delete a node from the graph.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.DeleteNode.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="rename_node",
-            description="Rename a node ID and update all transition targets.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.RenameNode.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="connect",
-            description="Connect an edge from source to target. Specify branch for switch nodes. Use source='start' for entrypoint.",
-            parameters_json_schema=prune_json_schema(dereference_schema(planner_schemas.Connect.model_json_schema())),
-        ),
-        types.FunctionDeclaration(
-            name="disconnect",
-            description="Disconnect an outgoing edge from source. Specify branch for switch nodes.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.Disconnect.model_json_schema())
+                dereference_schema(planner_schemas.RenameEntity.model_json_schema())
             ),
         ),
     ]
@@ -247,6 +187,7 @@ async def generate_plan(
             response=response,
             graph_id=graph_id,
             tools=tools_info,
+            initial_flow=initial_flow,
         )
     except Exception as e:
         log_llm_call(
@@ -257,6 +198,7 @@ async def generate_plan(
             error=str(e),
             graph_id=graph_id,
             tools=tools_info,
+            initial_flow=initial_flow,
         )
         raise e
 
