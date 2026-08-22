@@ -171,7 +171,7 @@ async def test_run_graph_flow_success(
                     {
                         "id": "asgn_1",
                         "target_var_key": "x",
-                        "expr_id": "expr_1",
+                        "expression": {"set": 42},
                     }
                 ],
             },
@@ -181,7 +181,6 @@ async def test_run_graph_flow_success(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": {"set": 42}}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)
@@ -215,12 +214,12 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "switch_1_option_a",
                         "label": "option_a",
-                        "expr_id": "expr_switch_a",
+                        "expression": {"x": {"gt": 0}},
                     },
                     {
                         "id": "switch_1_option_b",
                         "label": "option_b",
-                        "expr_id": "expr_switch_b",
+                        "expression": True,
                     },
                 ],
             },
@@ -231,7 +230,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_a",
                         "target_var_key": "y",
-                        "expr_id": "expr_assign_a",
+                        "expression": {"set": 100},
                     }
                 ],
             },
@@ -242,7 +241,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_b",
                         "target_var_key": "y",
-                        "expr_id": "expr_assign_b",
+                        "expression": {"set": 200},
                     }
                 ],
             },
@@ -258,24 +257,6 @@ async def test_run_graph_flow_switch_routing(
             {"id": "v1", "key": "x", "type": "number", "default_value": 5},
             {"id": "v2", "key": "y", "type": "number", "default_value": 0},
         ],
-        "expressions": {
-            "expr_switch_a": {
-                "id": "expr_switch_a",
-                "expr": {"x": {"gt": 0}},
-            },
-            "expr_switch_b": {
-                "id": "expr_switch_b",
-                "expr": True,
-            },
-            "expr_assign_a": {
-                "id": "expr_assign_a",
-                "expr": {"set": 100},
-            },
-            "expr_assign_b": {
-                "id": "expr_assign_b",
-                "expr": {"set": 200},
-            },
-        },
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)
@@ -319,7 +300,7 @@ async def test_run_graph_flow_invalid_state_ref(
                     {
                         "id": "asgn_1",
                         "target_var_key": "non_existent",
-                        "expr_id": "expr_1",
+                        "expression": {"set": 42},
                     }
                 ],
             },
@@ -329,7 +310,6 @@ async def test_run_graph_flow_invalid_state_ref(
             {"source": "assigner_1", "target": "end"},
         ],
         "state": [{"id": "v1", "key": "x", "type": "number", "default_value": 0}],
-        "expressions": {"expr_1": {"id": "expr_1", "expr": {"set": 42}}},
     }
 
     await real_uow.graph_history.clear_by_graph(dummy_graph.id)

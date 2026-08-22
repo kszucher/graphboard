@@ -11,10 +11,7 @@ from .base import BaseNode, _make_slot_id
 
 
 class AgenticBranch(BaseModel):
-    """A routing branch on an agentic switch node.
-
-    Doesn't contain any code evaluation expressions.
-    """
+    """A routing branch on an agentic switch node."""
 
     model_config = ConfigDict(extra="forbid")
     id: SkipJsonSchema[str] = ""
@@ -22,14 +19,11 @@ class AgenticBranch(BaseModel):
     target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
-class AgenticSwitchConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class AgenticSwitchNode(BaseNode):
     node_type: Literal[NodeType.AGENTIC_SWITCH] = NodeType.AGENTIC_SWITCH
     branches: list[AgenticBranch] = Field(default_factory=list)
     agentic_input: str = ""
 
-
-class AgenticSwitchNode(BaseNode, AgenticSwitchConfig):
     @model_validator(mode="after")
     def populate_branch_ids(self) -> AgenticSwitchNode:
         for branch in self.branches:

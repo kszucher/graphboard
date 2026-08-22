@@ -2,23 +2,18 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-
 from app.core.constants import NodeType
 
 from .base import BaseNode
 
 
-class RagRetrieverConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class RagRetrieverNode(BaseNode):
     node_type: Literal[NodeType.RAG_RETRIEVER] = NodeType.RAG_RETRIEVER
     query_var: str = ""
     context_output_var: str = ""
     knowledge_base: str = "trivia"
     top_k: int = 3
 
-
-class RagRetrieverNode(BaseNode, RagRetrieverConfig):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.core.exceptions import ValidationError
 

@@ -133,10 +133,7 @@ class DirectLangGraphCompiler:
         valid_items = [i for i in node.assignments if getattr(i, "target_var_key", None) in self.valid_keys]
         pairs = []
         for i in valid_items:
-            expr_id = getattr(i, "expr_id", None)
-            record = self.flow_data.expressions.get(expr_id) if expr_id else None
-            expr_str = record.expr if record else None
-            val_code = expression_to_code(expr_str, self.valid_keys, target_var_key=i.target_var_key)
+            val_code = expression_to_code(i.expression, self.valid_keys, target_var_key=i.target_var_key)
             pairs.append(f"{repr(i.target_var_key)}: {val_code}")
         return f"def {node.id}(state: State) -> dict:\n    return {{{', '.join(pairs)}}}"
 
@@ -193,13 +190,11 @@ class DirectLangGraphCompiler:
         if_branches = []
         for idx, branch in enumerate(node.branches):
             raw = branch.label or f"Branch {idx + 1}"
-            expr_id = branch.expr_id
-            record = self.flow_data.expressions.get(expr_id) if expr_id else None
-            expr_str = record.expr if record else None
-            if idx == len(node.branches) - 1 and expr_str == "True":
+            expr_val = branch.expression
+            if idx == len(node.branches) - 1 and expr_val is True:
                 if_branches.append(f"    else:\n        return {repr(raw)}")
             else:
-                cond_code = expression_to_code(expr_str, self.valid_keys, fallback="False")
+                cond_code = expression_to_code(expr_val, self.valid_keys, fallback="False")
                 keyword = "if" if idx == 0 else "elif"
                 if_branches.append(f"    {keyword} {cond_code}:\n        return {repr(raw)}")
 

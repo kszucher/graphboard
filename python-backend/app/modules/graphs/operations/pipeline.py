@@ -5,8 +5,18 @@ from typing import cast
 
 from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
-from app.modules.graphs.expressions import rename_expression_variables
-from app.modules.graphs.nodes import NODE_CLASS_MAP, BaseNode, NodeRead
+from app.modules.graphs.expressions import (
+    ComparisonExpression,
+    Expression,
+    rename_expression_variables,
+)
+from app.modules.graphs.nodes import (
+    NODE_CLASS_MAP,
+    BaseNode,
+    LogicalAssignerNode,
+    LogicalSwitchNode,
+    NodeRead,
+)
 from app.modules.graphs.operations.handlers import NODE_HANDLERS
 from app.modules.graphs.operations.schemas import (
     GraphUpdateInput,
@@ -28,12 +38,21 @@ def apply_variable_renames(flow_data: GraphFlowData, renames: list[RenameInput])
 
         var_schema.key = ru.new_key
 
-        # Rename in expressions
-        for record in flow_data.expressions.values():
-            record.expr = rename_expression_variables(record.expr, ru.old_key, ru.new_key) or ""
-
-        # Rename in nodes
+        # Rename in node expressions and references
         for n in flow_data.nodes:
+            if isinstance(n, LogicalAssignerNode):
+                for a in n.assignments:
+                    if a.expression is not None:
+                        a.expression = cast(
+                            Expression, rename_expression_variables(a.expression, ru.old_key, ru.new_key)
+                        )
+            elif isinstance(n, LogicalSwitchNode):
+                for b in n.branches:
+                    if b.expression is not None:
+                        b.expression = cast(
+                            ComparisonExpression, rename_expression_variables(b.expression, ru.old_key, ru.new_key)
+                        )
+
             rename_node_variable_references(n, ru.old_key, ru.new_key)
 
 
@@ -153,23 +172,7 @@ def apply_node_upserts(flow_data: GraphFlowData, upserts: list[NodeUpsertInput])
         # Delegate configuration & validation to polymorphic node handler
         handler = NODE_HANDLERS.get(u_node.node_type)
         if handler:
-            handler.apply(upserted_node, u_node, flow_data, valid_keys)
-
-
-def garbage_collect_expressions(flow_data: GraphFlowData) -> None:
-    referenced_exprs = set()
-    for n in flow_data.nodes:
-        if hasattr(n, "assignments"):
-            for a in getattr(n, "assignments", []):
-                if a.expr_id:
-                    referenced_exprs.add(a.expr_id)
-        if hasattr(n, "branches"):
-            for br in getattr(n, "branches", []):
-                br_expr_id = getattr(br, "expr_id", None)
-                if br_expr_id:
-                    referenced_exprs.add(br_expr_id)
-
-    flow_data.expressions = {k: v for k, v in flow_data.expressions.items() if k in referenced_exprs}
+            handler(upserted_node, u_node, flow_data, valid_keys)
 
 
 def apply_start_target(flow_data: GraphFlowData, start_target: str | None) -> None:
@@ -207,8 +210,5 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
 
     # 7. Set Start Target
     apply_start_target(flow_data, update.start_target)
-
-    # 8. Garbage Collect Expressions
-    garbage_collect_expressions(flow_data)
 
     return flow_data

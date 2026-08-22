@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from datetime import UTC, datetime
@@ -60,74 +62,38 @@ def log_llm_call(
         }
 
         if response and not error:
-            if hasattr(response, "choices"):
-                choice = response.choices[0]
-                message_info: dict[str, Any] = {
-                    "role": choice.message.role,
-                    "content": choice.message.content,
-                }
-                if choice.message.tool_calls:
-                    message_info["tool_calls"] = []
-                    for tc in choice.message.tool_calls:
-                        args_val = tc.function.arguments
-                        try:
-                            args_val = json.loads(tc.function.arguments)
-                        except Exception:
-                            pass
-                        message_info["tool_calls"].append(
-                            {
-                                "id": tc.id,
-                                "type": tc.type,
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": args_val,
-                                },
-                            }
-                        )
+            function_calls = getattr(response, "function_calls", None)
+            text_content = None
+            if not function_calls:
+                try:
+                    text_content = response.text
+                except Exception:
+                    pass
 
-                log_entry["response"] = message_info
-
-                usage = getattr(response, "usage", None)
-                if usage:
-                    log_entry["usage"] = {
-                        "prompt_tokens": usage.prompt_tokens,
-                        "completion_tokens": usage.completion_tokens,
-                        "total_tokens": usage.total_tokens,
+            message_info: dict[str, Any] = {
+                "role": "model",
+                "content": text_content,
+            }
+            if function_calls:
+                message_info["tool_calls"] = [
+                    {
+                        "id": f"call_{idx}",
+                        "type": "function",
+                        "function": {
+                            "name": fc.name,
+                            "arguments": fc.args,
+                        },
                     }
-            else:
-                # Gemini response format
-                function_calls = getattr(response, "function_calls", None)
-                text_content = None
-                if not function_calls:
-                    try:
-                        text_content = response.text
-                    except Exception:
-                        pass
-
-                message_info = {
-                    "role": "model",
-                    "content": text_content,
+                    for idx, fc in enumerate(function_calls)
+                ]
+            log_entry["response"] = message_info
+            usage = getattr(response, "usage_metadata", None)
+            if usage:
+                log_entry["usage"] = {
+                    "prompt_tokens": usage.prompt_token_count,
+                    "completion_tokens": usage.candidates_token_count,
+                    "total_tokens": usage.total_token_count,
                 }
-                if function_calls:
-                    message_info["tool_calls"] = [
-                        {
-                            "id": f"call_{idx}",
-                            "type": "function",
-                            "function": {
-                                "name": fc.name,
-                                "arguments": fc.args,
-                            },
-                        }
-                        for idx, fc in enumerate(function_calls)
-                    ]
-                log_entry["response"] = message_info
-                usage = getattr(response, "usage_metadata", None)
-                if usage:
-                    log_entry["usage"] = {
-                        "prompt_tokens": usage.prompt_token_count,
-                        "completion_tokens": usage.candidates_token_count,
-                        "total_tokens": usage.total_token_count,
-                    }
         else:
             log_entry["response"] = None
             log_entry["usage"] = None

@@ -15,7 +15,7 @@ from app.modules.graphs.schemas import GraphFlowData
 
 
 def test_pipeline_basic() -> None:
-    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
+    flow = GraphFlowData(nodes=[], edges=[], state=[])
 
     # 1. Test variable declaration and logical assignment
     update = GraphUpdateInput(
@@ -43,7 +43,7 @@ def test_pipeline_basic() -> None:
     assert len(flow.nodes) == 1
     assert flow.nodes[0].id == "init"
     assert len(flow.edges) == 2  # start -> init, init -> check
-    assert "expr_init_score" in flow.expressions
+    assert flow.nodes[0].assignments[0].expression == {"set": 0}
 
     # 2. Test strict declaration check (assigning to undeclared variable)
     invalid_update = GraphUpdateInput(
@@ -80,19 +80,18 @@ def test_pipeline_basic() -> None:
     flow = apply_graph_update(flow, valid_update)
     assert len(flow.state) == 2
     assert flow.state[1].key == "guaranteed_win"
-    assert "expr_check_guaranteed_win" in flow.expressions
+    assert flow.nodes[1].assignments[0].expression == {"score": {"equals": 5}}
 
-    # 4. Test delete node (which garbage collects expression and edges)
+    # 4. Test delete node (which cleans edges)
     delete_update = GraphUpdateInput(nodes={"delete": ["check"]}, variables={"delete": ["guaranteed_win"]})
     flow = apply_graph_update(flow, delete_update)
     assert len(flow.nodes) == 1
     assert len(flow.state) == 1
-    assert "expr_check_guaranteed_win" not in flow.expressions
     assert len(flow.edges) == 1  # only start -> init remaining (init -> check pruned)
 
 
 def test_renames_cascading() -> None:
-    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
+    flow = GraphFlowData(nodes=[], edges=[], state=[])
 
     # Initialize graph
     setup = GraphUpdateInput(
@@ -120,7 +119,7 @@ def test_renames_cascading() -> None:
     flow = apply_graph_update(flow, rename_var_update)
     assert flow.state[0].key == "score"
     assert flow.nodes[0].assignments[0].target_var_key == "score"
-    assert flow.expressions[flow.nodes[0].assignments[0].expr_id].expr == {"increment": 1}
+    assert flow.nodes[0].assignments[0].expression == {"increment": 1}
 
     # Rename node score_node -> points_node
     rename_node_update = GraphUpdateInput(rename_nodes=[RenameInput(old_key="score_node", new_key="points_node")])
@@ -132,7 +131,7 @@ def test_renames_cascading() -> None:
 
 def test_node_type_transmutation() -> None:
     """Test transmuting an existing node from AGENTIC_ASSIGNER to LOGICAL_ASSIGNER in-place."""
-    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
+    flow = GraphFlowData(nodes=[], edges=[], state=[])
 
     setup = GraphUpdateInput(
         variables={"upsert": [VariableUpsertInput(key="display_text", type="string", default_value="hello")]},

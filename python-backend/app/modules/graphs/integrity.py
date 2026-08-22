@@ -54,7 +54,7 @@ def assert_flow_is_complete(flow_data: GraphFlowData) -> None:
     valid_keys = {var.key for var in flow_data.state if var.key} if flow_data.state else set()
     for node_item in user_nodes:
         # Check for missing state variables centrally
-        node_refs = get_node_variable_references(node_item, flow_data.expressions)
+        node_refs = get_node_variable_references(node_item)
         invalid_refs = node_refs - valid_keys
         if invalid_refs:
             raise ValidationError(

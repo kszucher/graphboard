@@ -24,9 +24,6 @@ from app.modules.graphs.operations.pipeline import (
 from app.modules.graphs.operations.pipeline import (
     apply_variable_upserts as apply_variable_upserts,
 )
-from app.modules.graphs.operations.pipeline import (
-    garbage_collect_expressions as garbage_collect_expressions,
-)
 from app.modules.graphs.operations.schemas import (
     AgenticOutputInput as AgenticOutputInput,
 )
@@ -73,5 +70,4 @@ __all__ = [
     "apply_variable_deletions",
     "apply_variable_renames",
     "apply_variable_upserts",
-    "garbage_collect_expressions",
 ]

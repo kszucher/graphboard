@@ -6,15 +6,15 @@ from pydantic import Field
 
 from app.core.constants import NodeType
 
-from .agentic_assigner import AgenticAssignerConfig, AgenticAssignerNode
-from .agentic_switch import AgenticBranch, AgenticSwitchConfig, AgenticSwitchNode
+from .agentic_assigner import AgenticAssignerNode
+from .agentic_switch import AgenticBranch, AgenticSwitchNode
 from .base import BaseNode, _make_slot_id
-from .end import EndConfig, EndNode
-from .interrupt import InterruptConfig, InterruptNode
-from .logical_assigner import LogicalAssignerConfig, LogicalAssignerNode, LogicalAssignmentSchema
-from .logical_switch import Branch, LogicalSwitchConfig, LogicalSwitchNode
-from .rag_retriever import RagRetrieverConfig, RagRetrieverNode
-from .start import StartConfig, StartNode
+from .end import EndNode
+from .interrupt import InterruptNode
+from .logical_assigner import LogicalAssignerNode, LogicalAssignmentSchema
+from .logical_switch import Branch, LogicalSwitchNode
+from .rag_retriever import RagRetrieverNode
+from .start import StartNode
 
 NodeRead: TypeAlias = Annotated[
     StartNode
@@ -25,18 +25,6 @@ NodeRead: TypeAlias = Annotated[
     | LogicalSwitchNode
     | AgenticSwitchNode
     | RagRetrieverNode,
-    Field(discriminator="node_type"),
-]
-
-NodeConfig: TypeAlias = Annotated[
-    StartConfig
-    | EndConfig
-    | LogicalAssignerConfig
-    | AgenticAssignerConfig
-    | InterruptConfig
-    | LogicalSwitchConfig
-    | AgenticSwitchConfig
-    | RagRetrieverConfig,
     Field(discriminator="node_type"),
 ]
 
@@ -55,25 +43,16 @@ __all__ = [
     "_make_slot_id",
     "BaseNode",
     "StartNode",
-    "StartConfig",
     "EndNode",
-    "EndConfig",
     "LogicalAssignmentSchema",
     "LogicalAssignerNode",
-    "LogicalAssignerConfig",
     "AgenticAssignerNode",
-    "AgenticAssignerConfig",
     "Branch",
     "AgenticBranch",
     "LogicalSwitchNode",
-    "LogicalSwitchConfig",
     "AgenticSwitchNode",
-    "AgenticSwitchConfig",
     "InterruptNode",
-    "InterruptConfig",
     "RagRetrieverNode",
-    "RagRetrieverConfig",
     "NodeRead",
-    "NodeConfig",
     "NODE_CLASS_MAP",
 ]

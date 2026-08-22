@@ -15,13 +15,13 @@
         {
           "id": "loop_questions_yes",
           "label": "Yes",
-          "expr_id": "expr_loop_questions_yes",
+          "expression": { "more_questions": { "equals": true } },
           "target_var_key": null
         },
         {
           "id": "loop_questions_no",
           "label": "No",
-          "expr_id": "expr_loop_questions_no",
+          "expression": { "more_questions": { "equals": false } },
           "target_var_key": null
         }
       ]
@@ -65,7 +65,7 @@
         {
           "id": "706ca220-6b80-4178-8f78-c3d563448dde",
           "target_var_key": "parsed_answer",
-          "expr_id": "expr_parse_answer_parsed_answer"
+          "expression": { "set": { "var": "user_answer" } }
         }
       ]
     },
@@ -132,7 +132,7 @@
         {
           "id": "0efbc2c0-af0e-409a-bfe0-982f1a2b7499",
           "target_var_key": "is_correct",
-          "expr_id": "expr_check_correct_is_correct"
+          "expression": { "parsed_answer": { "equals": { "var": "correct_answer" } } }
         }
       ]
     },
@@ -143,13 +143,13 @@
         {
           "id": "result_switch_correct",
           "label": "correct",
-          "expr_id": "expr_result_switch_correct",
+          "expression": { "is_correct": { "equals": true } },
           "target_var_key": null
         },
         {
           "id": "result_switch_wrong",
           "label": "wrong",
-          "expr_id": "expr_result_switch_wrong",
+          "expression": { "is_correct": { "equals": false } },
           "target_var_key": null
         }
       ]
@@ -161,7 +161,7 @@
         {
           "id": "b2f8b45d-ff61-46e0-a3f7-b3a8f7e6cd03",
           "target_var_key": "score",
-          "expr_id": "expr_increment_score_score"
+          "expression": { "increment": 1 }
         }
       ]
     }
@@ -365,35 +365,5 @@
       "default_value": "",
       "description": null
     }
-  ],
-  "expressions": {
-    "expr_loop_questions_yes": {
-      "id": "expr_loop_questions_yes",
-      "expr": { "more_questions": { "equals": true } }
-    },
-    "expr_loop_questions_no": {
-      "id": "expr_loop_questions_no",
-      "expr": { "more_questions": { "equals": false } }
-    },
-    "expr_parse_answer_parsed_answer": {
-      "id": "expr_parse_answer_parsed_answer",
-      "expr": { "set": { "var": "user_answer" } }
-    },
-    "expr_check_correct_is_correct": {
-      "id": "expr_check_correct_is_correct",
-      "expr": { "parsed_answer": { "equals": { "var": "correct_answer" } } }
-    },
-    "expr_result_switch_correct": {
-      "id": "expr_result_switch_correct",
-      "expr": { "is_correct": { "equals": true } }
-    },
-    "expr_result_switch_wrong": {
-      "id": "expr_result_switch_wrong",
-      "expr": { "is_correct": { "equals": false } }
-    },
-    "expr_increment_score_score": {
-      "id": "expr_increment_score_score",
-      "expr": { "increment": 1 }
-    }
-  }
+  ]
 }

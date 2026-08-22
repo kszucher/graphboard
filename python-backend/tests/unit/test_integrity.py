@@ -15,7 +15,6 @@ from app.modules.graphs.nodes import (
 from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
-    ExpressionRecord,
     GraphFlowData,
 )
 
@@ -30,12 +29,12 @@ def base_flow() -> GraphFlowData:
                 Branch(
                     id="switch_1_option_a",
                     label="option_a",
-                    expr_id="expr_1",
+                    expression={"x": {"equals": 10}},
                 ),
                 Branch(
                     id="switch_1_option_b",
                     label="option_b",
-                    expr_id="expr_2",
+                    expression=None,
                 ),
             ],
         ),
@@ -45,7 +44,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    expr_id="expr_3",
+                    expression={"increment": 1},
                 )
             ],
         ),
@@ -55,7 +54,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_y",
                     target_var_key="y",
-                    expr_id="expr_4",
+                    expression=True,
                 )
             ],
         ),
@@ -75,38 +74,19 @@ def base_flow() -> GraphFlowData:
         DefinerVariableSchema(id="var_y", key="y", type="boolean", default_value=False),
     ]
 
-    expressions = {
-        "expr_1": ExpressionRecord(
-            id="expr_1",
-            expr="x == 10",
-        ),
-        "expr_2": ExpressionRecord(
-            id="expr_2",
-            expr="True",
-        ),
-        "expr_3": ExpressionRecord(
-            id="expr_3",
-            expr="x + 1",
-        ),
-        "expr_4": ExpressionRecord(
-            id="expr_4",
-            expr="True",
-        ),
-    }
-
-    return GraphFlowData(nodes=nodes, edges=edges, state=state, expressions=expressions)
+    return GraphFlowData(nodes=nodes, edges=edges, state=state)
 
 
 def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
     assert_flow_is_complete(base_flow)
 
 
-def test_assert_flow_is_complete_unset_expression(base_flow: GraphFlowData) -> None:
+def test_assert_flow_is_complete_invalid_variable_reference(base_flow: GraphFlowData) -> None:
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
     assert isinstance(switch_1, LogicalSwitchNode)
-    switch_1.branches[1].expr_id = None
+    switch_1.branches[0].expression = {"non_existent_var": {"equals": 10}}
 
-    with pytest.raises(ValidationError, match="unset condition"):
+    with pytest.raises(ValidationError, match="Invalid variable reference"):
         assert_flow_is_complete(base_flow)
 
 

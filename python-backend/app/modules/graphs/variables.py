@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from app.modules.graphs.expressions import get_expression_variables
 from app.modules.graphs.nodes import (
     AgenticAssignerNode,
@@ -13,25 +11,22 @@ from app.modules.graphs.nodes import (
     RagRetrieverNode,
 )
 
-if TYPE_CHECKING:
-    from app.modules.graphs.schemas import ExpressionRecord
 
-
-def get_node_variable_references(node: NodeRead, expressions: dict[str, ExpressionRecord]) -> set[str]:
+def get_node_variable_references(node: NodeRead) -> set[str]:
     refs: set[str] = set()
     match node:
         case LogicalAssignerNode():
             for a in node.assignments:
                 if a.target_var_key:
                     refs.add(a.target_var_key)
-                if a.expr_id and a.expr_id in expressions:
-                    refs.update(get_expression_variables(expressions[a.expr_id].expr))
+                if a.expression is not None:
+                    refs.update(get_expression_variables(a.expression))
         case LogicalSwitchNode():
             for b in node.branches:
                 if b.target_var_key:
                     refs.add(b.target_var_key)
-                if b.expr_id and b.expr_id in expressions:
-                    refs.update(get_expression_variables(expressions[b.expr_id].expr))
+                if b.expression is not None:
+                    refs.update(get_expression_variables(b.expression))
         case AgenticAssignerNode():
             if node.agentic_inputs:
                 refs.update(node.agentic_inputs)

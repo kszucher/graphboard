@@ -6,7 +6,6 @@ from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.graphs.expressions.schemas import Expression
 from app.modules.graphs.nodes import NodeRead
 
 
@@ -72,15 +71,7 @@ class GraphRunResponse(BaseModel):
     error: str | None = None
 
 
-class ExpressionRecord(BaseModel):
-    """A named, reusable expression stored in the graph's expression store."""
-
-    id: str
-    expr: Expression
-
-
 class GraphFlowData(BaseModel):
     nodes: list[NodeRead] = Field(default_factory=list)
     edges: list[EdgeRead] = Field(default_factory=list)
     state: list[DefinerVariableSchema] = Field(default_factory=list)
-    expressions: dict[str, ExpressionRecord] = Field(default_factory=dict)

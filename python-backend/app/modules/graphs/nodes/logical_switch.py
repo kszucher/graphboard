@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.core.constants import NodeType
+from app.modules.graphs.expressions.schemas import ComparisonExpression
 
 from .base import BaseNode, _make_slot_id
 
@@ -21,17 +22,14 @@ class Branch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: SkipJsonSchema[str] = ""
     label: str  # required — the human-readable routing label
-    expr_id: str | None = None  # LogicalSwitch condition (Python expression)
+    expression: ComparisonExpression | None = None  # LogicalSwitch condition (Python AST expression)
     target_var_key: str | None = None  # optional variable binding for integrity tracking
 
 
-class LogicalSwitchConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class LogicalSwitchNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_SWITCH] = NodeType.LOGICAL_SWITCH
     branches: list[Branch] = Field(default_factory=list)
 
-
-class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
     @model_validator(mode="after")
     def populate_branch_ids(self) -> LogicalSwitchNode:
         for branch in self.branches:
@@ -52,10 +50,6 @@ class LogicalSwitchNode(BaseNode, LogicalSwitchConfig):
         from app.core.exceptions import ValidationError
 
         for branch in self.branches:
-            if branch.expr_id is None:
-                raise ValidationError(
-                    f"Logical Switch node '{self.id}' has an unset condition on option '{branch.label}'."
-                )
             if (self.id, branch.id) not in edge_sources:
                 raise ValidationError(
                     f"Logical Switch option '{branch.label}' on node '{self.id}' is not connected to any target node."

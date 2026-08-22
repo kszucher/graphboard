@@ -88,10 +88,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
             lines.append(f"  {nid} [LOGICAL_ASSIGNER]{tgt_str}:")
             lines.append("    assignments:")
             for a in getattr(node, "assignments", []):
-                expr_val = None
-                if a.expr_id and flow.expressions and a.expr_id in flow.expressions:
-                    expr_val = flow.expressions[a.expr_id].expr
-                asgn_str = format_assignment_yaml(expr_val)
+                asgn_str = format_assignment_yaml(getattr(a, "expression", None))
                 lines.append(f'      - {{ target_var_key: "{a.target_var_key}", assignment: {asgn_str} }}')
 
         elif ntype == "AGENTIC_ASSIGNER":
@@ -123,9 +120,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
             for b in getattr(node, "branches", []):
                 edge = next((e for e in flow.edges if e.source == nid and e.source_handle == b.id), None)
                 br_target = edge.target if edge else "end"
-                cond_val = None
-                if b.expr_id and flow.expressions and b.expr_id in flow.expressions:
-                    cond_val = flow.expressions[b.expr_id].expr
+                cond_val = getattr(b, "expression", None)
                 if cond_val is not None and cond_val is not True:
                     cond_str = format_condition_yaml(cond_val)
                     lines.append(f'    - branch "{b.label}": {cond_str} -> {br_target}')

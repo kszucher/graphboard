@@ -28,4 +28,4 @@ class AtomicUpdate(BaseModel):
 
 
 Expression: TypeAlias = str | int | float | bool | dict[str, Any]
-ComparisonExpression: TypeAlias = dict[str, Any]
+ComparisonExpression: TypeAlias = dict[str, Any] | bool

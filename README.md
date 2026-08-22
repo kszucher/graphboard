@@ -65,10 +65,10 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 * **Direct AST Synthesis**: Created a python AST compiler mapping visual nodes directly into Python statements.
 * **Subprocess Isolation**: Compiled scripts run in a dedicated spawned subprocess with piped `stdin` communication and hard timeout, preventing infinite loops from hanging the main API thread without Windows command-length restrictions.
 
-### Phase 3: Modular Node Handlers & Expression Evaluator
-* **Polymorphic Node Handlers**: Decomposed mutations into modular, type-safe node handlers under `app/modules/graphs/operations/handlers/` orchestrated by a functional pipeline.
-* **In-Memory Expression Evaluator & Type Validator**: Added pure-Python expression evaluator and type inference in `app/modules/graphs/expressions/`, enabling zero-overhead dry-run calculations and validation.
-* **AST Expressions Consolidation**: Centralized expression-to-code, variable tracking, and cascading renames into the expression module, deleting duplicate recursive traversals across the codebase.
+### Phase 3: Modular Node Handlers & AST Expression Compilation
+* **Unified Node Handlers**: Decomposed mutations into modular, type-safe node handlers under `app/modules/graphs/operations/handlers.py` orchestrated by a functional pipeline.
+* **Direct Inlined Expressions**: Expressions are embedded directly on node assignments and switch branches without lookup indirection or entity table stores.
+* **AST Expressions Consolidation**: Centralized expression-to-code synthesis, variable tracking, and cascading renames into `app/modules/graphs/expressions/`.
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
 * **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.

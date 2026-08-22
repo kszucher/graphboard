@@ -147,14 +147,8 @@ def translate_plan_to_operations(
                         if edge.get("source") == node_id and edge.get("source_handle") == branch_id:
                             edge_target = edge.get("target")
                             break
-                    expr_id = br.get("expr_id")
-                    expr_val = None
-                    if expr_id:
-                        expr_record = (initial_flow_data or {}).get("expressions", {}).get(expr_id)
-                        if expr_record:
-                            expr_val = expr_record.get("expr")
                     branches[br["label"]] = {
-                        "expression": expr_val,
+                        "expression": br.get("expression"),
                         "target": edge_target,
                     }
                 node_update["branches"] = branches
@@ -171,16 +165,10 @@ def translate_plan_to_operations(
                 if node_type == "LOGICAL_ASSIGNER":
                     assignments = []
                     for asgn in initial_node.get("assignments", []):
-                        expr_id = asgn.get("expr_id")
-                        expr_val = None
-                        if expr_id:
-                            expr_record = (initial_flow_data or {}).get("expressions", {}).get(expr_id)
-                            if expr_record:
-                                expr_val = expr_record.get("expr")
                         assignments.append(
                             {
                                 "target_var_key": asgn.get("target_var_key"),
-                                "expression": expr_val,
+                                "expression": asgn.get("expression"),
                             }
                         )
                     node_update["assignments"] = assignments

@@ -40,8 +40,6 @@ async def test_generate_graph_code_with_variables() -> None:
 
 
 async def test_generate_graph_code_with_logical_assigner() -> None:
-    from app.modules.graphs.schemas import ExpressionRecord
-
     flow_data = GraphFlowData(
         nodes=[
             LogicalAssignerNode(
@@ -50,7 +48,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="status",
-                        expr_id="expr_status",
+                        expression={"set": "processed"},
                     ),
                 ],
             ),
@@ -62,12 +60,6 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value=""),
         ],
-        expressions={
-            "expr_status": ExpressionRecord(
-                id="expr_status",
-                expr={"set": "processed"},
-            )
-        },
     )
     code = await generate_graph_code(flow_data)
     assert "def assigner_1(state: State) -> dict:" in code
@@ -78,8 +70,6 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
 
 
 async def test_generate_graph_code_with_switch_node() -> None:
-    from app.modules.graphs.schemas import ExpressionRecord
-
     flow_data = GraphFlowData(
         nodes=[
             LogicalSwitchNode(
@@ -88,7 +78,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
                     Branch(
                         id="switch_1_is_active",
                         label="is_active",
-                        expr_id="expr_active",
+                        expression={"status": {"equals": "active"}},
                     )
                 ],
             ),
@@ -97,12 +87,6 @@ async def test_generate_graph_code_with_switch_node() -> None:
         state=[
             DefinerVariableSchema(id="v1", key="status", type="string", default_value="active"),
         ],
-        expressions={
-            "expr_active": ExpressionRecord(
-                id="expr_active",
-                expr={"status": {"equals": "active"}},
-            )
-        },
     )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
