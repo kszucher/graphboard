@@ -50,6 +50,8 @@ async def run_scenario(scenario: EvalScenario) -> bool:
         "operations": None,
         "validation_error": None,
         "applied": None,
+        "retry_count": 0,
+        "messages": None,
     }
 
     try:

@@ -1,5 +1,4 @@
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, Depends, status
 
@@ -11,6 +10,7 @@ from app.modules.graphs.schemas import (
     GraphCreate,
     GraphFlowRead,
     GraphRead,
+    GraphRunResponse,
 )
 
 router = APIRouter(prefix="/graphs", tags=["graphs"])
@@ -25,7 +25,8 @@ async def create_graph(payload: GraphCreate, uow: UnitOfWork = Depends(get_uow))
 
 @router.get("/user/{user_id}", response_model=list[GraphRead])
 async def list_graphs(user_id: uuid.UUID, uow: UnitOfWork = Depends(get_uow)) -> list[GraphRead]:
-    graphs = await graph_service.list_graphs_by_user(uow, user_id)
+    async with uow:
+        graphs = await graph_service.list_graphs_by_user(uow, user_id)
     return [GraphRead.model_validate(g) for g in graphs]
 
 
@@ -47,16 +48,17 @@ async def get_graph_code_endpoint(
     version: int | None = None,
     uow: UnitOfWork = Depends(get_uow),
 ) -> GraphCodeRead:
-    code_data = await graph_service.get_compiled_code(uow, graph_id, version)
+    async with uow:
+        code_data = await graph_service.get_compiled_code(uow, graph_id, version)
     return GraphCodeRead.model_validate(code_data)
 
 
-@router.post("/{graph_id}/run", response_model=dict[str, Any])
+@router.post("/{graph_id}/run", response_model=GraphRunResponse)
 async def run_graph(
     graph_id: uuid.UUID,
     version: int | None = None,
     uow: UnitOfWork = Depends(get_uow),
-) -> dict[str, Any]:
+) -> GraphRunResponse:
     async with uow:
         flow_data = await graph_service.run_graph_flow(uow, graph_id, version)
-    return {"variables": flow_data.get("variables", [])}
+    return GraphRunResponse.model_validate(flow_data)

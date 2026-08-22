@@ -174,16 +174,12 @@ class AgenticSwitchBranch(BaseModel):
 
 class AgenticOutputVar(BaseModel):
     key: str = Field(description="Output variable name.")
-    type: Literal["boolean", "bool", "string", "number", "float", "int", "integer", "array", "object"] = Field(
-        description="Variable type."
-    )
+    type: Literal["string", "number", "boolean", "array", "object"] = Field(description="Variable type.")
 
 
 class UpsertVariable(BaseModel):
     key: str = Field(description="Variable key to create or update.")
-    type: Literal["boolean", "bool", "string", "number", "float", "int", "integer", "array", "object"] = Field(
-        description="Variable type."
-    )
+    type: Literal["string", "number", "boolean", "array", "object"] = Field(description="Variable type.")
     default_value: Any | None = Field(
         default=None,
         description="Optional default value. Must be explicitly set to null/none if not present.",

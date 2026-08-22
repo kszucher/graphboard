@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,11 +9,7 @@ from app.core.base import models
 from app.core.base.repository import BaseRepository
 
 
-class UserCreate(BaseModel):
-    name: str
-
-
-class UserRepository(BaseRepository[models.User, UserCreate, UserCreate]):
+class UserRepository(BaseRepository[models.User]):
     def __init__(self, session: AsyncSession):
         super().__init__(models.User, session)
 
@@ -36,6 +31,3 @@ class UserRepository(BaseRepository[models.User, UserCreate, UserCreate]):
     async def get_active_graph_id(self, user_id: uuid.UUID) -> uuid.UUID | None:
         user = await self.get(user_id)
         return user.selected_graph_id if user else None
-
-    async def get(self, user_id: uuid.UUID) -> models.User | None:
-        return await self.session.get(models.User, user_id)

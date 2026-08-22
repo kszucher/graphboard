@@ -357,5 +357,8 @@ def translate_plan_node(state: CopilotState) -> dict[str, Any]:
     tool_calls = state.get("tool_calls") or []
     initial_flow_data = state.get("initial_flow_data")
 
-    operations = translate_plan_to_operations(tool_calls, initial_flow_data)
-    return {"operations": operations}
+    try:
+        operations = translate_plan_to_operations(tool_calls, initial_flow_data)
+        return {"operations": operations, "validation_error": None}
+    except Exception as e:
+        return {"operations": None, "validation_error": str(e)}

@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 from typing import Any
 
+from app.core.config import settings
 from app.modules.graphs.expressions import expression_to_code
 from app.modules.graphs.nodes import (
     AgenticAssignerNode,
@@ -34,8 +35,6 @@ except ImportError:
 
 TYPE_MAP = {
     "number": "int",
-    "int": "int",
-    "float": "float",
     "boolean": "bool",
     "string": "str",
     "array": "list[Any]",
@@ -43,8 +42,6 @@ TYPE_MAP = {
 }
 DEFAULT_VALUES: dict[str, Any] = {
     "number": 0,
-    "int": 0,
-    "float": 0.0,
     "boolean": False,
     "string": "",
     "array": [],
@@ -55,8 +52,9 @@ DEFAULT_VALUES: dict[str, Any] = {
 class DirectLangGraphCompiler:
     """Direct 1-Layer Compiler: Visual GraphFlowData to LangGraph Python Script."""
 
-    def __init__(self, flow_data: GraphFlowData):
+    def __init__(self, flow_data: GraphFlowData, model_name: str | None = None):
         self.flow_data = flow_data
+        self.model_name = model_name or settings.copilot_model
         self.all_variables = [v for v in flow_data.state if v.key]
         self.valid_keys = {v.key for v in self.all_variables}
         self.nodes_by_id: dict[str, NodeRead] = {n.id: n for n in flow_data.nodes}
@@ -174,7 +172,7 @@ class DirectLangGraphCompiler:
             f"    prompt_text = {repr(node.prompt or '')}\n"
             f"{repl_block}"
             f"    response = client.models.generate_content(\n"
-            f"        model='gemini-3.6-flash',\n"
+            f"        model={repr(self.model_name)},\n"
             f"        contents=prompt_text,\n"
             f"        config=types.GenerateContentConfig(\n"
             f"            response_mime_type='application/json',\n"
@@ -257,7 +255,7 @@ class DirectLangGraphCompiler:
             f"{prompt_concatenation}\n"
             f"    )\n"
             f"    response = client.models.generate_content(\n"
-            f"        model='gemini-3.6-flash',\n"
+            f"        model={repr(self.model_name)},\n"
             f"        contents=prompt_text,\n"
             f"        config=types.GenerateContentConfig(\n"
             f"            response_mime_type='application/json',\n"
@@ -403,8 +401,8 @@ class DirectLangGraphCompiler:
         return raw_code
 
 
-async def generate_graph_code(flow_data: GraphFlowData) -> str:
-    raw_code = DirectLangGraphCompiler(flow_data).compile()
+async def generate_graph_code(flow_data: GraphFlowData, model_name: str | None = None) -> str:
+    raw_code = DirectLangGraphCompiler(flow_data, model_name=model_name).compile()
     if black is not None:
         try:
             return black.format_str(raw_code, mode=black.Mode(line_length=60))

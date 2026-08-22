@@ -63,11 +63,11 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 ### Phase 2: Direct Compiler & Sandbox
 * **Discriminated Union Schema**: Structured `NodeRead` into per-type models discriminated by `node_type`, containing only relevant primitive properties.
 * **Direct AST Synthesis**: Created a python AST compiler mapping visual nodes directly into Python statements.
-* **Subprocess Isolation**: Compiled scripts run in a dedicated spawned subprocess with a hard timeout, preventing infinite loops from hanging the main API thread.
+* **Subprocess Isolation**: Compiled scripts run in a dedicated spawned subprocess with piped `stdin` communication and hard timeout, preventing infinite loops from hanging the main API thread without Windows command-length restrictions.
 
-### Phase 3: Coarse-Grained Patch Mutations & Type Safety
-* **Consolidated mutations**: Unified topology and operations alterations under the `operations` package (`app/graphs/operations/`) driven by a central pipeline.
-* **Discriminator Config Union**: Refactored `UpsertNodeOp` configuration payloads to be dynamically parsed and validated into strongly-typed config models (`LogicalAssignerConfig`, etc.) via Pydantic model validators.
+### Phase 3: Modular Node Handlers & Expression Evaluator
+* **Polymorphic Node Handlers**: Decomposed mutations into modular, type-safe node handlers under `app/modules/graphs/operations/handlers/` orchestrated by a functional pipeline.
+* **In-Memory Expression Evaluator & Type Validator**: Added pure-Python expression evaluator and type inference in `app/modules/graphs/expressions/`, enabling zero-overhead dry-run calculations and validation.
 * **AST Expressions Consolidation**: Centralized expression-to-code, variable tracking, and cascading renames into the expression module, deleting duplicate recursive traversals across the codebase.
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
@@ -89,9 +89,8 @@ GraphBoard's AI Copilot uses a single-turn planner with deterministic translatio
 | **Disconnected Micro-CRUD Primitives (`connect` + `disconnect` + raw `upsert`)** | ❌ **REJECTED** | Primitive explosion (required 15 tool calls for a 3-node change); high risk of edge handle desynchronization, forgotten branch links, and dangling orphan nodes. |
 | **Full-Array Switch Overwrites** | ❌ **REJECTED** | Forcing models to reconstruct all existing switch branches (e.g. 5 lifelines) just to append a new branch causes frontier LLMs to silently drop or rename existing branches. |
 | **Open-Key AST Dictionaries (`{"score": {"equals": 10}}`)** | ❌ **REJECTED** | Open dictionary keys (`additionalProperties: true`) leak through JSON Schema to Gemini, causing constrained decoding errors and nested key hallucinations. |
-| **Self-Correction Reflection Recovery Loop** | ⏳ **DEFERRED** | Deferred to a subsequent phase to focus exclusively on achieving >95% first-shot zero-shot reliability. |
+| **Self-Correction Reflection Recovery Loop** | ✅ **CHOSEN** | **Optimal.** Routes compiler, schema translation, and dry-run validation error tracebacks back into the LangGraph state machine with automatic conversational feedback turns, enabling the LLM planner to auto-correct operation failures across at most 1 retry attempt. |
 * **🔮 Next Steps / Active R&D**:
-  * **Self-Correction Retry Loops**: Route compiler and dry-run traceback exceptions back into the LangGraph state machine so the LLM planner can auto-correct its operations on validation failure.
   * **Automated Agent Evals**: Set up regression-testing suites and an LLM-as-a-judge eval harness to measure planner accuracy across common graph editing scenarios.
 
 ---

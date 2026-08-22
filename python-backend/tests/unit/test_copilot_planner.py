@@ -1,6 +1,5 @@
 import pytest
 
-from app.core.exceptions import ValidationError
 from app.modules.copilot.translator import translate_plan_node
 
 
@@ -213,8 +212,9 @@ def test_translate_plan_node_orphan_error() -> None:
         },
     }
 
-    with pytest.raises(ValidationError, match="Orphan node detected"):
-        translate_plan_node(state)
+    result = translate_plan_node(state)
+    assert result["operations"] is None
+    assert "Orphan node detected" in str(result["validation_error"])
 
 
 def test_translate_plan_node_orthogonal_collection_expressions() -> None:
@@ -276,3 +276,86 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     compiler = DirectLangGraphCompiler(updated_flow)
     compiled_code = compiler.compile()
     assert "random.sample" in compiled_code
+
+
+async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that the Copilot StateGraph routes validation errors back through planner for self-correction."""
+    from typing import Any, cast
+
+    from langchain_core.runnables import RunnableConfig
+
+    from app.modules.copilot.models import CopilotState
+    from app.modules.copilot.workflow import copilot_graph
+
+    call_count = 0
+
+    # Mock generate_plan to fail on first turn (orphan node) and correct on second turn
+    async def mock_generate_plan(
+        client: Any,
+        trace_id: str,
+        graph_id: str,
+        messages: list[dict[str, Any]],
+        initial_flow: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # Turn 1: Invalid orphan node (will fail dry-run validation)
+            return [
+                {
+                    "name": "upsert_node",
+                    "arguments": (
+                        '{"id": "orphan_step", "node_type": "LOGICAL_ASSIGNER", '
+                        '"config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]}, '
+                        '"target": "end"}'
+                    ),
+                }
+            ]
+        else:
+            # Turn 2: Corrected with proper start entrypoint
+            return [
+                {
+                    "name": "upsert_variable",
+                    "arguments": '{"key": "x", "type": "number", "default_value": 0, "description": null}',
+                },
+                {
+                    "name": "upsert_node",
+                    "arguments": (
+                        '{"id": "first_step", "node_type": "LOGICAL_ASSIGNER", '
+                        '"config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]}, '
+                        '"target": "end"}'
+                    ),
+                },
+                {"name": "upsert_node", "arguments": '{"id": "start", "target": "first_step"}'},
+            ]
+
+    monkeypatch.setattr("app.modules.copilot.workflow.generate_plan", mock_generate_plan)
+    monkeypatch.setenv("GEMINI_API_KEY", "mock_key")
+
+    initial_state: CopilotState = {
+        "trace_id": "test_retry_trace",
+        "graph_id": "test_graph_retry",
+        "user_prompt": "Add a first step initializing x to 1",
+        "serialized_state": "Flow:\n  start -> end",
+        "initial_flow_data": {
+            "nodes": [{"id": "start", "node_type": "START"}, {"id": "end", "node_type": "END"}],
+            "edges": [],
+            "state": [],
+        },
+        "tool_calls": None,
+        "operations": None,
+        "validation_error": None,
+        "applied": None,
+        "retry_count": 0,
+        "messages": None,
+    }
+
+    config = cast(RunnableConfig, {"configurable": {"thread_id": "test_thread_retry"}})
+    final_state = await copilot_graph.ainvoke(cast(Any, initial_state), config)
+
+    # Verify that planner was called twice and second attempt succeeded
+    assert call_count == 2
+    assert final_state.get("applied") is True
+    assert final_state.get("validation_error") is None
+    assert final_state.get("retry_count") == 1
+    assert final_state.get("operations") is not None

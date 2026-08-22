@@ -208,4 +208,3 @@ async def test_default_example_graph_ast_compilation() -> None:
         "workflow.add_conditional_edges('parse_answer', lifeline_switch," in code
         or 'workflow.add_conditional_edges("parse_answer", lifeline_switch,' in code
     )
-

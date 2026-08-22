@@ -24,6 +24,10 @@ class Settings(BaseSettings):
         return v
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
+    copilot_model: str = Field(default="gemini-3.6-flash", description="Default Gemini model for copilot operations")
+    runner_timeout_seconds: float = Field(
+        default=5.0, description="Hard timeout in seconds for subprocess workflow execution"
+    )
 
 
 settings = Settings()

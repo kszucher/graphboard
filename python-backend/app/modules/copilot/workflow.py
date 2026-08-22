@@ -18,6 +18,8 @@ from app.modules.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 1
+
 
 async def planner_node(state: CopilotState) -> dict[str, Any]:
     """Invokes the Planner LLM to generate the checklist of operations."""
@@ -27,12 +29,14 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
 
     client = genai.Client(api_key=api_key)
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
-        },
-    ]
+    messages = list(state.get("messages") or [])
+    if not messages:
+        messages = [
+            {
+                "role": "user",
+                "content": f"## Current Graph State:\n{state['serialized_state']}\n\n## User Request:\n{state['user_prompt']}",
+            },
+        ]
 
     plan = await generate_plan(
         client,
@@ -45,11 +49,59 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     return {
         "tool_calls": plan,
         "operations": None,
+        "messages": messages,
     }
+
+
+def _format_error_feedback(err_msg: str) -> str:
+    """Classifies validation error into structured diagnostic hints for LLM self-correction."""
+    tag = "[VALIDATION_ERROR]"
+    lower_err = err_msg.lower()
+    if "orphan node" in lower_err:
+        tag = "[ORPHAN_NODE]"
+    elif "variable" in lower_err and ("not defined" in lower_err or "missing" in lower_err):
+        tag = "[UNDEFINED_VARIABLE]"
+    elif "unreachable" in lower_err:
+        tag = "[UNREACHABLE_NODE]"
+    elif "must specify" in lower_err or "required" in lower_err:
+        tag = "[MISSING_CONFIGURATION]"
+
+    return (
+        f"{tag} Your previous operations failed validation:\n"
+        f"{err_msg}\n\n"
+        "Please analyze the diagnostic above and generate a complete, corrected sequence of tool calls."
+    )
 
 
 def validation_node(state: CopilotState) -> dict[str, Any]:
     """Validates generated operations by dry-running them against the backend mutations engine."""
+    current_retries = state.get("retry_count") or 0
+
+    if state.get("validation_error"):
+        err_msg = str(state["validation_error"])
+        logger.warning(
+            "Agent plan translation failed (attempt %d/%d): %s",
+            current_retries + 1,
+            MAX_RETRIES,
+            err_msg,
+        )
+        log_validation_error(state["trace_id"], state.get("graph_id"), err_msg)
+
+        messages = list(state.get("messages") or [])
+        messages.append(
+            {
+                "role": "user",
+                "content": _format_error_feedback(err_msg),
+            }
+        )
+
+        return {
+            "validation_error": err_msg,
+            "applied": False,
+            "retry_count": current_retries + 1,
+            "messages": messages,
+        }
+
     if not state.get("operations"):
         return {"validation_error": "No operations generated.", "applied": False}
 
@@ -62,12 +114,41 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         apply_graph_update(flow_data, update)
         return {"validation_error": None, "applied": True}
     except Exception as e:
-        logger.warning("Agent operation dry-run failed: %s", str(e))
-        log_validation_error(state["trace_id"], state.get("graph_id"), str(e))
-        return {"validation_error": str(e), "applied": False}
+        err_msg = str(e)
+        logger.warning(
+            "Agent operation dry-run failed (attempt %d/%d): %s",
+            current_retries + 1,
+            MAX_RETRIES,
+            err_msg,
+        )
+        log_validation_error(state["trace_id"], state.get("graph_id"), err_msg)
+
+        messages = list(state.get("messages") or [])
+        messages.append(
+            {
+                "role": "user",
+                "content": _format_error_feedback(err_msg),
+            }
+        )
+
+        return {
+            "validation_error": err_msg,
+            "applied": False,
+            "retry_count": current_retries + 1,
+            "messages": messages,
+        }
 
 
-# --- Build StateGraph ---
+def route_after_validation(state: CopilotState) -> str:
+    if state.get("applied") or not state.get("validation_error"):
+        return END
+    current_retries = state.get("retry_count") or 0
+    if current_retries <= MAX_RETRIES:
+        return "planner_node"
+    return END
+
+
+# --- Build StateGraph with Self-Correction Retry Loop ---
 
 workflow = StateGraph(CopilotState)
 
@@ -78,7 +159,7 @@ workflow.add_node("validation_node", validation_node)
 workflow.add_edge(START, "planner_node")
 workflow.add_edge("planner_node", "translate_plan_node")
 workflow.add_edge("translate_plan_node", "validation_node")
-workflow.add_edge("validation_node", END)
+workflow.add_conditional_edges("validation_node", route_after_validation)
 
 # In-memory saver to persist threads across runs
 memory_saver = MemorySaver()

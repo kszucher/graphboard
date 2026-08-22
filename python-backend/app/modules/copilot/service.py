@@ -52,6 +52,8 @@ async def initiate_copilot_workflow(
         "operations": None,
         "validation_error": None,
         "applied": None,
+        "retry_count": 0,
+        "messages": None,
     }
 
     # Run the automated pipeline fully

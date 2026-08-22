@@ -25,7 +25,7 @@ class GraphRead(OrmModel):
     user_id: uuid.UUID
 
 
-VariableType: TypeAlias = Literal["boolean", "bool", "string", "number", "float", "int", "integer", "array", "object"]
+VariableType: TypeAlias = Literal["string", "number", "boolean", "array", "object"]
 
 
 class DefinerVariableSchema(BaseModel):
@@ -60,6 +60,16 @@ class GraphFlowRead(OrmModel):
 
 class GraphCodeRead(BaseModel):
     code: str
+
+
+class GraphRunVariable(BaseModel):
+    key: str
+    value: Any = None
+
+
+class GraphRunResponse(BaseModel):
+    variables: list[GraphRunVariable] = Field(default_factory=list)
+    error: str | None = None
 
 
 class ExpressionRecord(BaseModel):

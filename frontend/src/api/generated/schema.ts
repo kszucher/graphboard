@@ -4,906 +4,914 @@
  */
 
 export interface paths {
-  "/users/get-or-create": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/get-or-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get Or Create User */
+        post: operations["get_or_create_user_users_get_or_create_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Get Or Create User */
-    post: operations["get_or_create_user_users_get_or_create_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/users/": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create User */
+        post: operations["create_user_users__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create User */
-    post: operations["create_user_users__post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/users/{user_id}/active-graph": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/{user_id}/active-graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Active Graph Id */
+        get: operations["get_active_graph_id_users__user_id__active_graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Active Graph Id */
-    get: operations["get_active_graph_id_users__user_id__active_graph_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/users/set-active-graph": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/set-active-graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Active Graph */
+        post: operations["set_active_graph_users_set_active_graph_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Set Active Graph */
-    post: operations["set_active_graph_users_set_active_graph_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/graphs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Graph */
+        post: operations["create_graph_graphs__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Graph */
-    post: operations["create_graph_graphs__post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/user/{user_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/graphs/user/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Graphs */
+        get: operations["list_graphs_graphs_user__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Graphs */
-    get: operations["list_graphs_graphs_user__user_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/flow": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/graphs/{graph_id}/flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Graph Flow */
+        get: operations["get_graph_flow_graphs__graph_id__flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Graph Flow */
-    get: operations["get_graph_flow_graphs__graph_id__flow_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/code": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/graphs/{graph_id}/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Graph Code Endpoint */
+        get: operations["get_graph_code_endpoint_graphs__graph_id__code_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Graph Code Endpoint */
-    get: operations["get_graph_code_endpoint_graphs__graph_id__code_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/graphs/{graph_id}/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/graphs/{graph_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Graph */
+        post: operations["run_graph_graphs__graph_id__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Run Graph */
-    post: operations["run_graph_graphs__graph_id__run_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/copilot/{graph_id}/initiate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/copilot/{graph_id}/initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Initiate Copilot Endpoint */
+        post: operations["initiate_copilot_endpoint_copilot__graph_id__initiate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Initiate Copilot Endpoint */
-    post: operations["initiate_copilot_endpoint_copilot__graph_id__initiate_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/health": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Health */
-    get: operations["health_health_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
-
 export type webhooks = Record<string, never>;
-
 export interface components {
-  schemas: {
-    /** ActiveGraphResponse */
-    ActiveGraphResponse: {
-      /** Graph Id */
-      graph_id: string | null;
+    schemas: {
+        /** ActiveGraphResponse */
+        ActiveGraphResponse: {
+            /** Graph Id */
+            graph_id: string | null;
+        };
+        /** AgenticAssignerNode */
+        AgenticAssignerNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "AGENTIC_ASSIGNER";
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /** Agentic Inputs */
+            agentic_inputs?: string[];
+            /** Agentic Outputs */
+            agentic_outputs?: string[];
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /**
+         * AgenticBranch
+         * @description A routing branch on an agentic switch node.
+         *
+         *     Doesn't contain any code evaluation expressions.
+         */
+        AgenticBranch: {
+            /** Label */
+            label: string;
+            /** Target Var Key */
+            target_var_key?: string | null;
+        };
+        /** AgenticSwitchNode */
+        AgenticSwitchNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "AGENTIC_SWITCH";
+            /** Branches */
+            branches?: components["schemas"]["AgenticBranch"][];
+            /**
+             * Agentic Input
+             * @default
+             */
+            agentic_input: string;
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /**
+         * Branch
+         * @description A routing branch on a switch node.
+         *
+         *     Invariant: `label` retains the original human-readable casing (e.g. 'Submit').
+         *     `id` is auto-generated from `label` via `_make_slot_id` and is not part of the
+         *     JSON schema exposed to the LLM — do NOT set it manually.
+         */
+        Branch: {
+            /** Label */
+            label: string;
+            /** Expr Id */
+            expr_id?: string | null;
+            /** Target Var Key */
+            target_var_key?: string | null;
+        };
+        /** CopilotInitiateRequest */
+        CopilotInitiateRequest: {
+            /** Prompt */
+            prompt: string;
+        };
+        /** CopilotStatusResponse */
+        CopilotStatusResponse: {
+            /** Graph Id */
+            graph_id: string;
+            /** Applied */
+            applied: boolean;
+            /** Validation Error */
+            validation_error?: string | null;
+        };
+        /** DefinerVariableSchema */
+        DefinerVariableSchema: {
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "string" | "number" | "boolean" | "array" | "object";
+            /** Default Value */
+            default_value?: unknown;
+            /** Description */
+            description?: string | null;
+        };
+        /** EdgeRead */
+        EdgeRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id?: string;
+            /** Source */
+            source: string;
+            /** Source Handle */
+            source_handle?: string | null;
+            /** Target */
+            target: string;
+            /** Target Handle */
+            target_handle?: string | null;
+        };
+        /** EndNode */
+        EndNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "END";
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** GraphCodeRead */
+        GraphCodeRead: {
+            /** Code */
+            code: string;
+        };
+        /** GraphCreate */
+        GraphCreate: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Graph Name */
+            graph_name: string;
+        };
+        /** GraphFlowRead */
+        GraphFlowRead: {
+            /** Nodes */
+            nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"] | components["schemas"]["RagRetrieverNode"])[];
+            /** Edges */
+            edges: components["schemas"]["EdgeRead"][];
+            /** State */
+            state?: components["schemas"]["DefinerVariableSchema"][];
+            /** Versions */
+            versions?: components["schemas"]["GraphVersionRead"][];
+            /**
+             * Current Version
+             * @default 0
+             */
+            current_version: number;
+        };
+        /** GraphRead */
+        GraphRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** GraphRunResponse */
+        GraphRunResponse: {
+            /** Variables */
+            variables?: components["schemas"]["GraphRunVariable"][];
+            /** Error */
+            error?: string | null;
+        };
+        /** GraphRunVariable */
+        GraphRunVariable: {
+            /** Key */
+            key: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** GraphVersionRead */
+        GraphVersionRead: {
+            /** Sequence Number */
+            sequence_number: number;
+            /** Name */
+            name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InterruptNode */
+        InterruptNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "INTERRUPT";
+            /** Payload Vars */
+            payload_vars?: string[];
+            /**
+             * Resume Var
+             * @default
+             */
+            resume_var: string;
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** LogicalAssignerNode */
+        LogicalAssignerNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "LOGICAL_ASSIGNER";
+            /** Assignments */
+            assignments?: components["schemas"]["LogicalAssignmentSchema"][];
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** LogicalAssignmentSchema */
+        LogicalAssignmentSchema: {
+            /** Id */
+            id?: string;
+            /** Target Var Key */
+            target_var_key: string;
+            /** Expr Id */
+            expr_id?: string | null;
+        };
+        /** LogicalSwitchNode */
+        LogicalSwitchNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "LOGICAL_SWITCH";
+            /** Branches */
+            branches?: components["schemas"]["Branch"][];
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** RagRetrieverNode */
+        RagRetrieverNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "RAG_RETRIEVER";
+            /**
+             * Query Var
+             * @default
+             */
+            query_var: string;
+            /**
+             * Context Output Var
+             * @default
+             */
+            context_output_var: string;
+            /**
+             * Knowledge Base
+             * @default trivia
+             */
+            knowledge_base: string;
+            /**
+             * Top K
+             * @default 3
+             */
+            top_k: number;
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** SetActiveGraph */
+        SetActiveGraph: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /**
+             * Graph Id
+             * Format: uuid
+             */
+            graph_id: string;
+        };
+        /** StartNode */
+        StartNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            node_type: "START";
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+        };
+        /** UserCreate */
+        UserCreate: {
+            /** User Name */
+            user_name: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
-    /** AgenticAssignerNode */
-    AgenticAssignerNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "AGENTIC_ASSIGNER";
-      /**
-       * Prompt
-       * @default
-       */
-      prompt: string;
-      /** Agentic Inputs */
-      agentic_inputs?: string[];
-      /** Agentic Outputs */
-      agentic_outputs?: string[];
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /**
-     * AgenticBranch
-     * @description A routing branch on an agentic switch node.
-     *
-     *     Doesn't contain any code evaluation expressions.
-     */
-    AgenticBranch: {
-      /** Label */
-      label: string;
-      /** Target Var Key */
-      target_var_key?: string | null;
-    };
-    /** AgenticSwitchNode */
-    AgenticSwitchNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "AGENTIC_SWITCH";
-      /** Branches */
-      branches?: components["schemas"]["AgenticBranch"][];
-      /**
-       * Agentic Input
-       * @default
-       */
-      agentic_input: string;
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /**
-     * Branch
-     * @description A routing branch on a switch node.
-     *
-     *     Invariant: `label` retains the original human-readable casing (e.g. 'Submit').
-     *     `id` is auto-generated from `label` via `_make_slot_id` and is not part of the
-     *     JSON schema exposed to the LLM — do NOT set it manually.
-     */
-    Branch: {
-      /** Label */
-      label: string;
-      /** Expr Id */
-      expr_id?: string | null;
-      /** Target Var Key */
-      target_var_key?: string | null;
-    };
-    /** CopilotInitiateRequest */
-    CopilotInitiateRequest: {
-      /** Prompt */
-      prompt: string;
-    };
-    /** CopilotStatusResponse */
-    CopilotStatusResponse: {
-      /** Graph Id */
-      graph_id: string;
-      /** Applied */
-      applied: boolean;
-      /** Validation Error */
-      validation_error?: string | null;
-    };
-    /** DefinerVariableSchema */
-    DefinerVariableSchema: {
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-      /** Key */
-      key: string;
-      /**
-       * Type
-       * @enum {string}
-       */
-      type: "boolean" | "string" | "number" | "float";
-      /** Default Value */
-      default_value?: unknown;
-      /** Description */
-      description?: string | null;
-    };
-    /** EdgeRead */
-    EdgeRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id?: string;
-      /** Source */
-      source: string;
-      /** Source Handle */
-      source_handle?: string | null;
-      /** Target */
-      target: string;
-      /** Target Handle */
-      target_handle?: string | null;
-    };
-    /** EndNode */
-    EndNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "END";
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** GraphCodeRead */
-    GraphCodeRead: {
-      /** Code */
-      code: string;
-    };
-    /** GraphCreate */
-    GraphCreate: {
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-      /** Graph Name */
-      graph_name: string;
-    };
-    /** GraphFlowRead */
-    GraphFlowRead: {
-      /** Nodes */
-      nodes: (components["schemas"]["StartNode"] | components["schemas"]["EndNode"] | components["schemas"]["LogicalAssignerNode"] | components["schemas"]["AgenticAssignerNode"] | components["schemas"]["InterruptNode"] | components["schemas"]["LogicalSwitchNode"] | components["schemas"]["AgenticSwitchNode"] | components["schemas"]["RagRetrieverNode"])[];
-      /** Edges */
-      edges: components["schemas"]["EdgeRead"][];
-      /** State */
-      state?: components["schemas"]["DefinerVariableSchema"][];
-      /** Versions */
-      versions?: components["schemas"]["GraphVersionRead"][];
-      /**
-       * Current Version
-       * @default 0
-       */
-      current_version: number;
-    };
-    /** GraphRead */
-    GraphRead: {
-      /**
-       * Id
-       * Format: uuid
-       */
-      id: string;
-      /** Name */
-      name: string;
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-    };
-    /** GraphVersionRead */
-    GraphVersionRead: {
-      /** Sequence Number */
-      sequence_number: number;
-      /** Name */
-      name: string;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
-    };
-    /** InterruptNode */
-    InterruptNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "INTERRUPT";
-      /** Payload Vars */
-      payload_vars?: string[];
-      /**
-       * Resume Var
-       * @default
-       */
-      resume_var: string;
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** LogicalAssignerNode */
-    LogicalAssignerNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "LOGICAL_ASSIGNER";
-      /** Assignments */
-      assignments?: components["schemas"]["LogicalAssignmentSchema"][];
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** LogicalAssignmentSchema */
-    LogicalAssignmentSchema: {
-      /** Id */
-      id?: string;
-      /** Target Var Key */
-      target_var_key: string;
-      /** Expr Id */
-      expr_id?: string | null;
-    };
-    /** LogicalSwitchNode */
-    LogicalSwitchNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "LOGICAL_SWITCH";
-      /** Branches */
-      branches?: components["schemas"]["Branch"][];
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** RagRetrieverNode */
-    RagRetrieverNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "RAG_RETRIEVER";
-      /**
-       * Query Var
-       * @default
-       */
-      query_var: string;
-      /**
-       * Context Output Var
-       * @default
-       */
-      context_output_var: string;
-      /**
-       * Knowledge Base
-       * @default trivia
-       */
-      knowledge_base: string;
-      /**
-       * Top K
-       * @default 3
-       */
-      top_k: number;
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** SetActiveGraph */
-    SetActiveGraph: {
-      /**
-       * User Id
-       * Format: uuid
-       */
-      user_id: string;
-      /**
-       * Graph Id
-       * Format: uuid
-       */
-      graph_id: string;
-    };
-    /** StartNode */
-    StartNode: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      node_type: "START";
-      /**
-       * Id
-       * @default
-       */
-      id: string;
-    };
-    /** UserCreate */
-    UserCreate: {
-      /** User Name */
-      user_name: string;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-
 export type $defs = Record<string, never>;
-
 export interface operations {
-  get_or_create_user_users_get_or_create_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
+    get_or_create_user_users_get_or_create_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    create_user_users__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": string;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreate"];
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  create_user_users__post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
+    get_active_graph_id_users__user_id__active_graph_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveGraphResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UserCreate"];
-      };
+    set_active_graph_users_set_active_graph_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetActiveGraph"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    create_graph_graphs__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": string;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GraphCreate"];
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  get_active_graph_id_users__user_id__active_graph_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
+    list_graphs_graphs_user__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    get_graph_flow_graphs__graph_id__flow_get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                graph_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["ActiveGraphResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphFlowRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  set_active_graph_users_set_active_graph_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
+    get_graph_code_endpoint_graphs__graph_id__code_get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                graph_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphCodeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetActiveGraph"];
-      };
+    run_graph_graphs__graph_id__run_post: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                graph_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
+    initiate_copilot_endpoint_copilot__graph_id__initiate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                graph_id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotInitiateRequest"];
+            };
         };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
     };
-  };
-  create_graph_graphs__post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path?: never;
-      cookie?: never;
+    health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["GraphCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": string;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_graphs_graphs_user__user_id__get: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        user_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphRead"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_graph_flow_graphs__graph_id__flow_get: {
-    parameters: {
-      query?: {
-        version?: number | null;
-      };
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphFlowRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_graph_code_endpoint_graphs__graph_id__code_get: {
-    parameters: {
-      query?: {
-        version?: number | null;
-      };
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GraphCodeRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  run_graph_graphs__graph_id__run_post: {
-    parameters: {
-      query?: {
-        version?: number | null;
-      };
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  initiate_copilot_endpoint_copilot__graph_id__initiate_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "x-client-id"?: string | null;
-      };
-      path: {
-        graph_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CopilotInitiateRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["CopilotStatusResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  health_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: string;
-          };
-        };
-      };
-    };
-  };
 }

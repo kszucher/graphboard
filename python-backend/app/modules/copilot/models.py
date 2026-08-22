@@ -13,3 +13,5 @@ class CopilotState(TypedDict):
     operations: dict[str, Any] | None
     validation_error: str | None
     applied: bool | None
+    retry_count: int | None
+    messages: list[dict[str, Any]] | None

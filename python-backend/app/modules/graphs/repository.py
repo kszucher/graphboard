@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base import models
 from app.core.base.repository import BaseRepository
-from app.modules.graphs.schemas import GraphCreate
 
 
-class GraphRepository(BaseRepository[models.Graph, GraphCreate, GraphCreate]):
+class GraphRepository(BaseRepository[models.Graph]):
     def __init__(self, session: AsyncSession):
         super().__init__(models.Graph, session)
 
@@ -28,13 +26,7 @@ class GraphRepository(BaseRepository[models.Graph, GraphCreate, GraphCreate]):
         return list(result.scalars().all())
 
 
-class GraphHistoryCreate(BaseModel):
-    graph_id: uuid.UUID
-    flow_json: dict
-    sequence_number: int
-
-
-class GraphHistoryRepository(BaseRepository[models.GraphHistory, GraphHistoryCreate, GraphHistoryCreate]):
+class GraphHistoryRepository(BaseRepository[models.GraphHistory]):
     def __init__(self, session: AsyncSession):
         super().__init__(models.GraphHistory, session)
 
