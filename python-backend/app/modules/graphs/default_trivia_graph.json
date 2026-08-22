@@ -15,14 +15,12 @@
         {
           "id": "loop_questions_yes",
           "label": "Yes",
-          "expression": { "more_questions": { "equals": true } },
-          "target_var_key": null
+          "expression": { "more_questions": { "equals": true } }
         },
         {
           "id": "loop_questions_no",
           "label": "No",
-          "expression": { "more_questions": { "equals": false } },
-          "target_var_key": null
+          "expression": { "more_questions": { "equals": false } }
         }
       ]
     },
@@ -143,14 +141,12 @@
         {
           "id": "result_switch_correct",
           "label": "correct",
-          "expression": { "is_correct": { "equals": true } },
-          "target_var_key": null
+          "expression": { "is_correct": { "equals": true } }
         },
         {
           "id": "result_switch_wrong",
           "label": "wrong",
-          "expression": { "is_correct": { "equals": false } },
-          "target_var_key": null
+          "expression": { "is_correct": { "equals": false } }
         }
       ]
     },

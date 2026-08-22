@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
 
+from google.genai import types
+
+from app.modules.copilot.agents import planner_schemas
 from app.modules.copilot.agents.schema_utils import dereference_schema, prune_json_schema
+from app.modules.copilot.logger import log_llm_call
 
 PLANNER_SYSTEM_PROMPT = """# GraphBoard Operations Planner
 
@@ -79,14 +85,6 @@ async def generate_plan(
     initial_flow: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Invokes the LLM with granular tools to produce a sequence of operations."""
-    import json
-    import os
-
-    from google.genai import types
-
-    from app.modules.copilot.agents import planner_schemas
-    from app.modules.copilot.logger import log_llm_call
-
     model_name = os.environ.get("COPILOT_MODEL", "gemini-3.6-flash")
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 

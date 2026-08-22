@@ -229,8 +229,6 @@ export interface components {
         AgenticBranch: {
             /** Label */
             label: string;
-            /** Target Var Key */
-            target_var_key?: string | null;
         };
         /** AgenticSwitchNode */
         AgenticSwitchNode: {
@@ -254,11 +252,7 @@ export interface components {
         };
         /**
          * Branch
-         * @description A routing branch on a switch node.
-         *
-         *     Invariant: `label` retains the original human-readable casing (e.g. 'Submit').
-         *     `id` is auto-generated from `label` via `_make_slot_id` and is not part of the
-         *     JSON schema exposed to the LLM — do NOT set it manually.
+         * @description A routing branch on a logical switch node.
          */
         Branch: {
             /** Label */
@@ -267,8 +261,6 @@ export interface components {
             expression?: {
                 [key: string]: unknown;
             } | boolean | null;
-            /** Target Var Key */
-            target_var_key?: string | null;
         };
         /** CopilotInitiateRequest */
         CopilotInitiateRequest: {

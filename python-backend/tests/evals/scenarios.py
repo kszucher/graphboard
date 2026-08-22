@@ -17,7 +17,6 @@ from app.modules.graphs.nodes import (
 from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
-    ExpressionRecord,
     GraphFlowData,
 )
 
@@ -40,7 +39,6 @@ def make_empty_flow() -> GraphFlowData:
         ],
         edges=[],
         state=[],
-        expressions={},
     )
 
 
@@ -55,7 +53,7 @@ def make_scenario_2_initial_flow() -> GraphFlowData:
                     LogicalAssignmentSchema(
                         id="asgn_score",
                         target_var_key="score",
-                        expr_id="expr_score",
+                        expression=0,
                     )
                 ],
             ),
@@ -65,7 +63,6 @@ def make_scenario_2_initial_flow() -> GraphFlowData:
             EdgeRead(source="init_vars", target="end"),
         ],
         state=[DefinerVariableSchema(id="v_score", key="score", type="number", default_value=0)],
-        expressions={"expr_score": ExpressionRecord(id="expr_score", expr="0")},
     )
 
 
@@ -110,10 +107,8 @@ def assert_scenario_3(final_flow: GraphFlowData, ops: list[dict[str, Any]]) -> N
     assert isinstance(branch, Branch)
     assert branch.label == "High", f"Expected branch label 'High', got: {branch.label}"
 
-    assert branch.expr_id is not None
-    expr_record = final_flow.expressions.get(branch.expr_id)
-    assert expr_record is not None, "Expected expression record for branch, got None"
-    expr_str = str(expr_record.expr)
+    assert branch.expression is not None
+    expr_str = str(branch.expression)
     assert "score" in expr_str, f"Expected 'score' in expression: {expr_str}"
     assert "10" in expr_str, f"Expected '10' in expression: {expr_str}"
 
@@ -134,10 +129,7 @@ def assert_scenario_4(final_flow: GraphFlowData, ops: list[dict[str, Any]]) -> N
     assert len(node_inc.assignments) == 1
     asgn = node_inc.assignments[0]
     assert asgn.target_var_key == "question_retries"
-    assert asgn.expr_id is not None
-    expr_inc = final_flow.expressions.get(asgn.expr_id)
-    assert expr_inc is not None
-    assert "question_retries" in str(expr_inc.expr)
+    assert asgn.expression is not None
 
     # 3. Node 'check_retries' exists and is a LOGICAL_SWITCH with branches
     node_check = next((n for n in final_flow.nodes if n.id == "check_retries"), None)

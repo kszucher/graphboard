@@ -23,8 +23,6 @@ def get_node_variable_references(node: NodeRead) -> set[str]:
                     refs.update(get_expression_variables(a.expression))
         case LogicalSwitchNode():
             for b in node.branches:
-                if b.target_var_key:
-                    refs.add(b.target_var_key)
                 if b.expression is not None:
                     refs.update(get_expression_variables(b.expression))
         case AgenticAssignerNode():
@@ -55,9 +53,7 @@ def rename_node_variable_references(node: NodeRead, old_key: str, new_key: str) 
                 if a.target_var_key == old_key:
                     a.target_var_key = new_key
         case LogicalSwitchNode():
-            for b in node.branches:
-                if b.target_var_key == old_key:
-                    b.target_var_key = new_key
+            pass
         case AgenticAssignerNode():
             if node.agentic_inputs:
                 node.agentic_inputs = [new_key if x == old_key else x for x in node.agentic_inputs]

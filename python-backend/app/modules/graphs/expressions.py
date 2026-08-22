@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, TypeAlias
 
 from app.core.exceptions import ValidationError
+
+Expression: TypeAlias = str | int | float | bool | dict[str, Any]
+ComparisonExpression: TypeAlias = dict[str, Any] | bool
 
 
 def compile_value(val: Any, valid_keys: set[str] | None = None) -> str:
@@ -162,7 +165,6 @@ def expression_to_code(
             template = expr_data.get("template", "")
             vars_list = expr_data.get("vars")
             if vars_list is None:
-                # Automatically extract {var_name} placeholders from template
                 vars_list = re.findall(r"\{([a-zA-Z0-9_]+)\}", template)
             kwargs_parts = [f"{v}=state.get({repr(v)})" for v in vars_list]
             return f"{repr(template)}.format({', '.join(kwargs_parts)})"

@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.core.constants import NodeType
-from app.modules.graphs.expressions.schemas import ComparisonExpression, Expression
+from app.modules.graphs.expressions import ComparisonExpression, Expression
 from app.modules.graphs.schemas import VariableType
 
 # Snake-case identifier pattern: must start with a letter, only letters/digits/underscores.
