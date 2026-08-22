@@ -3,6 +3,7 @@ import pytest
 from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
 from app.modules.graphs.operations import (
+    AgenticOutputInput,
     AssignmentInput,
     GraphUpdateInput,
     NodeUpsertInput,
@@ -127,3 +128,46 @@ def test_renames_cascading() -> None:
     assert flow.nodes[0].id == "points_node"
     assert any(e.source == "start" and e.target == "points_node" for e in flow.edges)
     assert any(e.source == "points_node" and e.target == "end" for e in flow.edges)
+
+
+def test_node_type_transmutation() -> None:
+    """Test transmuting an existing node from AGENTIC_ASSIGNER to LOGICAL_ASSIGNER in-place."""
+    flow = GraphFlowData(nodes=[], edges=[], state=[], expressions={})
+
+    setup = GraphUpdateInput(
+        variables={"upsert": [VariableUpsertInput(key="display_text", type="string", default_value="hello")]},
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="fifty_fifty",
+                    node_type=NodeType.AGENTIC_ASSIGNER,
+                    prompt="Eliminate options...",
+                    agentic_inputs=["display_text"],
+                    agentic_outputs=[AgenticOutputInput(key="display_text", type="string")],
+                    target="ask_question",
+                )
+            ]
+        },
+        start_target="fifty_fifty",
+    )
+    flow = apply_graph_update(flow, setup)
+    assert flow.nodes[0].node_type == NodeType.AGENTIC_ASSIGNER
+
+    # Transmute to LOGICAL_ASSIGNER
+    transmute_update = GraphUpdateInput(
+        nodes={
+            "upsert": [
+                NodeUpsertInput(
+                    id="fifty_fifty",
+                    node_type=NodeType.LOGICAL_ASSIGNER,
+                    assignments=[AssignmentInput(target_var_key="display_text", expression={"var": "display_text"})],
+                    target="ask_question",
+                )
+            ]
+        }
+    )
+    flow = apply_graph_update(flow, transmute_update)
+    assert flow.nodes[0].node_type == NodeType.LOGICAL_ASSIGNER
+    assert flow.nodes[0].assignments[0].target_var_key == "display_text"
+    assert any(e.source == "start" and e.target == "fifty_fifty" for e in flow.edges)
+    assert any(e.source == "fifty_fifty" and e.target == "ask_question" for e in flow.edges)

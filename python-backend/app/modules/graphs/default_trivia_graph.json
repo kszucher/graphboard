@@ -37,13 +37,14 @@
     {
       "id": "gen_question",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Using these source facts: '{retrieved_facts}', write a challenging multiple-choice trivia question about '{topic}'. Provide options A, B, C, and D. Set correct_answer to the correct option letter. Set display_text to the question and options.",
+      "prompt": "Using these source facts: '{retrieved_facts}', write a challenging multiple-choice trivia question about '{topic}'. Generate 4 options: A, B, C, and D. Set question_text to the question. Set options to the list of 4 options (e.g. ['A: ...', 'B: ...', 'C: ...', 'D: ...']). Set correct_answer to the correct option letter (A, B, C, or D).",
       "agentic_inputs": [
         "topic",
         "retrieved_facts"
       ],
       "agentic_outputs": [
-        "display_text",
+        "question_text",
+        "options",
         "correct_answer"
       ]
     },
@@ -51,7 +52,9 @@
       "id": "ask_question",
       "node_type": "INTERRUPT",
       "payload_vars": [
-        "display_text"
+        "question_text",
+        "options",
+        "advice_text"
       ],
       "resume_var": "user_answer"
     },
@@ -99,25 +102,27 @@
     {
       "id": "audience_votes",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Poll audience for advice on question: '{display_text}' using these grounding facts: '{retrieved_facts}'. Append their advice to '{display_text}'.",
+      "prompt": "Poll audience for advice on question '{question_text}' with options '{options}' using these grounding facts: '{retrieved_facts}'. Write their advice into '{advice_text}'.",
       "agentic_inputs": [
         "retrieved_facts",
-        "display_text"
+        "question_text",
+        "options"
       ],
       "agentic_outputs": [
-        "display_text"
+        "advice_text"
       ]
     },
     {
       "id": "phone_advice",
       "node_type": "AGENTIC_ASSIGNER",
-      "prompt": "Call a friend for advice on question: '{display_text}' using these grounding facts: '{retrieved_facts}'. Append their advice to '{display_text}'.",
+      "prompt": "Call a friend for advice on question '{question_text}' with options '{options}' using these grounding facts: '{retrieved_facts}'. Write their advice into '{advice_text}'.",
       "agentic_inputs": [
         "retrieved_facts",
-        "display_text"
+        "question_text",
+        "options"
       ],
       "agentic_outputs": [
-        "display_text"
+        "advice_text"
       ]
     },
     {
@@ -306,9 +311,23 @@
     },
     {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "key": "display_text",
+      "key": "question_text",
       "type": "string",
       "default_value": null,
+      "description": null
+    },
+    {
+      "id": "b1b2c3d4-e5f6-7890-abcd-ef1234567891",
+      "key": "options",
+      "type": "array",
+      "default_value": [],
+      "description": null
+    },
+    {
+      "id": "c1b2c3d4-e5f6-7890-abcd-ef1234567892",
+      "key": "advice_text",
+      "type": "string",
+      "default_value": "",
       "description": null
     },
     {

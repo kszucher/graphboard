@@ -34,6 +34,7 @@ def log_llm_call(
     error: str | None = None,
     graph_id: str | None = None,
     tools: list[dict[str, Any]] | None = None,
+    initial_flow: dict[str, Any] | None = None,
 ) -> None:
     """Logs full LLM request and response details to flow run JSON file."""
     try:
@@ -52,6 +53,7 @@ def log_llm_call(
             "graph_id": graph_id,
             "node_name": node_name,
             "model": model,
+            "initial_flow": initial_flow,
             "messages": logged_messages,
             "tools": tools,
             "error": error,

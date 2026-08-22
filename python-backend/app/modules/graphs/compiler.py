@@ -32,8 +32,24 @@ except ImportError:
     black = None  # type: ignore[assignment]
 
 
-TYPE_MAP = {"number": "int", "float": "float", "boolean": "bool", "string": "str"}
-DEFAULT_VALUES: dict[str, Any] = {"number": 0, "float": 0.0, "boolean": False, "string": ""}
+TYPE_MAP = {
+    "number": "int",
+    "int": "int",
+    "float": "float",
+    "boolean": "bool",
+    "string": "str",
+    "array": "list[Any]",
+    "object": "dict[str, Any]",
+}
+DEFAULT_VALUES: dict[str, Any] = {
+    "number": 0,
+    "int": 0,
+    "float": 0.0,
+    "boolean": False,
+    "string": "",
+    "array": [],
+    "object": {},
+}
 
 
 class DirectLangGraphCompiler:
@@ -89,6 +105,7 @@ class DirectLangGraphCompiler:
 
     def emit_imports(self) -> str:
         lines = {
+            "import random",
             "from typing import TypedDict, Literal, Any",
             "from langgraph.graph import StateGraph, START, END",
         }
