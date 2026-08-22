@@ -72,8 +72,7 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
 * **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.
-* **Human-in-the-Loop Interruption**: Configured LangGraph state interrupts (`wait_for_plan_node`, `wait_for_apply_node`) to pause execution at each stage for user review before committing changes.
-* **Dry-Run Validation**: Planner-generated patches are validated against the backend's operations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
+* **Streamlined Pipeline & Dry-Run Validation**: Direct linear execution (`planner_node` $\rightarrow$ `translate_plan_node` $\rightarrow$ `validation_node`). Planner-generated patches are validated against the backend's operations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
 * **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary. The earlier multi-agent (planner → 3 sub-agent LLMs) design was abandoned because sub-agents consistently hallucinated argument values and swapped tool parameters despite receiving pre-filled params.
 
 ### 🧠 Copilot Tooling & Architecture Decision Space

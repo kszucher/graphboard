@@ -140,6 +140,48 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
     assert "client = genai.Client()" in code
 
 
+async def test_generate_graph_code_with_rag_and_interrupt() -> None:
+    from app.modules.graphs.nodes import InterruptNode, RagRetrieverNode
+
+    flow_data = GraphFlowData(
+        nodes=[
+            RagRetrieverNode(
+                id="retriever_1",
+                query_var="query",
+                context_output_var="context",
+                knowledge_base="trivia",
+                top_k=3,
+            ),
+            InterruptNode(
+                id="interrupt_1",
+                resume_var="user_input",
+                payload_vars=["context"],
+            ),
+        ],
+        edges=[
+            EdgeRead(source="start", target="retriever_1"),
+            EdgeRead(source="retriever_1", target="interrupt_1"),
+            EdgeRead(source="interrupt_1", target="end"),
+        ],
+        state=[
+            DefinerVariableSchema(id="v1", key="query", type="string", default_value="test"),
+            DefinerVariableSchema(id="v2", key="context", type="string", default_value=""),
+            DefinerVariableSchema(id="v3", key="user_input", type="string", default_value=""),
+        ],
+    )
+    code = await generate_graph_code(flow_data)
+    assert "from app.modules.graphs.rag_helper import retrieve_documents" in code
+    assert "from langgraph.types import interrupt" in code
+    assert "def retriever_1(state: State) -> dict:" in code
+    assert "retrieve_documents(" in code
+    assert "kb='trivia'" in code or 'kb="trivia"' in code
+    assert "top_k=3" in code
+    assert "def interrupt_1(state: State) -> dict:" in code
+    assert "value = interrupt(" in code
+    assert "return {'user_input': value}" in code or 'return {"user_input": value}' in code
+    assert ast.parse(code) is not None
+
+
 async def test_default_example_graph_ast_compilation() -> None:
     from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
 
@@ -166,3 +208,4 @@ async def test_default_example_graph_ast_compilation() -> None:
         "workflow.add_conditional_edges('parse_answer', lifeline_switch," in code
         or 'workflow.add_conditional_edges("parse_answer", lifeline_switch,' in code
     )
+

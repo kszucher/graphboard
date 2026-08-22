@@ -46,12 +46,9 @@ async def run_scenario(scenario: EvalScenario) -> bool:
         "user_prompt": scenario.user_prompt,
         "serialized_state": serialized_state,
         "initial_flow_data": scenario.initial_flow.model_dump(mode="json"),
-        "agent_checklist": None,
-        "plan": None,
-        "plan_approved": None,
+        "tool_calls": None,
         "operations": None,
         "validation_error": None,
-        "apply_approved": None,
         "applied": None,
     }
 

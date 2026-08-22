@@ -99,7 +99,7 @@ class DirectLangGraphCompiler:
             case InterruptNode():
                 return {"from langgraph.types import interrupt"}
             case RagRetrieverNode():
-                return {"from app.graphs.rag_helper import retrieve_documents"}
+                return {"from app.modules.graphs.rag_helper import retrieve_documents"}
             case _:
                 return set()
 

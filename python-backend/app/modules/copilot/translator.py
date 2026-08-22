@@ -354,8 +354,7 @@ def translate_plan_to_operations(
 
 def translate_plan_node(state: CopilotState) -> dict[str, Any]:
     """LangGraph node wrapper: translates plan tool calls to operations."""
-    checklist = state.get("agent_checklist") or {}
-    tool_calls = checklist.get("tool_calls") or []
+    tool_calls = state.get("tool_calls") or []
     initial_flow_data = state.get("initial_flow_data")
 
     operations = translate_plan_to_operations(tool_calls, initial_flow_data)

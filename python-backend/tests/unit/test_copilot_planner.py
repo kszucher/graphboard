@@ -7,23 +7,21 @@ from app.modules.copilot.translator import translate_plan_node
 def test_translate_plan_node_upsert_node_polymorphic() -> None:
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_variable",
-                    "arguments": '{"key": "score", "type": "number", "default_value": 0, "description": null}',
-                },
-                {
-                    "name": "upsert_node",
-                    "arguments": (
-                        '{"id": "new_assigner", "node_type": "LOGICAL_ASSIGNER", '
-                        '"config": {"assignments": [{"target_var_key": "score", "assignment": {"value": 10}}]}, '
-                        '"target": "end"}'
-                    ),
-                },
-                {"name": "upsert_node", "arguments": '{"id": "start", "target": "new_assigner"}'},
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_variable",
+                "arguments": '{"key": "score", "type": "number", "default_value": 0, "description": null}',
+            },
+            {
+                "name": "upsert_node",
+                "arguments": (
+                    '{"id": "new_assigner", "node_type": "LOGICAL_ASSIGNER", '
+                    '"config": {"assignments": [{"target_var_key": "score", "assignment": {"value": 10}}]}, '
+                    '"target": "end"}'
+                ),
+            },
+            {"name": "upsert_node", "arguments": '{"id": "start", "target": "new_assigner"}'},
+        ],
         "initial_flow_data": {
             "nodes": [{"id": "end", "node_type": "LOGICAL_SWITCH", "branches": {}}],
             "edges": [],
@@ -48,22 +46,20 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
     """Test surgically patching a single branch on an existing switch without overwriting other branches."""
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_node",
-                    "arguments": (
-                        '{"id": "phone_node", "node_type": "AGENTIC_ASSIGNER", '
-                        '"config": {"prompt": "Call phone...", "agentic_inputs": [], "agentic_outputs": []}, '
-                        '"target": "end"}'
-                    ),
-                },
-                {
-                    "name": "upsert_switch_branch",
-                    "arguments": '{"node_id": "choose_lifeline", "label": "Phone", "target": "phone_node", "condition": null}',
-                },
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_node",
+                "arguments": (
+                    '{"id": "phone_node", "node_type": "AGENTIC_ASSIGNER", '
+                    '"config": {"prompt": "Call phone...", "agentic_inputs": [], "agentic_outputs": []}, '
+                    '"target": "end"}'
+                ),
+            },
+            {
+                "name": "upsert_switch_branch",
+                "arguments": '{"node_id": "choose_lifeline", "label": "Phone", "target": "phone_node", "condition": null}',
+            },
+        ],
         "initial_flow_data": {
             "nodes": [
                 {
@@ -111,24 +107,22 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
 def test_translate_plan_node_switch_with_closed_conditions() -> None:
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_node",
-                    "arguments": (
-                        '{"id": "switch_node", "node_type": "LOGICAL_SWITCH", "config": {"branches": ['
-                        '{"label": "Yes", "condition": {"logic": "ALL", "conditions": [{"var": "score", "op": "gte", "literal_value": 10}]}, "target": "end"},'
-                        '{"label": "No", "condition": null, "target": "end"}'
-                        "]}}"
-                    ),
-                },
-                {"name": "upsert_node", "arguments": '{"id": "start", "target": "switch_node"}'},
-                {
-                    "name": "upsert_switch_branch",
-                    "arguments": '{"node_id": "switch_node", "label": "No", "target": "end", "condition": null}',
-                },
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_node",
+                "arguments": (
+                    '{"id": "switch_node", "node_type": "LOGICAL_SWITCH", "config": {"branches": ['
+                    '{"label": "Yes", "condition": {"logic": "ALL", "conditions": [{"var": "score", "op": "gte", "literal_value": 10}]}, "target": "end"},'
+                    '{"label": "No", "condition": null, "target": "end"}'
+                    "]}}"
+                ),
+            },
+            {"name": "upsert_node", "arguments": '{"id": "start", "target": "switch_node"}'},
+            {
+                "name": "upsert_switch_branch",
+                "arguments": '{"node_id": "switch_node", "label": "No", "target": "end", "condition": null}',
+            },
+        ],
         "initial_flow_data": {
             "nodes": [{"id": "end", "node_type": "LOGICAL_ASSIGNER", "assignments": []}],
             "edges": [],
@@ -148,14 +142,12 @@ def test_translate_plan_node_switch_with_closed_conditions() -> None:
 def test_translate_plan_node_delete_and_rename_entity() -> None:
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {"name": "delete_entity", "arguments": '{"kind": "variable", "id": "old_var"}'},
-                {"name": "delete_entity", "arguments": '{"kind": "node", "id": "dead_node"}'},
-                {"name": "rename_entity", "arguments": '{"kind": "variable", "old_name": "v1", "new_name": "v2"}'},
-                {"name": "rename_entity", "arguments": '{"kind": "node", "old_name": "n1", "new_name": "n2"}'},
-            ]
-        },
+        "tool_calls": [
+            {"name": "delete_entity", "arguments": '{"kind": "variable", "id": "old_var"}'},
+            {"name": "delete_entity", "arguments": '{"kind": "node", "id": "dead_node"}'},
+            {"name": "rename_entity", "arguments": '{"kind": "variable", "old_name": "v1", "new_name": "v2"}'},
+            {"name": "rename_entity", "arguments": '{"kind": "node", "old_name": "n1", "new_name": "n2"}'},
+        ],
         "initial_flow_data": {
             "nodes": [{"id": "start", "node_type": "START"}],
             "edges": [],
@@ -175,14 +167,12 @@ def test_translate_plan_node_partial_retargeting() -> None:
     """Test partial retargeting of existing node without re-specifying config."""
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_node",
-                    "arguments": '{"id": "assigner_a", "target": "end"}',
-                },
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_node",
+                "arguments": '{"id": "assigner_a", "target": "end"}',
+            },
+        ],
         "initial_flow_data": {
             "nodes": [
                 {
@@ -206,18 +196,16 @@ def test_translate_plan_node_partial_retargeting() -> None:
 def test_translate_plan_node_orphan_error() -> None:
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_node",
-                    "arguments": (
-                        '{"id": "orphan_assigner", "node_type": "LOGICAL_ASSIGNER", '
-                        '"config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]}, '
-                        '"target": "end"}'
-                    ),
-                }
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_node",
+                "arguments": (
+                    '{"id": "orphan_assigner", "node_type": "LOGICAL_ASSIGNER", '
+                    '"config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]}, '
+                    '"target": "end"}'
+                ),
+            }
+        ],
         "initial_flow_data": {
             "nodes": [{"id": "end", "node_type": "LOGICAL_SWITCH", "branches": {}}],
             "edges": [],
@@ -233,32 +221,30 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     """Test translating a node with orthogonal collection expressions like sample and format."""
     state = {
         "trace_id": "test_trace",
-        "agent_checklist": {
-            "tool_calls": [
-                {
-                    "name": "upsert_variable",
-                    "arguments": '{"key": "options", "type": "array", "default_value": ["A", "B", "C", "D"]}',
-                },
-                {
-                    "name": "upsert_variable",
-                    "arguments": '{"key": "active_options", "type": "array", "default_value": []}',
-                },
-                {
-                    "name": "upsert_node",
-                    "arguments": (
-                        '{"id": "fifty_fifty_node", "node_type": "LOGICAL_ASSIGNER", '
-                        '"config": {"assignments": ['
-                        '{"target_var_key": "active_options", "assignment": {"op": "sample", "list": {"var": "options"}, "count": 2}}'
-                        "]}, "
-                        '"target": "end"}'
-                    ),
-                },
-                {
-                    "name": "upsert_node",
-                    "arguments": '{"id": "start", "target": "fifty_fifty_node"}',
-                },
-            ]
-        },
+        "tool_calls": [
+            {
+                "name": "upsert_variable",
+                "arguments": '{"key": "options", "type": "array", "default_value": ["A", "B", "C", "D"]}',
+            },
+            {
+                "name": "upsert_variable",
+                "arguments": '{"key": "active_options", "type": "array", "default_value": []}',
+            },
+            {
+                "name": "upsert_node",
+                "arguments": (
+                    '{"id": "fifty_fifty_node", "node_type": "LOGICAL_ASSIGNER", '
+                    '"config": {"assignments": ['
+                    '{"target_var_key": "active_options", "assignment": {"op": "sample", "list": {"var": "options"}, "count": 2}}'
+                    "]}, "
+                    '"target": "end"}'
+                ),
+            },
+            {
+                "name": "upsert_node",
+                "arguments": '{"id": "start", "target": "fifty_fifty_node"}',
+            },
+        ],
         "initial_flow_data": {
             "nodes": [
                 {"id": "start", "node_type": "START"},

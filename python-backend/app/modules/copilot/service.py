@@ -48,12 +48,9 @@ async def initiate_copilot_workflow(
         "user_prompt": prompt,
         "serialized_state": serialized_state,
         "initial_flow_data": flow_data.model_dump(mode="json"),
-        "agent_checklist": None,
-        "plan": None,
-        "plan_approved": None,
+        "tool_calls": None,
         "operations": None,
         "validation_error": None,
-        "apply_approved": None,
         "applied": None,
     }
 

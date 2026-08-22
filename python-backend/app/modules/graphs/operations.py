@@ -14,6 +14,7 @@ from app.modules.graphs.nodes.agentic_switch import AgenticBranch
 from app.modules.graphs.nodes.logical_assigner import LogicalAssignmentSchema
 from app.modules.graphs.nodes.logical_switch import Branch
 from app.modules.graphs.schemas import DefinerVariableSchema, EdgeRead, ExpressionRecord, GraphFlowData, VariableType
+from app.modules.graphs.variables import rename_node_variable_references
 
 # Snake-case identifier pattern: must start with a letter, only letters/digits/underscores.
 _IDENTIFIER_PATTERN = r"^[a-z][a-z0-9_]*$"
@@ -112,26 +113,7 @@ def apply_graph_update(flow_data: GraphFlowData, update: GraphUpdateInput) -> Gr
 
             # Rename in nodes
             for n in flow_data.nodes:
-                if hasattr(n, "assignments"):
-                    for a in getattr(n, "assignments", []):
-                        if a.target_var_key == ru.old_key:
-                            a.target_var_key = ru.new_key
-                if hasattr(n, "agentic_inputs"):
-                    n.agentic_inputs = [ru.new_key if x == ru.old_key else x for x in getattr(n, "agentic_inputs", [])]
-                if hasattr(n, "agentic_outputs"):
-                    for out in getattr(n, "agentic_outputs", []):
-                        if out.key == ru.old_key:
-                            out.key = ru.new_key
-                if hasattr(n, "query_var") and n.query_var == ru.old_key:
-                    n.query_var = ru.new_key
-                if hasattr(n, "context_output_var") and n.context_output_var == ru.old_key:
-                    n.context_output_var = ru.new_key
-                if hasattr(n, "agentic_input") and n.agentic_input == ru.old_key:
-                    n.agentic_input = ru.new_key
-                if hasattr(n, "payload_vars"):
-                    n.payload_vars = [ru.new_key if x == ru.old_key else x for x in getattr(n, "payload_vars", [])]
-                if hasattr(n, "resume_var") and n.resume_var == ru.old_key:
-                    n.resume_var = ru.new_key
+                rename_node_variable_references(n, ru.old_key, ru.new_key)
 
     # 2. Rename Nodes
     if update.rename_nodes:
