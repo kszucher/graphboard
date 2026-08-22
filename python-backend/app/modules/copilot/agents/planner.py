@@ -14,9 +14,10 @@ PLANNER_SYSTEM_PROMPT = """# GraphBoard Operations Planner
 
 You are the AI Graph Operations Planner. Analyze the user's graph edit request, view the current graph state (state variables and node flow), and call the appropriate operations tools to modify the graph.
 
-## Single-Turn Execution Invariant
-- IMPORTANT: You MUST generate ALL necessary tool calls to completely fulfill the user's request in a SINGLE turn.
-- State variables must be defined with `upsert_variable` before being referenced in node assignments or switch conditions.
+## Single-Turn Batch Generation Invariant
+- IMPORTANT: You MUST generate the COMPLETE batch of ALL tool calls to fulfill the entire request in this single response (e.g. `upsert_variable` followed immediately by all `upsert_node` and `upsert_switch_branch` calls).
+- Do NOT stop after creating variables or a single node. Do NOT wait for tool execution results or responses—emit all operations together in one single batch.
+- State variables must be defined with `upsert_variable` in the same batch before being referenced in node assignments or switch conditions.
 
 ## State Lifecycle & Flow Invariants
 - **Complete Variable Lifecycle (Write & Read)**: When introducing new state variables (e.g. milestones, safety nets, flags, or modifiers), always complete both sides of the lifecycle: ensure the variable is not only updated on triggers, but also read and applied where its effect matters (e.g. falling back on loss/exit paths, applying multipliers, or rendering UI).
@@ -74,6 +75,9 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
     - `{"op": "append", "list": {"var": "options"}, "item": "New Choice"}`
     - `{"op": "length", "list": {"var": "options"}}`
     - `{"op": "slice", "list": {"var": "options"}, "start": 0, "end": 2}`
+
+## Final Execution Checklist
+- After completing your reasoning, emit the ENTIRE sequence of tool calls needed (variables, nodes, retargeting, switch branches) in this single turn. Never stop after emitting a single tool call.
 """
 
 
@@ -137,11 +141,24 @@ async def generate_plan(
             types.Content(role="user" if role == "user" else "model", parts=[types.Part.from_text(text=msg["content"])])
         )
 
+    thinking_budget_str = os.environ.get("COPILOT_THINKING_BUDGET", "1024")
+    thinking_config = None
+    if thinking_budget_str and thinking_budget_str != "0":
+        try:
+            budget = int(thinking_budget_str)
+            thinking_config = types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_budget=budget,
+            )
+        except ValueError:
+            thinking_config = types.ThinkingConfig(include_thoughts=True)
+
     config = types.GenerateContentConfig(
         system_instruction=PLANNER_SYSTEM_PROMPT,
         tools=tools,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         temperature=0.0,
+        thinking_config=thinking_config,
     )
 
     tools_info = [

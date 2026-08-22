@@ -64,6 +64,16 @@ def log_llm_call(
         if response and not error:
             function_calls = getattr(response, "function_calls", None)
             text_content = None
+            thoughts = []
+            candidates = getattr(response, "candidates", None) or []
+            if candidates:
+                content = getattr(candidates[0], "content", None)
+                parts = getattr(content, "parts", None) or []
+                for part in parts:
+                    if getattr(part, "thought", False):
+                        if getattr(part, "text", None):
+                            thoughts.append(part.text)
+
             if not function_calls:
                 try:
                     text_content = response.text
@@ -74,6 +84,8 @@ def log_llm_call(
                 "role": "model",
                 "content": text_content,
             }
+            if thoughts:
+                message_info["thoughts"] = thoughts
             if function_calls:
                 message_info["tool_calls"] = [
                     {
