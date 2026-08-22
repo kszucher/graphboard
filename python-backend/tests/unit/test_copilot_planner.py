@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.exceptions import ValidationError
-from app.modules.copilot.workflow import translate_plan_node
+from app.modules.copilot.translator import translate_plan_node
 
 
 def test_translate_plan_node_upsert_node_polymorphic() -> None:
