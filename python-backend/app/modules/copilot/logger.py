@@ -103,19 +103,3 @@ def log_llm_call(
 
     except Exception as e:
         logger.error(f"Failed to log LLM call: {e}", exc_info=True)
-
-
-def log_validation_error(trace_id: str, graph_id: str | None, error: str) -> None:
-    """Logs validation error details to the flow run JSON file."""
-    try:
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        log_entry: dict[str, Any] = {
-            "timestamp": datetime.now(UTC).isoformat(),
-            "graph_id": graph_id,
-            "step": "validation",
-            "error": error,
-        }
-        log_file = LOGS_DIR / f"flow_{trace_id}_full.json"
-        _append_to_log_file(log_file, log_entry)
-    except Exception as e:
-        logger.error(f"Failed to log validation error: {e}", exc_info=True)

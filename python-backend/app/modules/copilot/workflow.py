@@ -10,7 +10,6 @@ from langgraph.graph import END, START, StateGraph
 
 from app.core.exceptions import ValidationError
 from app.modules.copilot.agents.planner import generate_plan
-from app.modules.copilot.logger import log_validation_error
 from app.modules.copilot.models import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
@@ -85,7 +84,6 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
             MAX_RETRIES,
             err_msg,
         )
-        log_validation_error(state["trace_id"], state.get("graph_id"), err_msg)
 
         messages = list(state.get("messages") or [])
         messages.append(
@@ -121,7 +119,6 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
             MAX_RETRIES,
             err_msg,
         )
-        log_validation_error(state["trace_id"], state.get("graph_id"), err_msg)
 
         messages = list(state.get("messages") or [])
         messages.append(
