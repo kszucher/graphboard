@@ -332,8 +332,16 @@ async def test_run_graph_flow_cycle_limit(
     # Cyclic loop: START -> assigner_1 -> assigner_2 -> assigner_1 -> ...
     flow_payload: dict[str, Any] = {
         "nodes": [
-            {"id": "assigner_1", "node_type": "LOGICAL_ASSIGNER", "assignments": []},
-            {"id": "assigner_2", "node_type": "LOGICAL_ASSIGNER", "assignments": []},
+            {
+                "id": "assigner_1",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"target_var_key": "x", "expression": {"increment": 1}}],
+            },
+            {
+                "id": "assigner_2",
+                "node_type": "LOGICAL_ASSIGNER",
+                "assignments": [{"target_var_key": "x", "expression": {"increment": 1}}],
+            },
         ],
         "edges": [
             {"source": "start", "target": "assigner_1"},

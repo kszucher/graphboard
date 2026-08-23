@@ -98,7 +98,19 @@ def test_assert_flow_is_complete_unconnected_slot(base_flow: GraphFlowData) -> N
 
 
 def test_assert_flow_is_complete_unreachable_node(base_flow: GraphFlowData) -> None:
-    base_flow.nodes.append(LogicalAssignerNode(id="unconnected_assigner"))
+    base_flow.nodes.append(
+        LogicalAssignerNode(
+            id="unconnected_assigner",
+            assignments=[
+                LogicalAssignmentSchema(
+                    id="asgn_unconn",
+                    target_var_key="x",
+                    expression=10,
+                )
+            ],
+        )
+    )
+    base_flow.edges.append(EdgeRead(source="unconnected_assigner", target="end"))
 
     with pytest.raises(ValidationError, match="unreachable from the START node"):
         assert_flow_is_complete(base_flow)

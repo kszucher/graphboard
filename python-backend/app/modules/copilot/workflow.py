@@ -61,15 +61,29 @@ def _format_error_feedback(err_msg: str) -> str:
     """Classifies validation error into structured diagnostic hints for LLM self-correction."""
     tag = "[VALIDATION_ERROR]"
     lower_err = err_msg.lower()
-    if "orphan node" in lower_err:
+    if "does not exist" in lower_err and ("target" in lower_err or "edge" in lower_err):
+        tag = "[DANGLING_TARGET]"
+    elif "never referenced by any node" in lower_err or "orphan variable" in lower_err:
+        tag = "[DEAD_VARIABLE]"
+    elif "incompatible default value" in lower_err or "incompatible type" in lower_err:
+        tag = "[TYPE_MISMATCH]"
+    elif "orphan node" in lower_err:
         tag = "[ORPHAN_NODE]"
     elif "variable" in lower_err and (
-        "not defined" in lower_err or "missing" in lower_err or "invalid variable" in lower_err
+        "not defined" in lower_err
+        or "missing" in lower_err
+        or "invalid variable" in lower_err
+        or "undefined" in lower_err
     ):
         tag = "[UNDEFINED_VARIABLE]"
     elif "unreachable" in lower_err:
         tag = "[UNREACHABLE_NODE]"
-    elif "unconnected" in lower_err or "not connected" in lower_err:
+    elif (
+        "unconnected" in lower_err
+        or "not connected" in lower_err
+        or "outgoing target" in lower_err
+        or "outgoing edge" in lower_err
+    ):
         tag = "[UNCONNECTED_SLOT]"
     elif "syntax" in lower_err or "compilation" in lower_err:
         tag = "[COMPILATION_ERROR]"
@@ -78,6 +92,7 @@ def _format_error_feedback(err_msg: str) -> str:
         or "required" in lower_err
         or "empty prompt" in lower_err
         or "at least one output" in lower_err
+        or "must have at least" in lower_err
     ):
         tag = "[MISSING_CONFIGURATION]"
 

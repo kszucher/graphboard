@@ -11,6 +11,7 @@ import ast
 from typing import Any
 
 from app.core.config import settings
+from app.core.exceptions import ValidationError
 from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
@@ -308,11 +309,24 @@ class DirectLangGraphCompiler:
                     return "START"
                 if isinstance(target_node, EndNode):
                     return "END"
+                return tgt_id
             if tgt_id == "start":
                 return "START"
             if tgt_id == "end":
                 return "END"
-            return tgt_id
+            raise ValidationError(f"Cannot compile graph: target node '{tgt_id}' does not exist in graph.")
+
+        def resolve_source(src_id: str) -> str:
+            if src_id in self.nodes_by_id:
+                src_node = self.nodes_by_id[src_id]
+                if isinstance(src_node, StartNode):
+                    return "START"
+                if isinstance(src_node, EndNode):
+                    raise ValidationError("Cannot compile graph: END node cannot have outgoing edges.")
+                return src_id
+            if src_id == "start":
+                return "START"
+            raise ValidationError(f"Cannot compile graph: source node '{src_id}' does not exist in graph.")
 
         # 2. Process Conditional Edges from Switch Nodes
         for n in self.executable_nodes:
@@ -339,14 +353,7 @@ class DirectLangGraphCompiler:
             if edge.source_handle is not None:
                 continue
 
-            src = (
-                "START"
-                if (
-                    edge.source == "start"
-                    or (edge.source in self.nodes_by_id and isinstance(self.nodes_by_id[edge.source], StartNode))
-                )
-                else edge.source
-            )
+            src = resolve_source(edge.source)
             tgt = resolve_target(edge.target)
             src_ref = "START" if src == "START" else repr(src)
             tgt_ref = "END" if tgt == "END" else repr(tgt)
@@ -370,9 +377,10 @@ class DirectLangGraphCompiler:
 
         raw_code = "\n\n".join(sections)
 
-        # Validate syntax in single pass
+        # Validate syntax and bytecode generation in single pass
         tree = ast.parse(raw_code)
-        assert tree is not None
+        built_code = compile(tree, "<compiled_graph>", "exec")
+        assert built_code is not None
 
         return raw_code
 

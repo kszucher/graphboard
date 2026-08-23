@@ -214,7 +214,9 @@ def test_validation_node_unreachable_node_error() -> None:
                 {"id": "start", "node_type": "START"},
                 {"id": "end", "node_type": "END"},
             ],
-            "edges": [],
+            "edges": [
+                {"source": "start", "target": "end"},
+            ],
             "state": [{"id": "v_x", "key": "x", "type": "number", "default_value": 0}],
         },
     }
@@ -449,8 +451,8 @@ def test_validation_node_unconnected_switch_slot_error() -> None:
                     "id": "switch_1",
                     "node_type": "LOGICAL_SWITCH",
                     "branches": [
-                        {"id": "switch_1_opt_a", "label": "opt_a", "expression": True},
-                        {"id": "switch_1_opt_b", "label": "opt_b", "expression": True},
+                        {"id": "switch_1_opt_a", "label": "opt_a", "expression": {"score": {"gt": 10}}},
+                        {"id": "switch_1_opt_b", "label": "opt_b", "expression": None},
                     ],
                 },
                 {"id": "end", "node_type": "END"},

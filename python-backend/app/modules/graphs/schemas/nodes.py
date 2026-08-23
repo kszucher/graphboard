@@ -47,6 +47,19 @@ class LogicalAssignerNode(BaseNode):
     node_type: Literal[NodeType.LOGICAL_ASSIGNER] = NodeType.LOGICAL_ASSIGNER
     assignments: list[LogicalAssignmentSchema] = Field(default_factory=list)
 
+    def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
+        from app.core.exceptions import ValidationError
+
+        if not self.assignments:
+            raise ValidationError(f"Logical Assigner '{self.id}' must have at least one assignment.")
+        for a in self.assignments:
+            if not a.target_var_key or not a.target_var_key.strip():
+                raise ValidationError(f"Logical Assigner '{self.id}' has an assignment with an empty target_var_key.")
+            if a.expression is None:
+                raise ValidationError(
+                    f"Logical Assigner '{self.id}' has an assignment to '{a.target_var_key}' with no expression."
+                )
+
 
 class Branch(BaseModel):
     """A routing branch on a logical switch node."""
@@ -75,6 +88,15 @@ class LogicalSwitchNode(BaseNode):
 
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.core.exceptions import ValidationError
+
+        if len(self.branches) < 2:
+            raise ValidationError(
+                f"Logical Switch '{self.id}' must have at least 2 branches, found {len(self.branches)}."
+            )
+
+        labels = [b.label for b in self.branches]
+        if len(labels) != len(set(labels)):
+            raise ValidationError(f"Logical Switch '{self.id}' has duplicate branch labels: {labels}.")
 
         for branch in self.branches:
             if (self.id, branch.id) not in edge_sources:
@@ -126,6 +148,18 @@ class AgenticSwitchNode(BaseNode):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.core.exceptions import ValidationError
 
+        if not self.agentic_input or not self.agentic_input.strip():
+            raise ValidationError(f"Agentic Switch '{self.id}' requires an agentic_input variable.")
+
+        if len(self.branches) < 2:
+            raise ValidationError(
+                f"Agentic Switch '{self.id}' must have at least 2 branches, found {len(self.branches)}."
+            )
+
+        labels = [b.label for b in self.branches]
+        if len(labels) != len(set(labels)):
+            raise ValidationError(f"Agentic Switch '{self.id}' has duplicate branch labels: {labels}.")
+
         for branch in self.branches:
             if (self.id, branch.id) not in edge_sources:
                 raise ValidationError(
@@ -141,7 +175,7 @@ class InterruptNode(BaseNode):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.core.exceptions import ValidationError
 
-        if not self.resume_var:
+        if not self.resume_var or not self.resume_var.strip():
             raise ValidationError(f"Interrupt node '{self.id}' must have a valid resume_var.")
 
 
@@ -155,10 +189,12 @@ class RagRetrieverNode(BaseNode):
     def validate_integrity(self, edge_sources: set[tuple[str, str]]) -> None:
         from app.core.exceptions import ValidationError
 
-        if not self.query_var:
+        if not self.query_var or not self.query_var.strip():
             raise ValidationError(f"RAG node '{self.id}' requires a query_var.")
-        if not self.context_output_var:
+        if not self.context_output_var or not self.context_output_var.strip():
             raise ValidationError(f"RAG node '{self.id}' requires a context_output_var.")
+        if self.top_k < 1:
+            raise ValidationError(f"RAG node '{self.id}' top_k must be at least 1.")
 
 
 NodeRead = Annotated[
