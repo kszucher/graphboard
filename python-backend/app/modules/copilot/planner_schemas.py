@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -21,7 +22,20 @@ class NumericDelta(BaseModel):
     op: Literal["increment", "decrement", "multiply", "divide"] = Field(
         description="Arithmetic operation on target variable."
     )
-    amount: float = Field(description="Amount to adjust.")
+    amount: float = Field(default=1.0, description="Amount to adjust.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def alias_amount(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for k in ("amount", "value", "val", "by", "text", "delta"):
+                if k in data and data[k] is not None:
+                    try:
+                        data["amount"] = float(data[k])
+                        break
+                    except (ValueError, TypeError):
+                        pass
+        return data
 
 
 class MathOp(BaseModel):
@@ -148,6 +162,16 @@ class ComparisonCondition(BaseModel):
         default=None, description="Right-hand state variable key to compare against (for var-to-var comparisons)."
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def alias_literal_value(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for k in ("value", "val", "target_value", "expected"):
+                if k in data and "literal_value" not in data:
+                    data["literal_value"] = data[k]
+                    break
+        return data
+
 
 class ConditionGroup(BaseModel):
     logic: Literal["ALL", "ANY"] = Field(default="ALL", description="Evaluate ALL (AND) or ANY (OR) of the conditions.")
@@ -174,20 +198,62 @@ class AgenticSwitchBranch(BaseModel):
 
 class AgenticOutputVar(BaseModel):
     key: str = Field(description="Output variable name.")
-    type: Literal["string", "number", "boolean", "array", "object"] = Field(description="Variable type.")
+    type: Literal["string", "number", "boolean", "array", "object"] = Field(
+        default="string", description="Variable type."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def allow_string_shorthand(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            return {"key": data, "type": "string"}
+        return data
 
 
 class UpsertVariable(BaseModel):
     key: str = Field(description="Variable key to create or update.")
-    type: Literal["string", "number", "boolean", "array", "object"] = Field(description="Variable type.")
+    type: Literal["string", "number", "boolean", "array", "object"] = Field(
+        default="string", description="Variable type (string, number, boolean, array, object)."
+    )
     default_value: Any | None = Field(
         default=None,
-        description="Optional default value. Must be explicitly set to null/none if not present.",
+        description="Optional default value. Use [] for array, {} for object, false/true for boolean, 0 for number.",
     )
     description: str | None = Field(
         default=None,
         description="Optional variable description. Must be explicitly set to null/none if not present.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_default_value(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        var_type = data.get("type", "string")
+        val = data.get("default_value")
+        if isinstance(val, str) and var_type:
+            val_stripped = val.strip()
+            if var_type in {"array", "object"} and (
+                val_stripped.startswith(("[", "{")) or val_stripped in ("[]", "{}")
+            ):
+                try:
+                    data["default_value"] = json.loads(val_stripped)
+                except Exception:
+                    pass
+            elif var_type == "boolean":
+                if val_stripped.lower() == "true":
+                    data["default_value"] = True
+                elif val_stripped.lower() == "false":
+                    data["default_value"] = False
+            elif var_type == "number":
+                try:
+                    if "." in val_stripped:
+                        data["default_value"] = float(val_stripped)
+                    else:
+                        data["default_value"] = int(val_stripped)
+                except ValueError:
+                    pass
+        return data
 
 
 # --- Polymorphic Node Configurations ---

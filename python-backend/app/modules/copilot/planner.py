@@ -17,10 +17,13 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
 
 ## Atomic Single-Turn Generation Invariant
 - IMPORTANT: You MUST emit your complete plan in a single `apply_graph_plan` call containing all variables, nodes, and switch branches.
-- State variables must be declared in `variables` in the same plan before being referenced in node assignments or switch conditions.
+- **Delta-Only Variables**: Only declare NEW or MODIFIED state variables in `variables`. Existing state variables in the graph are already available and must NOT be re-declared.
 - All linear nodes and switch branches must have explicit downstream targets connected to valid nodes or `end`.
 
 ## State Lifecycle & Flow Invariants
+- **Intermediary Node Insertion (A -> C -> B)**: When inserting a new node `C` between existing nodes `A` and `B`, you must perform BOTH:
+  1. Set `C`'s target/branch to `B`.
+  2. Update `A`'s target (or switch branch) to point to `C` so `C` is reachable from `start`.
 - **Complete Variable Lifecycle (Write & Read)**: When introducing new state variables (e.g. milestones, safety nets, flags, or modifiers), always complete both sides of the lifecycle: ensure the variable is not only updated on triggers, but also read and applied where its effect matters (e.g. falling back on loss/exit paths, applying multipliers, or rendering UI).
 - **End-to-End Flow Tracing**: When altering mechanics or business logic, trace both the success path and the failure/exit path to ensure state mutations produce observable consequences before termination (`end`).
 """

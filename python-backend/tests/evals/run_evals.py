@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
-import traceback
 import uuid
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from langchain_core.runnables import RunnableConfig
@@ -34,7 +35,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-LOGS_DIR = BASE_DIR / "logs" / "eval_runs"
+LOGS_DIR = BASE_DIR / "logs" / "evals"
 
 
 class ScenarioResult:
@@ -49,6 +50,7 @@ class ScenarioResult:
         self.failure_reason: str | None = None
         self.validation_error: str | None = None
         self.operations: list[dict[str, Any]] | None = None
+        self.raw_logs: list[dict[str, Any]] = []
 
 
 async def run_scenario(scenario: EvalScenario, verbose: bool = False) -> ScenarioResult:
@@ -112,61 +114,135 @@ async def run_scenario(scenario: EvalScenario, verbose: bool = False) -> Scenari
         return result
 
     except AssertionError as ae:
-        result.duration_seconds = round(time.perf_counter() - start_time, 2)
         result.passed = False
         result.failure_reason = f"Assertion Failed: {ae}"
         print(f"  {RED}[FAIL] Assertion Failed:{RESET} {ae}", flush=True)
         if verbose:
+            import traceback
+
             traceback.print_exc()
         return result
     except Exception as ex:
-        result.duration_seconds = round(time.perf_counter() - start_time, 2)
         result.passed = False
         result.failure_reason = f"Exception: {ex}"
         print(f"  {RED}[FAIL] Exception raised during evaluation:{RESET} {ex}", flush=True)
         if verbose:
+            import traceback
+
             traceback.print_exc()
         return result
 
+    finally:
+        result.duration_seconds = round(time.perf_counter() - start_time, 2)
+        # Extract token usage and trace from the copilot run log file, then clean it up
+        try:
+            log_file = BASE_DIR / "logs" / "copilot_runs" / f"flow_eval_{thread_id}_full.json"
+            if log_file.exists():
+                log_data = json.loads(log_file.read_text(encoding="utf-8"))
+                if isinstance(log_data, list):
+                    result.raw_logs = log_data
+                    result.prompt_tokens = sum((e.get("usage") or {}).get("prompt_tokens", 0) for e in log_data)
+                    result.completion_tokens = sum(
+                        (e.get("usage") or {}).get("completion_tokens", 0) for e in log_data
+                    )
+                    result.total_tokens = sum((e.get("usage") or {}).get("total_tokens", 0) for e in log_data)
+                log_file.unlink(missing_ok=True)
+        except Exception:
+            pass
 
-def export_markdown_report(model: str, results: list[ScenarioResult]) -> Path:
+
+def export_json_report(model: str, results: list[ScenarioResult]) -> Path:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    report_path = LOGS_DIR / f"eval_report_{model}_{timestamp}.md"
+    now_cet = datetime.now(ZoneInfo("CET"))
+    timestamp = now_cet.strftime("%Y%m%d_%H%M%S")
+    report_path = LOGS_DIR / f"eval_{timestamp}_{model}.json"
 
     total = len(results)
     passed = sum(1 for r in results if r.passed)
     pass_at_1 = sum(1 for r in results if r.passed and r.attempts == 1)
     pass_healed = sum(1 for r in results if r.passed and r.attempts > 1)
     avg_latency = round(sum(r.duration_seconds for r in results) / total, 2) if total > 0 else 0.0
+    avg_prompt_tokens = round(sum(r.prompt_tokens for r in results) / total, 1) if total > 0 else 0.0
+    avg_output_tokens = round(sum(r.completion_tokens for r in results) / total, 1) if total > 0 else 0.0
+    avg_total_tokens = round(sum(r.total_tokens for r in results) / total, 1) if total > 0 else 0.0
 
-    lines: list[str] = [
-        "# Graphboard Copilot Evaluation Report",
-        "",
-        f"- **Model**: `{model}`",
-        f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
-        f"- **Total Scenarios**: `{total}`",
-        f"- **Pass Rate**: `{passed}/{total}` (**{round((passed / total) * 100, 1) if total else 0}%**)",
-        f"- **Pass@1 (First Try)**: `{pass_at_1}/{total}`",
-        f"- **Pass@k (Self-Healed)**: `{pass_healed}`",
-        f"- **Average Duration**: `{avg_latency}s`",
-        "",
-        "## Detailed Results",
-        "",
-        "| Level | Scenario | Result | Attempts | Duration | Failure / Notes |",
-        "| :---: | :--- | :---: | :---: | :---: | :--- |",
-    ]
-
+    scenarios_data: list[dict[str, Any]] = []
     for r in results:
-        status = "✅ PASS" if r.passed else "❌ FAIL"
-        notes = r.failure_reason or "All invariants satisfied"
-        lines.append(
-            f"| {r.scenario.level} | {r.scenario.name} | {status} | {r.attempts} | {r.duration_seconds}s | {notes} |"
+        turns_data: list[dict[str, Any]] = []
+        for idx, entry in enumerate(r.raw_logs, 1):
+            resp = entry.get("response") or {}
+            thoughts_list = resp.get("thoughts") or []
+            thoughts = "\n\n".join(thoughts_list) if thoughts_list else None
+
+            tool_calls = resp.get("tool_calls") or []
+            plan_args = None
+            if tool_calls:
+                plan_args = tool_calls[0].get("function", {}).get("arguments")
+
+            user_feedback = None
+            if idx > 1:
+                messages = entry.get("messages") or []
+                for msg in messages:
+                    if msg.get("role") == "user":
+                        content = msg.get("content")
+                        if isinstance(content, list):
+                            content = "\n".join(content)
+                        user_feedback = content
+
+            turn_item: dict[str, Any] = {
+                "attempt": idx,
+                "thoughts": thoughts,
+                "plan": plan_args,
+                "feedback": user_feedback,
+                "error": entry.get("error"),
+                "usage": entry.get("usage"),
+            }
+            turns_data.append(turn_item)
+
+        scenarios_data.append(
+            {
+                "level": r.scenario.level,
+                "name": r.scenario.name,
+                "prompt": r.scenario.user_prompt,
+                "passed": r.passed,
+                "attempts": r.attempts,
+                "duration_seconds": r.duration_seconds,
+                "tokens": {
+                    "prompt": r.prompt_tokens,
+                    "output": r.completion_tokens,
+                    "total": r.total_tokens,
+                },
+                "failure_reason": r.failure_reason,
+                "turns": turns_data,
+                "final_operations": (
+                    r.operations.model_dump(mode="json")
+                    if hasattr(r.operations, "model_dump")
+                    else r.operations
+                ),
+            }
         )
 
-    lines.append("")
+    report_data: dict[str, Any] = {
+        "model": model,
+        "timestamp": now_cet.isoformat(),
+        "summary": {
+            "total_scenarios": total,
+            "passed": passed,
+            "pass_rate_pct": round((passed / total) * 100, 1) if total else 0.0,
+            "pass_at_1": pass_at_1,
+            "pass_healed": pass_healed,
+            "avg_duration_seconds": avg_latency,
+            "tokens": {
+                "avg_prompt": avg_prompt_tokens,
+                "avg_output": avg_output_tokens,
+                "avg_total": avg_total_tokens,
+            },
+        },
+        "scenarios": scenarios_data,
+    }
+
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+        json.dump(report_data, f, indent=2, ensure_ascii=False, default=str)
 
     return report_path
 
@@ -175,20 +251,23 @@ def print_summary_table(model: str, results: list[ScenarioResult], report_path: 
     total = len(results)
     passed = sum(1 for r in results if r.passed)
 
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 90)
     print(f"{BOLD}{CYAN}                     EVALUATION SCORECARD ({model}){RESET}")
-    print("=" * 80)
-    print(f"{'Level':<7} {'Scenario':<35} {'Status':<10} {'Attempts':<10} {'Duration':<10}")
-    print("-" * 80)
+    print("=" * 90)
+    print(
+        f"{'Level':<7} {'Scenario':<34} {'Status':<10} {'Attempts':<10} {'Duration':<10} {'Tokens (In/Out/Total)':<20}"
+    )
+    print("-" * 90)
 
     for r in results:
         status_color = GREEN if r.passed else RED
         status_str = "PASS" if r.passed else "FAIL"
+        tokens_str = f"{r.prompt_tokens:,} / {r.completion_tokens:,} / {r.total_tokens:,}"
         print(
-            f"{r.scenario.level:<7} {r.scenario.name[:34]:<35} {status_color}{status_str:<10}{RESET} {r.attempts:<10} {r.duration_seconds:<8}s"
+            f"{r.scenario.level:<7} {r.scenario.name[:33]:<34} {status_color}{status_str:<10}{RESET} {r.attempts:<10} {str(r.duration_seconds) + 's':<10} {tokens_str:<20}"
         )
 
-    print("-" * 80)
+    print("-" * 95)
     pass_color = GREEN if passed == total else (YELLOW if passed > 0 else RED)
     print(
         f"{BOLD}Summary:{RESET} {pass_color}{passed}/{total} Passed ({round((passed / total) * 100, 1)}%){RESET} | Scorecard saved to: {report_path.name}\n"
@@ -213,9 +292,17 @@ async def main() -> None:
         print("Please configure GEMINI_API_KEY in python-backend/.env.")
         sys.exit(1)
 
-    effective_delay = args.delay
-    if effective_delay is None:
-        effective_delay = 15.0 if "3.5-flash" in args.model and "lite" not in args.model else 0.0
+    # Hardcoded Free-Tier Rate Limits:
+    # - Flash Lite: 6.0s pause guarantees <= 10 requests/min
+    # - Standard Flash: 15.0s pause guarantees <= 4 requests/min
+    if args.delay is not None:
+        effective_delay = args.delay
+    elif "flash-lite" in args.model or "lite" in args.model:
+        effective_delay = 6.0  # Safe 10 RPM ceiling for Flash-Lite Free Tier
+    elif "3.5-flash" in args.model or "flash" in args.model:
+        effective_delay = 15.0  # Safe 4 RPM ceiling for standard Flash Free Tier
+    else:
+        effective_delay = 5.0
 
     scenarios_to_run = SCENARIOS
     if args.level is not None:
@@ -236,7 +323,7 @@ async def main() -> None:
         result = await run_scenario(scenario, verbose=args.verbose)
         results.append(result)
 
-    report_path = export_markdown_report(args.model, results)
+    report_path = export_json_report(args.model, results)
     print_summary_table(args.model, results, report_path)
 
     if any(not r.passed for r in results):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.constants import NodeType
 from app.modules.graphs.schemas import ComparisonExpression, Expression, VariableType
@@ -23,7 +23,14 @@ class BranchValueInput(BaseModel):
 
 class AgenticOutputInput(BaseModel):
     key: str = Field(min_length=1, pattern=_IDENTIFIER_PATTERN)
-    type: VariableType
+    type: VariableType = "string"
+
+    @model_validator(mode="before")
+    @classmethod
+    def allow_shorthand(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            return {"key": data, "type": "string"}
+        return data
 
 
 class VariableUpsertInput(BaseModel):

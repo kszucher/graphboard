@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def log_llm_call(
             logged_messages.append(msg_copy)
 
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(ZoneInfo("CET")).isoformat(),
             "graph_id": graph_id,
             "node_name": node_name,
             "model": model,

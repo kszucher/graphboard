@@ -84,20 +84,20 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 
 #### 📊 Baseline Model Scorecard (`gemini-3.5-flash-lite`, 1024 Thinking Budget)
 
-| Level | Difficulty / Focus | Natural User Prompt | Result | Attempts | Duration |
-| :---: | :--- | :--- | :---: | :---: | :---: |
-| **1** | **Game Length** | *"Let's make the game longer: the player should need 15 correct answers to win instead of 5."* | ✅ **PASS** | 1 (Pass@1) | ~5.5s |
-| **2** | **Prize Tracking** | *"Let's add prize money tracking so each correct answer increases the player's cash earnings."* | ✅ **PASS** | 1 (Pass@1) | ~7.7s |
-| **3** | **Walk Away Option** | *"Give the player an option to walk away with their current money instead of answering or picking a lifeline."* | ✅ **PASS** | 1 (Pass@1) | ~9.6s |
-| **4** | **50:50 Lifeline** | *"Let's add a fifty fifty lifeline."* | ✅ **PASS** | 1 (Pass@1) | ~9.9s |
-| **5** | **Difficulty Tiers** | *"Make the questions get progressively harder: easy for the first 4 questions, medium from question 5 to 9, and hard for question 10 and above."* | ✅ **PASS** | 1 (Pass@1) | ~15.6s |
-| **6** | **Single-Use Lifelines** | *"Make lifelines single-use so once the player uses phone-a-friend or ask-the-audience, they can't use it again."* | ✅ **PASS** | **2 (Self-Healed)** | ~23.2s |
-| **7** | **Switch Question** | *"Add a 'Switch the Question' lifeline that discards the current question and gives the player a brand new one without losing their progress."* | ✅ **PASS** | **2 (Self-Healed)** | ~18.2s |
-| **8** | **Guaranteed Safety Nets** | *"Let's account for guaranteed wins after question 5 and 10 while 15 is max win."* | ❌ **FAIL** | 3 (JSON array format) | ~105.8s |
-| **9** | **Interactive Host** | *"Add an 'Ask the Host' lifeline where the contestant can ask the host for a tip, receive the host's response, and then return to answer the question."* | ✅ **PASS** | 1 (Pass@1) | ~7.2s |
-| **10** | **Full Millionaire Engine** | *"Turn this into the complete Millionaire game: 15 questions to win, guaranteed safety nets after questions 5 and 10, a walk-away option, and three one-time lifelines (50:50, Phone a Friend, Ask the Audience)."* | ❌ **FAIL** | 3 (JSON array format) | ~43.9s |
+| Level | Difficulty / Focus | Natural User Prompt | Result | Attempts | Duration | Tokens (In / Out / Total) |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: |
+| **1** | **Game Length** | *"Let's make the game longer: the player should need 15 correct answers to win instead of 5."* | ✅ **PASS** | 1 (Pass@1) | ~6.1s | 4,808 / 125 / 5,395 |
+| **2** | **Prize Tracking** | *"Let's add prize money tracking so each correct answer increases the player's cash earnings."* | ✅ **PASS** | 1 (Pass@1) | ~6.2s | 4,803 / 193 / 5,695 |
+| **3** | **Walk Away Option** | *"Give the player an option to walk away with their current money instead of answering or picking a lifeline."* | ✅ **PASS** | 1 (Pass@1) | ~9.5s | 4,804 / 41 / 6,764 |
+| **4** | **50:50 Lifeline** | *"Let's add a fifty fifty lifeline."* | ✅ **PASS** | 1 (Pass@1) | ~9.2s | 4,793 / 213 / 6,337 |
+| **5** | **Difficulty Tiers** | *"Make the questions get progressively harder: easy for the first 4 questions, medium from question 5 to 9, and hard for question 10 and above."* | ✅ **PASS** | 1 (Pass@1) | ~14.1s | 4,818 / 783 / 8,871 |
+| **6** | **Single-Use Lifelines** | *"Make lifelines single-use so once the player uses phone-a-friend or ask-the-audience, they can't use it again."* | ✅ **PASS** | 1 (Pass@1) | ~14.6s | 4,815 / 581 / 8,321 |
+| **7** | **Switch Question** | *"Add a 'Switch the Question' lifeline that discards the current question and gives the player a brand new one without losing their progress."* | ✅ **PASS** | 1 (Pass@1) | ~11.3s | 4,811 / 108 / 6,297 |
+| **8** | **Guaranteed Safety Nets** | *"Let's account for guaranteed wins after question 5 and 10 while 15 is max win."* | ✅ **PASS** | 1 (Pass@1) | ~15.5s | 4,807 / 737 / 8,208 |
+| **9** | **Interactive Host** | *"Add an 'Ask the Host' lifeline where the contestant can ask the host for a tip, receive the host's response, and then return to answer the question."* | ✅ **PASS** | 1 (Pass@1) | ~7.5s | 4,818 / 164 / 6,178 |
+| **10** | **Full Millionaire Engine** | *"Turn this into the complete Millionaire game: 15 questions to win, guaranteed safety nets after questions 5 and 10, a walk-away option, and three one-time lifelines (50:50, Phone a Friend, Ask the Audience)."* | ❌ **FAIL** | 3 (Dead variable / defaults) | ~31.0s | 9,736 / 2,270 / 16,381 |
 
-**Baseline Summary**: **8/10 Passed (80.0%)** | **Pass@1**: 6/10 (60.0%) | **Self-Healing (Pass@2)**: 2/10 (20.0%) | **Avg Duration**: ~12.7s
+**Baseline Summary**: **9/10 Passed (90.0%)** | **Pass@1**: 9/10 (90.0%) | **Avg Duration (Pass@1)**: ~10.4s | **Avg Tokens (Pass@1)**: 4,810 In / 327 Out (6,896 Total)
 
 
 ### 🧠 Copilot Tooling & Architecture Decision Space

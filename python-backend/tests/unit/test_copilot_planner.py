@@ -686,3 +686,75 @@ async def test_copilot_workflow_custom_model_propagation(monkeypatch: pytest.Mon
 
     assert captured_model == "gemini-3.5-flash-lite"
     assert final_state.get("applied") is True
+
+
+def test_upsert_variable_coerces_stringified_literals() -> None:
+    # Array string literal
+    v_arr = planner_schemas.UpsertVariable.model_validate(
+        {"key": "options", "type": "array", "default_value": "[]"}
+    )
+    assert v_arr.default_value == []
+
+    # Object string literal
+    v_obj = planner_schemas.UpsertVariable.model_validate(
+        {"key": "meta", "type": "object", "default_value": '{"k": 1}'}
+    )
+    assert v_obj.default_value == {"k": 1}
+
+    # Boolean string literals
+    v_bool_t = planner_schemas.UpsertVariable.model_validate(
+        {"key": "flag", "type": "boolean", "default_value": "true"}
+    )
+    assert v_bool_t.default_value is True
+    v_bool_f = planner_schemas.UpsertVariable.model_validate(
+        {"key": "flag", "type": "boolean", "default_value": "false"}
+    )
+    assert v_bool_f.default_value is False
+
+    # Number string literals
+    v_num_int = planner_schemas.UpsertVariable.model_validate(
+        {"key": "count", "type": "number", "default_value": "42"}
+    )
+    assert v_num_int.default_value == 42
+    v_num_float = planner_schemas.UpsertVariable.model_validate(
+        {"key": "ratio", "type": "number", "default_value": "3.14"}
+    )
+    assert v_num_float.default_value == 3.14
+
+    # String type stays string even if looks like JSON
+    v_str = planner_schemas.UpsertVariable.model_validate(
+        {"key": "txt", "type": "string", "default_value": "[]"}
+    )
+    assert v_str.default_value == "[]"
+
+
+def test_agentic_output_var_shorthand() -> None:
+    # String shorthand
+    out_str = planner_schemas.AgenticOutputVar.model_validate("advice_text")
+    assert out_str.key == "advice_text"
+    assert out_str.type == "string"
+
+    # Full dictionary
+    out_dict = planner_schemas.AgenticOutputVar.model_validate({"key": "score", "type": "number"})
+    assert out_dict.key == "score"
+    assert out_dict.type == "number"
+
+
+def test_numeric_delta_aliases() -> None:
+    nd1 = planner_schemas.NumericDelta.model_validate({"op": "increment", "value": 5})
+    assert nd1.amount == 5.0
+    nd2 = planner_schemas.NumericDelta.model_validate({"op": "increment", "text": "1"})
+    assert nd2.amount == 1.0
+    nd3 = planner_schemas.NumericDelta.model_validate({"op": "decrement", "by": 2.5})
+    assert nd3.amount == 2.5
+
+
+def test_comparison_condition_aliases() -> None:
+    c1 = planner_schemas.ComparisonCondition.model_validate({"var": "score", "op": "lt", "value": 15})
+    assert c1.literal_value == 15
+    c2 = planner_schemas.ComparisonCondition.model_validate({"var": "topic", "op": "equals", "val": "Space"})
+    assert c2.literal_value == "Space"
+
+
+
+

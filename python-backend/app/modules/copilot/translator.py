@@ -34,6 +34,10 @@ def convert_condition_group(group: planner_schemas.ConditionGroup | dict[str, An
             op = c["op"]
             compare_var = c.get("compare_var")
             literal_val = c.get("literal_value")
+        if compare_var is None and literal_val is None:
+            raise ValidationError(
+                f"Condition on variable '{var}' with operator '{op}' requires either 'literal_value' or 'compare_var'."
+            )
         right_side = {"var": compare_var} if compare_var is not None else literal_val
         converted.append({var: {op: right_side}})
 
@@ -120,7 +124,10 @@ def _hydrate_existing_node(node_id: str, initial_flow_data: dict[str, Any] | Non
             ]
         elif node_type == "AGENTIC_ASSIGNER":
             hydrated["agentic_inputs"] = initial_node.get("agentic_inputs", [])
-            hydrated["agentic_outputs"] = initial_node.get("agentic_outputs", [])
+            raw_outputs = initial_node.get("agentic_outputs", [])
+            hydrated["agentic_outputs"] = [
+                {"key": o, "type": "string"} if isinstance(o, str) else o for o in raw_outputs
+            ]
             hydrated["prompt"] = initial_node.get("prompt", "")
         elif node_type == "RAG_RETRIEVER":
             hydrated["query_var"] = initial_node.get("query_var")
