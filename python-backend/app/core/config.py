@@ -24,7 +24,9 @@ class Settings(BaseSettings):
         return v
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
-    copilot_model: str = Field(default="gemini-3.5-flash-lite", description="Default Gemini model for copilot operations")
+    copilot_model: str = Field(
+        default="gemini-3.5-flash-lite", description="Default Gemini model for copilot operations"
+    )
     copilot_thinking_budget: int = Field(
         default=1, description="Thinking budget token limit for 3.6 copilot planner (1 for minimal/fastest)"
     )
