@@ -4,12 +4,27 @@
 # Python backend
 python-backend/.venv/
 python-backend/.env
-python-backend/__pycache__/
-python-backend/app/__pycache__/
-python-backend/app/repositories/__pycache__/
-python-backend/app/services/__pycache__/
-python-backend/app/api/__pycache__/
 python-backend/graphboard_backend.egg-info/
 /python-backend/alembic/script.py.mako
 openapi.json
 python-backend/openapi.json
+
+# Byte-compiled / cache files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & Coverage
+.coverage
+.coverage.*
+*.coverage
+htmlcov/
+.pytest_cache/
+**/.pytest_cache/
+
+# Logs
+logs/
+**/logs/
+*.log
+**/*.log
