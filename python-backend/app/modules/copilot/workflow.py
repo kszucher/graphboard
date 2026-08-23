@@ -6,6 +6,7 @@ from typing import Any
 
 from google import genai
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 
 from app.core.exceptions import ValidationError
@@ -204,6 +205,13 @@ workflow.add_edge("planner_node", "translate_plan_node")
 workflow.add_edge("translate_plan_node", "validation_node")
 workflow.add_conditional_edges("validation_node", route_after_validation)
 
-# In-memory saver to persist threads across runs
-memory_saver = MemorySaver()
+# In-memory saver to persist threads across runs with explicit domain type whitelist
+serializer = JsonPlusSerializer(
+    allowed_msgpack_modules=[
+        ("app.modules.copilot.planner_schemas", "ApplyGraphPlan"),
+        ("app.core.constants", "NodeType"),
+        ("app.modules.graphs.operations.schemas", "GraphUpdateInput"),
+    ]
+)
+memory_saver = MemorySaver(serde=serializer)
 copilot_graph = workflow.compile(checkpointer=memory_saver)
