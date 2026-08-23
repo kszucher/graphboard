@@ -1,40 +1,42 @@
-import json
 from typing import Any, cast
 
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from app.modules.copilot import planner_schemas
 from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 from app.modules.copilot.workflow import copilot_graph, validation_node
 from app.modules.graphs.engine import DirectLangGraphCompiler
 from app.modules.graphs.engine.serializer import format_condition_yaml
-from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
+from app.modules.graphs.operations import apply_graph_update
 from app.modules.graphs.schemas import AgenticSwitchNode, GraphFlowData
 
 
 def test_translate_plan_node_upsert_node_polymorphic() -> None:
+    plan = planner_schemas.ApplyGraphPlan(
+        variables=[planner_schemas.UpsertVariable(key="score", type="number", default_value=0)],
+        nodes=[
+            planner_schemas.UpsertNode(
+                id="new_assigner",
+                node_type="LOGICAL_ASSIGNER",
+                config=planner_schemas.LogicalAssignerConfig(
+                    assignments=[
+                        planner_schemas.StrictAssignment(
+                            target_var_key="score",
+                            assignment=planner_schemas.SetLiteral(value=10),
+                        )
+                    ]
+                ),
+                target="end",
+            ),
+            planner_schemas.UpsertNode(id="start", target="new_assigner"),
+        ],
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "variables": [{"key": "score", "type": "number", "default_value": 0, "description": None}],
-                        "nodes": [
-                            {
-                                "id": "new_assigner",
-                                "node_type": "LOGICAL_ASSIGNER",
-                                "config": {"assignments": [{"target_var_key": "score", "assignment": {"value": 10}}]},
-                                "target": "end",
-                            },
-                            {"id": "start", "target": "new_assigner"},
-                        ],
-                    }
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [{"id": "end", "node_type": "LOGICAL_SWITCH", "branches": {}}],
             "edges": [],
@@ -44,50 +46,49 @@ def test_translate_plan_node_upsert_node_polymorphic() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
-    assert ops["start_target"] == "new_assigner"
-    assert len(ops["variables"]["upsert"]) == 1
-    assert ops["variables"]["upsert"][0]["key"] == "score"
-    assert len(ops["nodes"]["upsert"]) == 1
+    assert ops is not None
+    assert ops.start_target == "new_assigner"
+    assert ops.variables is not None
+    assert len(ops.variables.upsert) == 1
+    assert ops.variables.upsert[0].key == "score"
+    assert ops.nodes is not None
+    assert len(ops.nodes.upsert) == 1
 
-    new_assigner_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "new_assigner")
-    assert new_assigner_upsert["target"] == "end"
-    assert new_assigner_upsert["assignments"][0]["target_var_key"] == "score"
-    assert new_assigner_upsert["assignments"][0]["expression"] == 10
+    new_assigner_upsert = next(n for n in ops.nodes.upsert if n.id == "new_assigner")
+    assert new_assigner_upsert.target == "end"
+    assert new_assigner_upsert.assignments is not None
+    assert new_assigner_upsert.assignments[0].target_var_key == "score"
+    assert new_assigner_upsert.assignments[0].expression == 10
 
 
 def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
     """Test surgically patching a single branch on an existing switch without overwriting other branches."""
+    plan = planner_schemas.ApplyGraphPlan(
+        nodes=[
+            planner_schemas.UpsertNode(
+                id="phone_node",
+                node_type="AGENTIC_ASSIGNER",
+                config=planner_schemas.AgenticAssignerConfig(
+                    prompt="Call phone...",
+                    agentic_inputs=[],
+                    agentic_outputs=[],
+                ),
+                target="end",
+            )
+        ],
+        switch_branches=[
+            planner_schemas.UpsertSwitchBranch(
+                node_id="choose_lifeline",
+                label="Phone",
+                target="phone_node",
+                condition=None,
+            )
+        ],
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "nodes": [
-                            {
-                                "id": "phone_node",
-                                "node_type": "AGENTIC_ASSIGNER",
-                                "config": {
-                                    "prompt": "Call phone...",
-                                    "agentic_inputs": [],
-                                    "agentic_outputs": [],
-                                },
-                                "target": "end",
-                            }
-                        ],
-                        "switch_branches": [
-                            {
-                                "node_id": "choose_lifeline",
-                                "label": "Phone",
-                                "target": "phone_node",
-                                "condition": None,
-                            }
-                        ],
-                    }
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {
@@ -109,12 +110,14 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
+    assert ops is not None
+    assert ops.nodes is not None
 
-    # choose_lifeline was updated with Phone branch, preserving Audience branch and agentic_input
-    choose_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "choose_lifeline")
-    assert choose_upsert["branches"]["Audience"]["target"] == "audience_votes"
-    assert choose_upsert["branches"]["Phone"]["target"] == "phone_node"
-    assert choose_upsert["agentic_input"] == "user_answer"
+    choose_upsert = next(n for n in ops.nodes.upsert if n.id == "choose_lifeline")
+    assert choose_upsert.branches is not None
+    assert choose_upsert.branches["Audience"].target == "audience_votes"
+    assert choose_upsert.branches["Phone"].target == "phone_node"
+    assert choose_upsert.agentic_input == "user_answer"
 
     # Ensure operations pass apply_graph_update without error
     initial_flow = GraphFlowData.model_validate(
@@ -123,7 +126,7 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
             "state": [{"id": "v1", "key": "user_answer", "type": "string", "default_value": ""}],
         }
     )
-    updated_flow = apply_graph_update(initial_flow, GraphUpdateInput(**ops))
+    updated_flow = apply_graph_update(initial_flow, ops)
     assert len(updated_flow.nodes) == 4
     choose_node = next(n for n in updated_flow.nodes if n.id == "choose_lifeline")
     assert isinstance(choose_node, AgenticSwitchNode)
@@ -131,40 +134,37 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
 
 
 def test_translate_plan_node_switch_with_closed_conditions() -> None:
+    plan = planner_schemas.ApplyGraphPlan(
+        nodes=[
+            planner_schemas.UpsertNode(
+                id="switch_node",
+                node_type="LOGICAL_SWITCH",
+                config=planner_schemas.LogicalSwitchConfig(
+                    branches=[
+                        planner_schemas.LogicalSwitchBranch(
+                            label="Yes",
+                            condition=planner_schemas.ConditionGroup(
+                                logic="ALL",
+                                conditions=[
+                                    planner_schemas.ComparisonCondition(var="score", op="gte", literal_value=10)
+                                ],
+                            ),
+                            target="end",
+                        ),
+                        planner_schemas.LogicalSwitchBranch(label="No", condition=None, target="end"),
+                    ]
+                ),
+            ),
+            planner_schemas.UpsertNode(id="start", target="switch_node"),
+        ],
+        switch_branches=[
+            planner_schemas.UpsertSwitchBranch(node_id="switch_node", label="No", target="end", condition=None)
+        ],
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "nodes": [
-                            {
-                                "id": "switch_node",
-                                "node_type": "LOGICAL_SWITCH",
-                                "config": {
-                                    "branches": [
-                                        {
-                                            "label": "Yes",
-                                            "condition": {
-                                                "logic": "ALL",
-                                                "conditions": [{"var": "score", "op": "gte", "literal_value": 10}],
-                                            },
-                                            "target": "end",
-                                        },
-                                        {"label": "No", "condition": None, "target": "end"},
-                                    ]
-                                },
-                            },
-                            {"id": "start", "target": "switch_node"},
-                        ],
-                        "switch_branches": [
-                            {"node_id": "switch_node", "label": "No", "target": "end", "condition": None}
-                        ],
-                    }
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [{"id": "end", "node_type": "LOGICAL_ASSIGNER", "assignments": []}],
             "edges": [],
@@ -174,33 +174,31 @@ def test_translate_plan_node_switch_with_closed_conditions() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
-    assert ops["start_target"] == "switch_node"
-    switch_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "switch_node")
-    assert switch_upsert["branches"]["Yes"]["target"] == "end"
-    assert switch_upsert["branches"]["Yes"]["expression"] == {"score": {"gte": 10}}
-    assert switch_upsert["branches"]["No"]["target"] == "end"
+    assert ops is not None
+    assert ops.start_target == "switch_node"
+    assert ops.nodes is not None
+    switch_upsert = next(n for n in ops.nodes.upsert if n.id == "switch_node")
+    assert switch_upsert.branches is not None
+    assert switch_upsert.branches["Yes"].target == "end"
+    assert switch_upsert.branches["Yes"].expression == {"score": {"gte": 10}}
+    assert switch_upsert.branches["No"].target == "end"
 
 
 def test_translate_plan_node_delete_and_rename_entity() -> None:
+    plan = planner_schemas.ApplyGraphPlan(
+        deletions=[
+            planner_schemas.DeleteEntity(kind="variable", id="old_var"),
+            planner_schemas.DeleteEntity(kind="node", id="dead_node"),
+        ],
+        renames=[
+            planner_schemas.RenameEntity(kind="variable", old_name="v1", new_name="v2"),
+            planner_schemas.RenameEntity(kind="node", old_name="n1", new_name="n2"),
+        ],
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "deletions": [
-                            {"kind": "variable", "id": "old_var"},
-                            {"kind": "node", "id": "dead_node"},
-                        ],
-                        "renames": [
-                            {"kind": "variable", "old_name": "v1", "new_name": "v2"},
-                            {"kind": "node", "old_name": "n1", "new_name": "n2"},
-                        ],
-                    }
-                ),
-            }
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [{"id": "start", "node_type": "START"}],
             "edges": [],
@@ -210,28 +208,26 @@ def test_translate_plan_node_delete_and_rename_entity() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
-    assert "old_var" in ops["variables"]["delete"]
-    assert "dead_node" in ops["nodes"]["delete"]
-    assert ops["rename_variables"] == [{"old_key": "v1", "new_key": "v2"}]
-    assert ops["rename_nodes"] == [{"old_key": "n1", "new_key": "n2"}]
+    assert ops is not None
+    assert ops.variables is not None
+    assert "old_var" in ops.variables.delete
+    assert ops.nodes is not None
+    assert "dead_node" in ops.nodes.delete
+    assert ops.rename_variables == [{"old_key": "v1", "new_key": "v2"}] or [
+        r.model_dump() for r in ops.rename_variables or []
+    ] == [{"old_key": "v1", "new_key": "v2"}]
+    assert ops.rename_nodes == [{"old_key": "n1", "new_key": "n2"}] or [
+        r.model_dump() for r in ops.rename_nodes or []
+    ] == [{"old_key": "n1", "new_key": "n2"}]
 
 
 def test_translate_plan_node_partial_retargeting() -> None:
     """Test partial retargeting of existing node without re-specifying config."""
+    plan = planner_schemas.ApplyGraphPlan(nodes=[planner_schemas.UpsertNode(id="assigner_a", target="end")])
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "nodes": [
-                            {"id": "assigner_a", "target": "end"},
-                        ]
-                    }
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {
@@ -248,30 +244,34 @@ def test_translate_plan_node_partial_retargeting() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
-    assigner_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "assigner_a")
-    assert assigner_upsert["target"] == "end"
+    assert ops is not None
+    assert ops.nodes is not None
+    assigner_upsert = next(n for n in ops.nodes.upsert if n.id == "assigner_a")
+    assert assigner_upsert.target == "end"
 
 
 def test_validation_node_unreachable_node_error() -> None:
+    plan = planner_schemas.ApplyGraphPlan(
+        nodes=[
+            planner_schemas.UpsertNode(
+                id="orphan_assigner",
+                node_type="LOGICAL_ASSIGNER",
+                config=planner_schemas.LogicalAssignerConfig(
+                    assignments=[
+                        planner_schemas.StrictAssignment(
+                            target_var_key="x",
+                            assignment=planner_schemas.SetLiteral(value=1),
+                        )
+                    ]
+                ),
+                target="end",
+            )
+        ]
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "nodes": [
-                            {
-                                "id": "orphan_assigner",
-                                "node_type": "LOGICAL_ASSIGNER",
-                                "config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]},
-                                "target": "end",
-                            }
-                        ]
-                    }
-                ),
-            }
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {"id": "start", "node_type": "START"},
@@ -300,49 +300,44 @@ def test_validation_node_unreachable_node_error() -> None:
 
 def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     """Test translating a node with orthogonal collection expressions like sample and format."""
+    plan = planner_schemas.ApplyGraphPlan(
+        variables=[
+            planner_schemas.UpsertVariable(
+                key="options",
+                type="array",
+                default_value=["A", "B", "C", "D"],
+            ),
+            planner_schemas.UpsertVariable(
+                key="active_options",
+                type="array",
+                default_value=[],
+            ),
+        ],
+        nodes=[
+            planner_schemas.UpsertNode(
+                id="fifty_fifty_node",
+                node_type="LOGICAL_ASSIGNER",
+                config=planner_schemas.LogicalAssignerConfig(
+                    assignments=[
+                        planner_schemas.StrictAssignment(
+                            target_var_key="active_options",
+                            assignment=planner_schemas.CollectionSample(
+                                op="sample",
+                                items={"var": "options"},
+                                count=2,
+                            ),
+                        )
+                    ]
+                ),
+                target="end",
+            ),
+            planner_schemas.UpsertNode(id="start", target="fifty_fifty_node"),
+        ],
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "variables": [
-                            {
-                                "key": "options",
-                                "type": "array",
-                                "default_value": ["A", "B", "C", "D"],
-                            },
-                            {
-                                "key": "active_options",
-                                "type": "array",
-                                "default_value": [],
-                            },
-                        ],
-                        "nodes": [
-                            {
-                                "id": "fifty_fifty_node",
-                                "node_type": "LOGICAL_ASSIGNER",
-                                "config": {
-                                    "assignments": [
-                                        {
-                                            "target_var_key": "active_options",
-                                            "assignment": {
-                                                "op": "sample",
-                                                "list": {"var": "options"},
-                                                "count": 2,
-                                            },
-                                        }
-                                    ]
-                                },
-                                "target": "end",
-                            },
-                            {"id": "start", "target": "fifty_fifty_node"},
-                        ],
-                    }
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {"id": "start", "node_type": "START"},
@@ -355,17 +350,19 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
+    assert ops is not None
+    assert ops.variables is not None
+    assert len(ops.variables.upsert) == 2
+    assert ops.nodes is not None
+    assert len(ops.nodes.upsert) == 1
 
-    assert len(ops["variables"]["upsert"]) == 2
-    assert len(ops["nodes"]["upsert"]) == 1
-
-    node_upsert = ops["nodes"]["upsert"][0]
-    assert node_upsert["id"] == "fifty_fifty_node"
-    assert node_upsert["assignments"][0]["target_var_key"] == "active_options"
-    assert node_upsert["assignments"][0]["expression"]["op"] == "sample"
+    node_upsert = ops.nodes.upsert[0]
+    assert node_upsert.id == "fifty_fifty_node"
+    assert node_upsert.assignments is not None
+    assert node_upsert.assignments[0].target_var_key == "active_options"
 
     initial_flow = GraphFlowData.model_validate(state["initial_flow_data"])
-    updated_flow = apply_graph_update(initial_flow, GraphUpdateInput(**ops))
+    updated_flow = apply_graph_update(initial_flow, ops)
     compiler = DirectLangGraphCompiler(updated_flow)
     compiled_code = compiler.compile()
     assert "random.sample" in compiled_code
@@ -373,24 +370,19 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
 
 def test_translate_plan_node_delete_switch_branch() -> None:
     """Test that delete_entity cleanly removes a branch from switch node branches."""
+    plan = planner_schemas.ApplyGraphPlan(
+        deletions=[
+            planner_schemas.DeleteEntity(
+                kind="switch_branch",
+                id="FiftyFifty",
+                parent_id="lifeline_switch",
+            )
+        ]
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {
-                        "deletions": [
-                            {
-                                "kind": "switch_branch",
-                                "id": "FiftyFifty",
-                                "parent_id": "lifeline_switch",
-                            }
-                        ]
-                    }
-                ),
-            }
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {
@@ -412,9 +404,12 @@ def test_translate_plan_node_delete_switch_branch() -> None:
 
     result = translate_plan_node(state)
     ops = result["operations"]
-    switch_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "lifeline_switch")
-    assert "FiftyFifty" not in switch_upsert["branches"]
-    assert "Default" in switch_upsert["branches"]
+    assert ops is not None
+    assert ops.nodes is not None
+    switch_upsert = next(n for n in ops.nodes.upsert if n.id == "lifeline_switch")
+    assert switch_upsert.branches is not None
+    assert "FiftyFifty" not in switch_upsert.branches
+    assert "Default" in switch_upsert.branches
 
 
 def test_format_condition_yaml_canonical_and_not() -> None:
@@ -443,49 +438,49 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
         graph_id: str,
         messages: list[dict[str, Any]],
         initial_flow: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> planner_schemas.ApplyGraphPlan:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             # Turn 1: Invalid orphan node (will fail dry-run validation)
-            return [
-                {
-                    "name": "apply_graph_plan",
-                    "arguments": json.dumps(
-                        {
-                            "nodes": [
-                                {
-                                    "id": "orphan_step",
-                                    "node_type": "LOGICAL_ASSIGNER",
-                                    "config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]},
-                                    "target": "end",
-                                }
+            return planner_schemas.ApplyGraphPlan(
+                nodes=[
+                    planner_schemas.UpsertNode(
+                        id="orphan_step",
+                        node_type="LOGICAL_ASSIGNER",
+                        config=planner_schemas.LogicalAssignerConfig(
+                            assignments=[
+                                planner_schemas.StrictAssignment(
+                                    target_var_key="x",
+                                    assignment=planner_schemas.SetLiteral(value=1),
+                                )
                             ]
-                        }
-                    ),
-                }
-            ]
+                        ),
+                        target="end",
+                    )
+                ]
+            )
         else:
             # Turn 2: Corrected with proper start entrypoint and variable declaration
-            return [
-                {
-                    "name": "apply_graph_plan",
-                    "arguments": json.dumps(
-                        {
-                            "variables": [{"key": "x", "type": "number", "default_value": 0, "description": None}],
-                            "nodes": [
-                                {
-                                    "id": "first_step",
-                                    "node_type": "LOGICAL_ASSIGNER",
-                                    "config": {"assignments": [{"target_var_key": "x", "assignment": {"value": 1}}]},
-                                    "target": "end",
-                                },
-                                {"id": "start", "target": "first_step"},
-                            ],
-                        }
+            return planner_schemas.ApplyGraphPlan(
+                variables=[planner_schemas.UpsertVariable(key="x", type="number", default_value=0)],
+                nodes=[
+                    planner_schemas.UpsertNode(
+                        id="first_step",
+                        node_type="LOGICAL_ASSIGNER",
+                        config=planner_schemas.LogicalAssignerConfig(
+                            assignments=[
+                                planner_schemas.StrictAssignment(
+                                    target_var_key="x",
+                                    assignment=planner_schemas.SetLiteral(value=1),
+                                )
+                            ]
+                        ),
+                        target="end",
                     ),
-                }
-            ]
+                    planner_schemas.UpsertNode(id="start", target="first_step"),
+                ],
+            )
 
     monkeypatch.setattr("app.modules.copilot.workflow.generate_plan", mock_generate_plan)
     monkeypatch.setenv("GEMINI_API_KEY", "mock_key")
@@ -500,7 +495,7 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
             "edges": [],
             "state": [],
         },
-        "tool_calls": None,
+        "plan": None,
         "operations": None,
         "validation_error": None,
         "applied": None,
@@ -520,16 +515,13 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
 
 
 def test_validation_node_unconnected_switch_slot_error() -> None:
+    plan = planner_schemas.ApplyGraphPlan(
+        variables=[planner_schemas.UpsertVariable(key="score", type="number", default_value=0)]
+    )
+
     state: CopilotState = {
         "trace_id": "test_trace_slot",
-        "tool_calls": [
-            {
-                "name": "apply_graph_plan",
-                "arguments": json.dumps(
-                    {"variables": [{"key": "score", "type": "number", "default_value": 0, "description": None}]}
-                ),
-            },
-        ],
+        "plan": plan,
         "initial_flow_data": {
             "nodes": [
                 {"id": "start", "node_type": "START"},

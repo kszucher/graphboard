@@ -14,7 +14,6 @@ from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 from app.modules.graphs.engine import DirectLangGraphCompiler
 from app.modules.graphs.operations import (
-    GraphUpdateInput,
     apply_graph_update,
     assert_flow_is_complete,
 )
@@ -51,7 +50,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
     )
 
     return {
-        "tool_calls": plan,
+        "plan": plan,
         "operations": None,
         "messages": messages,
     }
@@ -99,7 +98,7 @@ def _format_error_feedback(err_msg: str) -> str:
     return (
         f"{tag} Your previous operations failed validation:\n"
         f"{err_msg}\n\n"
-        "Please analyze the diagnostic above and generate a complete, corrected sequence of tool calls."
+        "Please analyze the diagnostic above and generate a complete, corrected plan."
     )
 
 
@@ -131,13 +130,12 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
             "messages": messages,
         }
 
-    if not state.get("operations"):
+    update = state.get("operations")
+    if not update:
         return {"validation_error": "No operations generated.", "applied": False}
 
     try:
         flow_data = GraphFlowData.model_validate(state["initial_flow_data"])
-        state_ops = state.get("operations") or {}
-        update = GraphUpdateInput.model_validate(state_ops)
 
         # 1. Dry-run patch application
         apply_graph_update(flow_data, update)

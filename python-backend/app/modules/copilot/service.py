@@ -47,7 +47,7 @@ async def initiate_copilot_workflow(
         "user_prompt": prompt,
         "serialized_state": serialized_state,
         "initial_flow_data": flow_data.model_dump(mode="json"),
-        "tool_calls": None,
+        "plan": None,
         "operations": None,
         "validation_error": None,
         "applied": None,
@@ -63,7 +63,12 @@ async def initiate_copilot_workflow(
 
     # If the workflow approved applying and validation passed, commit the mutations immediately
     if state_values.get("applied") and not state_values.get("validation_error"):
-        update = GraphUpdateInput.model_validate(state_values.get("operations") or {})
-        await graphs_service.apply_graph_update(uow, uuid.UUID(str(graph_id)), update)
+        update = state_values.get("operations")
+        if isinstance(update, GraphUpdateInput):
+            await graphs_service.apply_graph_update(uow, uuid.UUID(str(graph_id)), update)
+        elif isinstance(update, dict):
+            await graphs_service.apply_graph_update(
+                uow, uuid.UUID(str(graph_id)), GraphUpdateInput.model_validate(update)
+            )
 
     return format_copilot_response(state_values)

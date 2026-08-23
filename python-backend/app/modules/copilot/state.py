@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from app.modules.copilot.planner_schemas import ApplyGraphPlan
+from app.modules.graphs.operations.schemas import GraphUpdateInput
+
 
 class CopilotState(TypedDict, total=False):
     trace_id: str
@@ -9,8 +12,8 @@ class CopilotState(TypedDict, total=False):
     user_prompt: str
     serialized_state: str
     initial_flow_data: dict[str, Any]
-    tool_calls: list[dict[str, Any]] | None
-    operations: dict[str, Any] | None
+    plan: ApplyGraphPlan | None
+    operations: GraphUpdateInput | None
     validation_error: str | None
     applied: bool | None
     retry_count: int | None

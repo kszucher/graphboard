@@ -6,6 +6,7 @@ from typing import Any
 from google.genai import types
 
 from app.core.config import settings
+from app.core.exceptions import ValidationError
 from app.modules.copilot import planner_schemas
 from app.modules.copilot.logger import log_llm_call
 from app.modules.copilot.schema_utils import dereference_schema, prune_json_schema
@@ -80,8 +81,8 @@ async def generate_plan(
     graph_id: str,
     messages: list[dict[str, Any]],
     initial_flow: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
-    """Invokes the LLM with the single atomic apply_graph_plan tool."""
+) -> planner_schemas.ApplyGraphPlan:
+    """Invokes the LLM with the single atomic apply_graph_plan tool and returns the validated ApplyGraphPlan."""
     model_name = settings.copilot_model
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
@@ -163,13 +164,19 @@ async def generate_plan(
 
     function_calls = getattr(response, "function_calls", None)
     if not function_calls:
-        raise Exception("Planner failed to generate any tool calls.")
+        raise ValidationError("Planner failed to generate any tool calls.")
 
-    # Return serialized tool calls lists
-    return [
-        {
-            "name": fc.name,
-            "arguments": json.dumps(fc.args) if isinstance(fc.args, dict) else (fc.args or "{}"),
-        }
-        for fc in function_calls
-    ]
+    plan_call = next((fc for fc in function_calls if fc.name == "apply_graph_plan"), None)
+    if not plan_call:
+        raise ValidationError(f"Expected tool call 'apply_graph_plan', found: {[fc.name for fc in function_calls]}")
+
+    args = plan_call.args
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except Exception as e:
+            raise ValidationError(f"Failed to parse arguments JSON for 'apply_graph_plan': {str(e)}")
+    elif not isinstance(args, dict):
+        args = {}
+
+    return planner_schemas.ApplyGraphPlan.model_validate(args)
