@@ -12,7 +12,12 @@ from app.core.exceptions import ValidationError
 from app.modules.copilot.planner import generate_plan
 from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
-from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
+from app.modules.graphs.engine import DirectLangGraphCompiler
+from app.modules.graphs.operations import (
+    GraphUpdateInput,
+    apply_graph_update,
+    assert_flow_is_complete,
+)
 from app.modules.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)
@@ -58,11 +63,22 @@ def _format_error_feedback(err_msg: str) -> str:
     lower_err = err_msg.lower()
     if "orphan node" in lower_err:
         tag = "[ORPHAN_NODE]"
-    elif "variable" in lower_err and ("not defined" in lower_err or "missing" in lower_err):
+    elif "variable" in lower_err and (
+        "not defined" in lower_err or "missing" in lower_err or "invalid variable" in lower_err
+    ):
         tag = "[UNDEFINED_VARIABLE]"
     elif "unreachable" in lower_err:
         tag = "[UNREACHABLE_NODE]"
-    elif "must specify" in lower_err or "required" in lower_err:
+    elif "unconnected" in lower_err or "not connected" in lower_err:
+        tag = "[UNCONNECTED_SLOT]"
+    elif "syntax" in lower_err or "compilation" in lower_err:
+        tag = "[COMPILATION_ERROR]"
+    elif (
+        "must specify" in lower_err
+        or "required" in lower_err
+        or "empty prompt" in lower_err
+        or "at least one output" in lower_err
+    ):
         tag = "[MISSING_CONFIGURATION]"
 
     return (
@@ -73,7 +89,7 @@ def _format_error_feedback(err_msg: str) -> str:
 
 
 def validation_node(state: CopilotState) -> dict[str, Any]:
-    """Validates generated operations by dry-running them against the backend mutations engine."""
+    """Validates generated operations by dry-running them against the backend mutations engine, topological integrity, and compiler."""
     current_retries = state.get("retry_count") or 0
 
     if state.get("validation_error"):
@@ -108,8 +124,15 @@ def validation_node(state: CopilotState) -> dict[str, Any]:
         state_ops = state.get("operations") or {}
         update = GraphUpdateInput.model_validate(state_ops)
 
-        # Dry-run patch application
+        # 1. Dry-run patch application
         apply_graph_update(flow_data, update)
+
+        # 2. Topological graph completeness & integrity verification
+        assert_flow_is_complete(flow_data)
+
+        # 3. Direct LangGraph Compiler AST compilation verification
+        DirectLangGraphCompiler(flow_data).compile()
+
         return {"validation_error": None, "applied": True}
     except Exception as e:
         err_msg = str(e)

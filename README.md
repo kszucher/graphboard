@@ -109,8 +109,9 @@ graph TD
 
     User([👤 User]) -->|"Natural language prompt"| Planner["🧠 Planner Node"]
     Planner -->|"Checklist"| Translator["⚡ Translation Node"]
-    Translator -->|"GraphOperation patches"| Validator["✅ Dry-run Validator"]
-    Validator -->|"Patch applied"| Operations["⚙️ operations/pipeline.py"]
+    Translator -->|"GraphOperation patches"| Validator["✅ Dry-run Validator<br/>(Delta + Integrity + AST Compile)"]
+    Validator -->|"Self-Correction Retry (attempt <= 1)<br/>Structured Diagnostic Hint"| Planner
+    Validator -->|"Validation passed"| Operations["⚙️ operations/pipeline.py"]
     Operations -->|"New snapshot"| History[("🗄️ Snapshot History")]
     History -->|"Compile"| Compiler["📝 AST Compiler"]
     Compiler -->|"Python script"| Canvas["💻 React Flow Canvas"]
@@ -124,7 +125,8 @@ graph TD
 ```
 
 ### Key Technical Constraints
-* **Transaction-Level Integrity**: Variable referential constraints are validated on every patch. Topological completeness (e.g., unconnected slots) is deferred to execution-time to allow users and AI agents to build graphs incrementally.
+* **Validation & Retry Pipeline**: The Copilot validation loop sequentially runs delta patch application, full topological integrity verification (`assert_flow_is_complete`), and LangGraph AST compilation before committing. If any gate fails, structured diagnostic feedback is routed back to the Planner for self-correction.
+* **Canvas Editing vs. Execution Readiness**: Delta mutations on the canvas remain tolerant of intermediate states (e.g. unlinked nodes or newly added slots during manual drafting), while graph execution and Copilot output strictly require full topological completeness.
 * **UoW Transaction Timing**: Endpoints mutating data must manage transaction boundaries using `async with uow:` blocks to ensure SQL writes and event brokers finish before returning HTTP responses.
 
 ---

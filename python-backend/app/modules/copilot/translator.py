@@ -58,50 +58,6 @@ def convert_assignment(asgn: dict[str, Any]) -> dict[str, Any]:
     return {"target_var_key": target_var_key, "expression": expr}
 
 
-def validate_node_connectivity(update_payload: dict[str, Any], initial_flow_data: dict[str, Any] | None) -> None:
-    """Ensures newly created nodes are connected to avoid dangling orphan subgraphs."""
-    if not initial_flow_data:
-        return
-
-    initial_nodes = initial_flow_data.get("nodes", [])
-    initial_node_ids = {n.get("id") for n in initial_nodes if n.get("id")}
-
-    # Track renames
-    renamed_ids = {}
-    for rn in update_payload.get("rename_nodes", []):
-        renamed_ids[rn["new_key"]] = rn["old_key"]
-
-    # All upserted node IDs
-    upserted_nodes = update_payload.get("nodes", {}).get("upsert", [])
-    upserted_ids = {n["id"] for n in upserted_nodes}
-
-    # Collect targeted IDs
-    targeted_ids = set()
-    if update_payload.get("start_target"):
-        targeted_ids.add(update_payload["start_target"])
-
-    for n in upserted_nodes:
-        if n.get("target"):
-            targeted_ids.add(n["target"])
-        branches = n.get("branches") or {}
-        for br in branches.values():
-            if br.get("target"):
-                targeted_ids.add(br["target"])
-
-    # Find brand new nodes
-    new_nodes = set()
-    for nid in upserted_ids:
-        if nid not in initial_node_ids and nid not in renamed_ids:
-            new_nodes.add(nid)
-
-    for nid in new_nodes:
-        if nid not in targeted_ids:
-            raise ValidationError(
-                f"Orphan node detected: The new node '{nid}' is not targeted by any transition. "
-                "Ensure that a preceding node's target/branches routes to it."
-            )
-
-
 def translate_plan_to_operations(
     tool_calls: list[dict[str, Any]],
     initial_flow_data: dict[str, Any] | None = None,
@@ -332,7 +288,6 @@ def translate_plan_to_operations(
             elif kind == "variable":
                 update_payload["rename_variables"].append({"old_key": old_name, "new_key": new_name})
 
-    validate_node_connectivity(update_payload, initial_flow_data)
     return update_payload
 
 

@@ -192,7 +192,9 @@ def test_translate_plan_node_partial_retargeting() -> None:
     assert assigner_upsert["target"] == "end"
 
 
-def test_translate_plan_node_orphan_error() -> None:
+def test_validation_node_unreachable_node_error() -> None:
+    from app.modules.copilot.workflow import validation_node
+
     state = {
         "trace_id": "test_trace",
         "tool_calls": [
@@ -206,15 +208,27 @@ def test_translate_plan_node_orphan_error() -> None:
             }
         ],
         "initial_flow_data": {
-            "nodes": [{"id": "end", "node_type": "LOGICAL_SWITCH", "branches": {}}],
+            "nodes": [
+                {"id": "start", "node_type": "START"},
+                {"id": "end", "node_type": "END"},
+            ],
             "edges": [],
-            "state": [],
+            "state": [{"id": "v_x", "key": "x", "type": "number", "default_value": 0}],
         },
     }
 
-    result = translate_plan_node(state)
-    assert result["operations"] is None
-    assert "Orphan node detected" in str(result["validation_error"])
+    translated = translate_plan_node(state)
+    assert translated["operations"] is not None
+
+    validation_state = {
+        **state,
+        "operations": translated["operations"],
+        "retry_count": 0,
+    }
+    result = validation_node(validation_state)  # type: ignore[arg-type]
+    assert result["applied"] is False
+    assert "unreachable from the START node" in str(result["validation_error"])
+    assert "[UNREACHABLE_NODE]" in result["messages"][-1]["content"]
 
 
 def test_translate_plan_node_orthogonal_collection_expressions() -> None:
@@ -413,3 +427,50 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
     assert final_state.get("validation_error") is None
     assert final_state.get("retry_count") == 1
     assert final_state.get("operations") is not None
+
+
+def test_validation_node_unconnected_switch_slot_error() -> None:
+    from app.modules.copilot.workflow import validation_node
+
+    state = {
+        "trace_id": "test_trace_slot",
+        "tool_calls": [
+            {
+                "name": "upsert_variable",
+                "arguments": '{"key": "score", "type": "number", "default_value": 0, "description": null}',
+            },
+        ],
+        "initial_flow_data": {
+            "nodes": [
+                {"id": "start", "node_type": "START"},
+                {
+                    "id": "switch_1",
+                    "node_type": "LOGICAL_SWITCH",
+                    "branches": [
+                        {"id": "switch_1_opt_a", "label": "opt_a", "expression": True},
+                        {"id": "switch_1_opt_b", "label": "opt_b", "expression": True},
+                    ],
+                },
+                {"id": "end", "node_type": "END"},
+            ],
+            "edges": [
+                {"source": "start", "target": "switch_1"},
+                {"source": "switch_1", "source_handle": "switch_1_opt_a", "target": "end"},
+                # Note: switch_1_opt_b is missing an outgoing edge
+            ],
+            "state": [],
+        },
+    }
+
+    translated = translate_plan_node(state)
+    assert translated["operations"] is not None
+
+    validation_state = {
+        **state,
+        "operations": translated["operations"],
+        "retry_count": 0,
+    }
+    result = validation_node(validation_state)  # type: ignore[arg-type]
+    assert result["applied"] is False
+    assert "not connected to any target node" in str(result["validation_error"])
+    assert "[UNCONNECTED_SLOT]" in result["messages"][-1]["content"]
