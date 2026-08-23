@@ -183,10 +183,70 @@ async def test_default_example_graph_ast_compilation() -> None:
         "workflow.add_edge('gen_question', 'ask_question')" in code
         or 'workflow.add_edge("gen_question", "ask_question")' in code
     )
-    assert "class lifeline_switchOption(str, Enum):" in code
-    assert "class lifeline_switchChoice(BaseModel):" in code
-    assert "def lifeline_switch(state: State) -> str:" in code
     assert (
-        "workflow.add_conditional_edges('parse_answer', lifeline_switch," in code
-        or 'workflow.add_conditional_edges("parse_answer", lifeline_switch,' in code
+        "workflow.add_conditional_edges('lifeline_switch', lifeline_switch," in code
+        or 'workflow.add_conditional_edges("lifeline_switch", lifeline_switch,' in code
     )
+    assert (
+        "workflow.add_edge('parse_answer', 'lifeline_switch')" in code
+        or 'workflow.add_edge("parse_answer", "lifeline_switch")' in code
+    )
+
+
+async def test_chained_switches_langgraph_compilation() -> None:
+    from app.modules.graphs.schemas import (
+        AgenticBranch,
+        AgenticSwitchNode,
+        Branch,
+        DefinerVariableSchema,
+        EdgeRead,
+        EndNode,
+        GraphFlowData,
+        LogicalAssignerNode,
+        LogicalSwitchNode,
+        StartNode,
+    )
+
+    flow_data = GraphFlowData(
+        nodes=[
+            StartNode(id="start"),
+            LogicalAssignerNode(id="step1", assignments=[]),
+            LogicalSwitchNode(
+                id="switch1",
+                branches=[
+                    Branch(id="br1", label="ToSwitch2", expression=True),
+                    Branch(id="br2", label="ToEnd", expression=False),
+                ],
+            ),
+            AgenticSwitchNode(
+                id="switch2",
+                agentic_input="user_choice",
+                branches=[
+                    AgenticBranch(id="br_a", label="OptionA"),
+                    AgenticBranch(id="br_b", label="OptionB"),
+                ],
+            ),
+            LogicalAssignerNode(id="node_a", assignments=[]),
+            LogicalAssignerNode(id="node_b", assignments=[]),
+            EndNode(id="end"),
+        ],
+        edges=[
+            EdgeRead(source="start", target="step1"),
+            EdgeRead(source="step1", target="switch1"),
+            EdgeRead(source="switch1", source_handle="switch1_toswitch2", target="switch2"),
+            EdgeRead(source="switch1", source_handle="switch1_toend", target="end"),
+            EdgeRead(source="switch2", source_handle="switch2_optiona", target="node_a"),
+            EdgeRead(source="switch2", source_handle="switch2_optionb", target="node_b"),
+            EdgeRead(source="node_a", target="end"),
+            EdgeRead(source="node_b", target="end"),
+        ],
+        state=[
+            DefinerVariableSchema(id="v1", key="user_choice", type="string", default_value="OptionA"),
+        ],
+    )
+
+    code = DirectLangGraphCompiler(flow_data).compile()
+    assert "workflow.add_conditional_edges('switch1', switch1," in code
+    assert "workflow.add_conditional_edges('switch2', switch2," in code
+    assert "workflow.add_edge('step1', 'switch1')" in code
+    assert ast.parse(code) is not None

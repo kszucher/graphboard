@@ -294,10 +294,12 @@ class DirectLangGraphCompiler:
             "workflow = StateGraph(State)",
         ]
 
-        # 1. Add Executable Nodes to Graph (Only computation nodes: LogicalAssigner, AgenticAssigner, Interrupt, RagRetriever)
+        # 1. Add Executable Nodes to Graph (Computation nodes & passthrough Switch nodes)
         for n in self.executable_nodes:
             if isinstance(n, (LogicalAssignerNode, AgenticAssignerNode, InterruptNode, RagRetrieverNode)):
                 lines.append(f"workflow.add_node('{n.id}', {n.id})")
+            elif isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
+                lines.append(f"workflow.add_node('{n.id}', lambda state: {{}})")
 
         def resolve_target(tgt_id: str) -> str:
             if tgt_id in self.nodes_by_id:
@@ -312,21 +314,7 @@ class DirectLangGraphCompiler:
                 return "END"
             return tgt_id
 
-        # 2. Process Edges
-        router_incoming_sources: dict[str, list[str]] = {}
-        for edge in self.flow_data.edges:
-            target_id = edge.target
-            if target_id in self.nodes_by_id:
-                tnode = self.nodes_by_id[target_id]
-                if isinstance(tnode, (LogicalSwitchNode, AgenticSwitchNode)):
-                    src_id = edge.source
-                    if src_id in self.nodes_by_id and isinstance(self.nodes_by_id[src_id], StartNode):
-                        src_id = "START"
-                    elif src_id == "start":
-                        src_id = "START"
-                    router_incoming_sources.setdefault(tnode.id, []).append(src_id)
-
-        # Emit conditional edges for LogicalSwitchNode & AgenticSwitchNode
+        # 2. Process Conditional Edges from Switch Nodes
         for n in self.executable_nodes:
             if isinstance(n, (LogicalSwitchNode, AgenticSwitchNode)):
                 slot_map: dict[str, str] = {}
@@ -339,22 +327,16 @@ class DirectLangGraphCompiler:
                         slot_map[branch.label] = tgt
 
                 if slot_map:
-                    sources = router_incoming_sources.get(n.id, [n.id])
                     slot_map_code = (
                         "{"
                         + ", ".join(f"{repr(k)}: {'END' if v == 'END' else repr(v)}" for k, v in slot_map.items())
                         + "}"
                     )
-                    for src in sources:
-                        src_ref = "START" if src == "START" else repr(src)
-                        lines.append(f"workflow.add_conditional_edges({src_ref}, {n.id}, {slot_map_code})")
+                    lines.append(f"workflow.add_conditional_edges('{n.id}', {n.id}, {slot_map_code})")
 
-        # Emit Direct Edges
+        # 3. Emit Direct Edges
         for edge in self.flow_data.edges:
             if edge.source_handle is not None:
-                continue
-            target_node = self.nodes_by_id.get(edge.target)
-            if isinstance(target_node, (LogicalSwitchNode, AgenticSwitchNode)):
                 continue
 
             src = (
