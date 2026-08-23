@@ -7,13 +7,13 @@ interface CopilotPanelProps {
 }
 
 const MODEL_OPTIONS = [
-  { value: 'gemini-3.6-flash', label: '3.6 Flash' },
   { value: 'gemini-3.5-flash-lite', label: '3.5 Flash Lite' },
+  { value: 'gemini-3.6-flash', label: '3.6 Flash' },
 ] as const;
 
 export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash-lite');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const initiateCopilot = useInitiateCopilot(graphId);

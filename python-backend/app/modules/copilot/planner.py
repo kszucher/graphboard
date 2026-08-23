@@ -58,16 +58,15 @@ async def generate_plan(
             types.Content(role="user" if role == "user" else "model", parts=[types.Part.from_text(text=msg["content"])])
         )
 
-    thinking_config = None
     budget = settings.copilot_thinking_budget
     if "3.5" in model_name or "lite" in model_name:
         budget = settings.copilot_lite_thinking_budget
 
-    if budget > 0:
-        thinking_config = types.ThinkingConfig(
-            include_thoughts=True,
-            thinking_budget=budget,
-        )
+    effective_budget = max(1, budget) if budget is not None else 1
+    thinking_config = types.ThinkingConfig(
+        include_thoughts=True,
+        thinking_budget=effective_budget,
+    )
 
     config = types.GenerateContentConfig(
         system_instruction=PLANNER_SYSTEM_PROMPT,
