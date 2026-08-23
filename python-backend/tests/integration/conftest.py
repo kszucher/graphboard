@@ -52,7 +52,6 @@ async def dummy_user(db_session: AsyncSession) -> User:
     user = User(
         id=uuid.uuid4(),
         name="Test User",
-        color_mode="DARK",
     )
     db_session.add(user)
     await db_session.flush()

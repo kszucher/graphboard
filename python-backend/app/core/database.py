@@ -37,9 +37,4 @@ async def get_uow(
 ) -> AsyncIterator[UnitOfWork]:
     from .context import UnitOfWork
 
-    uow = UnitOfWork(session, broker, x_client_id)
-    try:
-        yield uow
-    except Exception:
-        await uow.rollback()
-        raise
+    yield UnitOfWork(session, broker, x_client_id)

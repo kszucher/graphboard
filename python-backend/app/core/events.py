@@ -67,15 +67,16 @@ class GraphEventBroker:
 
     async def emit(
         self,
-        event: str,
+        event: EventName | str,
         graph_id: uuid.UUID,
         payload: dict[str, Any],
         sender_client_id: str | None = None,
     ) -> None:
         """Convenience method to broadcast an event without manual GraphEvent instantiation."""
+        event_name = EventName(event) if isinstance(event, str) else event
         await self.broadcast(
             GraphEvent(
-                event=event,  # type: ignore[arg-type]
+                event=event_name,
                 graph_id=graph_id,
                 payload=payload,
                 sender_client_id=sender_client_id,

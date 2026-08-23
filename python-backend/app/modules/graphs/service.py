@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING
 from app.core.constants import EventName
 from app.core.exceptions import ValidationError
 from app.modules.graphs.engine import compile_flow_with_langgraph, generate_graph_code
-from app.modules.graphs.operations import GraphUpdateInput, assert_flow_is_complete
+from app.modules.graphs.operations import (
+    GraphUpdateInput,
+    assert_flow_is_complete,
+)
+from app.modules.graphs.operations import (
+    apply_graph_update as execute_graph_update,
+)
 from app.modules.graphs.schemas import GraphFlowData
 from app.modules.graphs.templates import build_default_trivia_graph_flow_data
 
@@ -88,16 +94,6 @@ async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | No
     return exec_result
 
 
-async def reset_graph_history(uow: UnitOfWork, graph_id: uuid.UUID) -> None:
-    graph = await uow.graphs.get(graph_id)
-    if graph:
-        snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
-        flow_data = snapshot.flow_json if snapshot else {}
-        await uow.graph_history.clear_by_graph(graph_id)
-        await uow.graph_history.save_snapshot(graph_id, flow_data, 0)
-        await uow.session.flush()
-
-
 async def get_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | None = None) -> dict:
     graph = await uow.graphs.get(graph_id)
     if not graph:
@@ -150,15 +146,13 @@ async def apply_graph_update(
     if not graph:
         raise ValidationError(f"Graph {graph_id} not found")
 
-    from app.modules.graphs.operations import apply_graph_update as db_apply_update
-
     # Mutations are always applied to the latest version
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
     if not latest_snapshot:
         raise ValidationError(f"No version found for Graph {graph_id}")
 
     flow_data = GraphFlowData.model_validate(latest_snapshot.flow_json or {})
-    mutated = db_apply_update(flow_data, update)
+    mutated = execute_graph_update(flow_data, update)
 
     # Save as next version
     next_seq = latest_snapshot.sequence_number + 1

@@ -278,6 +278,60 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     assert "random.sample" in compiled_code
 
 
+def test_translate_plan_node_delete_switch_branch() -> None:
+    """Test that delete_entity cleanly removes a branch from switch node branches."""
+    state = {
+        "trace_id": "test_trace",
+        "tool_calls": [
+            {
+                "name": "delete_entity",
+                "arguments": '{"kind": "switch_branch", "id": "FiftyFifty", "parent_id": "lifeline_switch"}',
+            }
+        ],
+        "initial_flow_data": {
+            "nodes": [
+                {
+                    "id": "lifeline_switch",
+                    "node_type": "LOGICAL_SWITCH",
+                    "branches": [
+                        {"id": "lifeline_switch_fiftyfifty", "label": "FiftyFifty", "expression": True},
+                        {"id": "lifeline_switch_default", "label": "Default", "expression": True},
+                    ],
+                }
+            ],
+            "edges": [
+                {"source": "lifeline_switch", "source_handle": "lifeline_switch_fiftyfifty", "target": "end"},
+                {"source": "lifeline_switch", "source_handle": "lifeline_switch_default", "target": "end"},
+            ],
+            "state": [],
+        },
+    }
+
+    result = translate_plan_node(state)
+    ops = result["operations"]
+    switch_upsert = next(n for n in ops["nodes"]["upsert"] if n["id"] == "lifeline_switch")
+    assert "FiftyFifty" not in switch_upsert["branches"]
+    assert "Default" in switch_upsert["branches"]
+
+
+def test_format_condition_yaml_normalization_and_not() -> None:
+    from app.modules.graphs.engine.serializer import format_condition_yaml
+
+    # NOT condition
+    not_expr = {"NOT": {"score": {"equals": 0}}}
+    assert (
+        format_condition_yaml(not_expr)
+        == '{ logic: "NOT", conditions: [{ var: "score", op: "equals", literal_value: 0 }] }'
+    )
+
+    # Operator normalization
+    ne_expr = {"score": {"ne": 5}}
+    assert format_condition_yaml(ne_expr) == '{ var: "score", op: "not_equals", literal_value: 5 }'
+
+    not_op_expr = {"score": {"not": 5}}
+    assert format_condition_yaml(not_op_expr) == '{ var: "score", op: "not_equals", literal_value: 5 }'
+
+
 async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the Copilot StateGraph routes validation errors back through planner for self-correction."""
     from typing import Any, cast

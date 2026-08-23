@@ -1,6 +1,5 @@
-from __future__ import annotations
-
-from datetime import UTC
+import uuid
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
@@ -8,7 +7,9 @@ from langchain_core.runnables import RunnableConfig
 from app.core.context import UnitOfWork
 from app.core.exceptions import ValidationError
 from app.modules.copilot.workflow import copilot_graph
+from app.modules.graphs import service as graphs_service
 from app.modules.graphs.engine import serialize_flow_to_code
+from app.modules.graphs.operations import GraphUpdateInput
 from app.modules.graphs.schemas import GraphFlowData
 
 
@@ -27,8 +28,6 @@ async def initiate_copilot_workflow(
     prompt: str,
 ) -> dict[str, Any]:
     """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
-    from datetime import datetime
-
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     trace_id = f"{timestamp}_{graph_id}"
 
@@ -64,11 +63,6 @@ async def initiate_copilot_workflow(
 
     # If the workflow approved applying and validation passed, commit the mutations immediately
     if state_values.get("applied") and not state_values.get("validation_error"):
-        import uuid
-
-        from app.modules.graphs import service as graphs_service
-        from app.modules.graphs.operations import GraphUpdateInput
-
         update = GraphUpdateInput.model_validate(state_values.get("operations") or {})
         await graphs_service.apply_graph_update(uow, uuid.UUID(str(graph_id)), update)
 

@@ -45,6 +45,7 @@ def compile_comparison(var_name: str, op: str, filter_val: Any, valid_keys: set[
     op_mapping = {
         "equals": "==",
         "eq": "==",
+        "not_equals": "!=",
         "ne": "!=",
         "not": "!=",
         "lt": "<",

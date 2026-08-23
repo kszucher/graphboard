@@ -14,6 +14,7 @@ def test_expression_to_code() -> None:
     # Basic comparison
     assert expression_to_code({"score": {"gt": 5}}, valid_keys) == "(state.get('score') > 5)"
     assert expression_to_code({"score": {"equals": 10}}, valid_keys) == "(state.get('score') == 10)"
+    assert expression_to_code({"score": {"not_equals": 10}}, valid_keys) == "(state.get('score') != 10)"
 
     # Shorthand comparison
     assert expression_to_code({"score": 10}, valid_keys) == "(state.get('score') == 10)"
@@ -23,12 +24,17 @@ def test_expression_to_code() -> None:
         expression_to_code({"parsed_answer": {"equals": {"var": "correct_answer"}}}, valid_keys)
         == "(state.get('parsed_answer') == state.get('correct_answer'))"
     )
+    assert (
+        expression_to_code({"parsed_answer": {"not_equals": {"var": "correct_answer"}}}, valid_keys)
+        == "(state.get('parsed_answer') != state.get('correct_answer'))"
+    )
 
     # Logical composition
     assert (
         expression_to_code({"AND": [{"score": {"gt": 5}}, {"more": {"equals": False}}]}, valid_keys)
         == "((state.get('score') > 5) and (state.get('more') == False))"
     )
+    assert expression_to_code({"NOT": {"score": {"equals": 0}}}, valid_keys) == "(not (state.get('score') == 0))"
 
     # Set assignment
     assert expression_to_code({"set": {"var": "user_input"}}, valid_keys) == "state.get('user_input')"

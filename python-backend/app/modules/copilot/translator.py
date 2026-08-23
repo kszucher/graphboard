@@ -324,7 +324,7 @@ def translate_plan_to_operations(
                     raise ValidationError("parent_id is required when deleting a switch_branch")
                 node = get_or_create_upsert(parent_id)
                 if "branches" in node and eid in node["branches"]:
-                    node["branches"][eid]["target"] = ""
+                    node["branches"].pop(eid, None)
 
         elif name == "rename_entity":
             kind = args["kind"]

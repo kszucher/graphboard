@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 from google.genai import types
 
+from app.core.config import settings
 from app.modules.copilot import planner_schemas
 from app.modules.copilot.logger import log_llm_call
 from app.modules.copilot.schema_utils import dereference_schema, prune_json_schema
@@ -89,7 +89,7 @@ async def generate_plan(
     initial_flow: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Invokes the LLM with granular tools to produce a sequence of operations."""
-    model_name = os.environ.get("COPILOT_MODEL", "gemini-3.6-flash")
+    model_name = settings.copilot_model
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
     # Define closed-schema tools dynamically from planner_schemas
@@ -141,17 +141,12 @@ async def generate_plan(
             types.Content(role="user" if role == "user" else "model", parts=[types.Part.from_text(text=msg["content"])])
         )
 
-    thinking_budget_str = os.environ.get("COPILOT_THINKING_BUDGET", "1024")
     thinking_config = None
-    if thinking_budget_str and thinking_budget_str != "0":
-        try:
-            budget = int(thinking_budget_str)
-            thinking_config = types.ThinkingConfig(
-                include_thoughts=True,
-                thinking_budget=budget,
-            )
-        except ValueError:
-            thinking_config = types.ThinkingConfig(include_thoughts=True)
+    if settings.copilot_thinking_budget > 0:
+        thinking_config = types.ThinkingConfig(
+            include_thoughts=True,
+            thinking_budget=settings.copilot_thinking_budget,
+        )
 
     config = types.GenerateContentConfig(
         system_instruction=PLANNER_SYSTEM_PROMPT,
