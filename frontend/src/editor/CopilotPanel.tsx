@@ -8,6 +8,7 @@ interface CopilotPanelProps {
 
 const MODEL_OPTIONS = [
   { value: 'gemini-3.5-flash-lite', label: '3.5 Flash Lite' },
+  { value: 'gemini-3.5-flash', label: '3.5 Flash' },
   { value: 'gemini-3.6-flash', label: '3.6 Flash' },
 ] as const;
 

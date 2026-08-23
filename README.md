@@ -82,7 +82,7 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 * **Self-Healing Telemetry**: Tracks Pass@1 vs. Pass@k recovery rates when compiler/validation errors trigger the reflection feedback loop.
 * **CLI Runner & Scorecards**: Run sweeps across models with automatic Markdown reports (`uv run python tests/evals/run_evals.py --model gemini-3.5-flash-lite`).
 
-#### 📊 Baseline Model Scorecard (`gemini-3.5-flash-lite`)
+#### 📊 Baseline Model Scorecard (`gemini-3.5-flash-lite`, 1024 Thinking Budget)
 
 | Level | Difficulty / Focus | Natural User Prompt | Result | Attempts | Duration |
 | :---: | :--- | :--- | :---: | :---: | :---: |

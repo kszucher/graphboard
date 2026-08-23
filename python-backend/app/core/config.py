@@ -28,10 +28,7 @@ class Settings(BaseSettings):
         default="gemini-3.5-flash-lite", description="Default Gemini model for copilot operations"
     )
     copilot_thinking_budget: int = Field(
-        default=1, description="Thinking budget token limit for 3.6 copilot planner (1 for minimal/fastest)"
-    )
-    copilot_lite_thinking_budget: int = Field(
-        default=1024, description="Thinking budget token limit for 3.5 / lite copilot planner"
+        default=1024, description="Thinking budget token limit for copilot planner across all models"
     )
     runner_timeout_seconds: float = Field(
         default=5.0, description="Hard timeout in seconds for subprocess workflow execution"

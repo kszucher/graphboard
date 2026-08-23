@@ -59,9 +59,6 @@ async def generate_plan(
         )
 
     budget = settings.copilot_thinking_budget
-    if "3.5" in model_name or "lite" in model_name:
-        budget = settings.copilot_lite_thinking_budget
-
     effective_budget = max(1, budget) if budget is not None else 1
     thinking_config = types.ThinkingConfig(
         include_thoughts=True,
@@ -88,12 +85,11 @@ async def generate_plan(
     ]
 
     try:
-        async with client.aio as aclient:
-            response = await aclient.models.generate_content(
-                model=model_name,
-                contents=gemini_contents,
-                config=config,
-            )
+        response = await client.aio.models.generate_content(
+            model=model_name,
+            contents=gemini_contents,
+            config=config,
+        )
         log_llm_call(
             trace_id=trace_id,
             node_name="planner_node",

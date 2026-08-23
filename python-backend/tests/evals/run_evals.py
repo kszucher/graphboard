@@ -53,8 +53,8 @@ class ScenarioResult:
 
 async def run_scenario(scenario: EvalScenario, verbose: bool = False) -> ScenarioResult:
     result = ScenarioResult(scenario)
-    print(f"\n{BOLD}[Level {scenario.level}/10]{RESET} {scenario.name}")
-    print(f"  {DIM}Prompt:{RESET} '{scenario.user_prompt}'")
+    print(f"\n{BOLD}[Level {scenario.level}/10]{RESET} {scenario.name}", flush=True)
+    print(f"  {DIM}Prompt:{RESET} '{scenario.user_prompt}'", flush=True)
 
     serialized_state = serialize_flow_to_code(scenario.initial_flow)
     thread_id = str(uuid.uuid4())
@@ -108,14 +108,14 @@ async def run_scenario(scenario: EvalScenario, verbose: bool = False) -> Scenari
 
         result.passed = True
         attempt_note = " (Pass@1)" if result.attempts == 1 else f" {YELLOW}(Self-Healed: Pass@{result.attempts}){RESET}"
-        print(f"  {GREEN}[PASS]{RESET} Scenario passed in {result.duration_seconds}s{attempt_note}")
+        print(f"  {GREEN}[PASS]{RESET} Scenario passed in {result.duration_seconds}s{attempt_note}", flush=True)
         return result
 
     except AssertionError as ae:
         result.duration_seconds = round(time.perf_counter() - start_time, 2)
         result.passed = False
         result.failure_reason = f"Assertion Failed: {ae}"
-        print(f"  {RED}[FAIL] Assertion Failed:{RESET} {ae}")
+        print(f"  {RED}[FAIL] Assertion Failed:{RESET} {ae}", flush=True)
         if verbose:
             traceback.print_exc()
         return result
@@ -123,7 +123,7 @@ async def run_scenario(scenario: EvalScenario, verbose: bool = False) -> Scenari
         result.duration_seconds = round(time.perf_counter() - start_time, 2)
         result.passed = False
         result.failure_reason = f"Exception: {ex}"
-        print(f"  {RED}[FAIL] Exception raised during evaluation:{RESET} {ex}")
+        print(f"  {RED}[FAIL] Exception raised during evaluation:{RESET} {ex}", flush=True)
         if verbose:
             traceback.print_exc()
         return result
@@ -199,6 +199,7 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Run Graphboard Copilot evaluations.")
     parser.add_argument("--model", type=str, default="gemini-3.5-flash-lite", help="The LLM model to evaluate.")
     parser.add_argument("--level", type=int, default=None, help="Run a specific level (1-10).")
+    parser.add_argument("--delay", type=float, default=None, help="Delay in seconds between scenarios (defaults to 15s for 3.5 Flash).")
     parser.add_argument("--verbose", action="store_true", help="Print full exception stack traces.")
     args, _ = parser.parse_known_args()
 
@@ -212,6 +213,10 @@ async def main() -> None:
         print("Please configure GEMINI_API_KEY in python-backend/.env.")
         sys.exit(1)
 
+    effective_delay = args.delay
+    if effective_delay is None:
+        effective_delay = 15.0 if "3.5-flash" in args.model and "lite" not in args.model else 0.0
+
     scenarios_to_run = SCENARIOS
     if args.level is not None:
         scenarios_to_run = [s for s in SCENARIOS if s.level == args.level]
@@ -220,11 +225,14 @@ async def main() -> None:
             sys.exit(1)
 
     print(
-        f"\n{BOLD}Starting Evaluation Suite on model: {CYAN}{args.model}{RESET} ({len(scenarios_to_run)} scenarios)\n"
+        f"\n{BOLD}Starting Evaluation Suite on model: {CYAN}{args.model}{RESET} ({len(scenarios_to_run)} scenarios, sequential pacing: {effective_delay}s delay)\n"
     )
 
     results: list[ScenarioResult] = []
-    for scenario in scenarios_to_run:
+    for i, scenario in enumerate(scenarios_to_run):
+        if i > 0 and effective_delay > 0:
+            print(f"  {DIM}Pausing {effective_delay}s to respect API rate limits...{RESET}", flush=True)
+            await asyncio.sleep(effective_delay)
         result = await run_scenario(scenario, verbose=args.verbose)
         results.append(result)
 
