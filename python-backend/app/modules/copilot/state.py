@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, TypedDict
 
 
-class CopilotState(TypedDict):
+class CopilotState(TypedDict, total=False):
     trace_id: str
     graph_id: str
     user_prompt: str

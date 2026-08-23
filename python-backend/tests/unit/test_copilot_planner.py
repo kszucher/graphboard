@@ -1,10 +1,11 @@
 import pytest
 
+from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 
 
 def test_translate_plan_node_upsert_node_polymorphic() -> None:
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -43,7 +44,7 @@ def test_translate_plan_node_upsert_node_polymorphic() -> None:
 
 def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
     """Test surgically patching a single branch on an existing switch without overwriting other branches."""
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -89,7 +90,7 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
 
     # Ensure operations pass apply_graph_update without error
     from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
-    from app.modules.graphs.schemas import GraphFlowData
+    from app.modules.graphs.schemas import AgenticSwitchNode, GraphFlowData
 
     initial_flow = GraphFlowData.model_validate(
         {
@@ -100,11 +101,12 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
     updated_flow = apply_graph_update(initial_flow, GraphUpdateInput(**ops))
     assert len(updated_flow.nodes) == 4
     choose_node = next(n for n in updated_flow.nodes if n.id == "choose_lifeline")
+    assert isinstance(choose_node, AgenticSwitchNode)
     assert len(choose_node.branches) == 2
 
 
 def test_translate_plan_node_switch_with_closed_conditions() -> None:
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -139,7 +141,7 @@ def test_translate_plan_node_switch_with_closed_conditions() -> None:
 
 
 def test_translate_plan_node_delete_and_rename_entity() -> None:
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {"name": "delete_entity", "arguments": '{"kind": "variable", "id": "old_var"}'},
@@ -164,7 +166,7 @@ def test_translate_plan_node_delete_and_rename_entity() -> None:
 
 def test_translate_plan_node_partial_retargeting() -> None:
     """Test partial retargeting of existing node without re-specifying config."""
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -195,7 +197,7 @@ def test_translate_plan_node_partial_retargeting() -> None:
 def test_validation_node_unreachable_node_error() -> None:
     from app.modules.copilot.workflow import validation_node
 
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -220,12 +222,12 @@ def test_validation_node_unreachable_node_error() -> None:
     translated = translate_plan_node(state)
     assert translated["operations"] is not None
 
-    validation_state = {
+    validation_state: CopilotState = {
         **state,
         "operations": translated["operations"],
         "retry_count": 0,
     }
-    result = validation_node(validation_state)  # type: ignore[arg-type]
+    result = validation_node(validation_state)
     assert result["applied"] is False
     assert "unreachable from the START node" in str(result["validation_error"])
     assert "[UNREACHABLE_NODE]" in result["messages"][-1]["content"]
@@ -233,7 +235,7 @@ def test_validation_node_unreachable_node_error() -> None:
 
 def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     """Test translating a node with orthogonal collection expressions like sample and format."""
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -294,7 +296,7 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
 
 def test_translate_plan_node_delete_switch_branch() -> None:
     """Test that delete_entity cleanly removes a branch from switch node branches."""
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace",
         "tool_calls": [
             {
@@ -432,7 +434,7 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
 def test_validation_node_unconnected_switch_slot_error() -> None:
     from app.modules.copilot.workflow import validation_node
 
-    state = {
+    state: CopilotState = {
         "trace_id": "test_trace_slot",
         "tool_calls": [
             {
@@ -465,12 +467,12 @@ def test_validation_node_unconnected_switch_slot_error() -> None:
     translated = translate_plan_node(state)
     assert translated["operations"] is not None
 
-    validation_state = {
+    validation_state: CopilotState = {
         **state,
         "operations": translated["operations"],
         "retry_count": 0,
     }
-    result = validation_node(validation_state)  # type: ignore[arg-type]
+    result = validation_node(validation_state)
     assert result["applied"] is False
     assert "not connected to any target node" in str(result["validation_error"])
     assert "[UNCONNECTED_SLOT]" in result["messages"][-1]["content"]
