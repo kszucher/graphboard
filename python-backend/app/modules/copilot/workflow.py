@@ -41,19 +41,27 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             },
         ]
 
-    plan = await generate_plan(
-        client,
-        state["trace_id"],
-        state.get("graph_id", ""),
-        messages,
-        initial_flow=state.get("initial_flow_data"),
-    )
-
-    return {
-        "plan": plan,
-        "operations": None,
-        "messages": messages,
-    }
+    try:
+        plan = await generate_plan(
+            client,
+            state["trace_id"],
+            state.get("graph_id", ""),
+            messages,
+            initial_flow=state.get("initial_flow_data"),
+        )
+        return {
+            "plan": plan,
+            "operations": None,
+            "validation_error": None,
+            "messages": messages,
+        }
+    except Exception as e:
+        return {
+            "plan": None,
+            "operations": None,
+            "validation_error": str(e),
+            "messages": messages,
+        }
 
 
 def _format_error_feedback(err_msg: str) -> str:
@@ -62,6 +70,8 @@ def _format_error_feedback(err_msg: str) -> str:
     lower_err = err_msg.lower()
     if "does not exist" in lower_err and ("target" in lower_err or "edge" in lower_err):
         tag = "[DANGLING_TARGET]"
+    elif "tool call" in lower_err or "validation error for applygraphplan" in lower_err or "arguments json" in lower_err:
+        tag = "[INVALID_TOOL_PAYLOAD]"
     elif "never referenced by any node" in lower_err or "orphan variable" in lower_err:
         tag = "[DEAD_VARIABLE]"
     elif "incompatible default value" in lower_err or "incompatible type" in lower_err:

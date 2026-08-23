@@ -3,6 +3,7 @@ from typing import Any, cast
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from app.core.exceptions import ValidationError
 from app.modules.copilot import planner_schemas
 from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
@@ -512,6 +513,70 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
     assert final_state.get("validation_error") is None
     assert final_state.get("retry_count") == 1
     assert final_state.get("operations") is not None
+
+
+async def test_copilot_workflow_planner_node_deserialization_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that if generate_plan raises a ValidationError during tool-call parsing, it routes to retry."""
+    call_count = 0
+
+    async def mock_generate_plan(
+        client: Any,
+        trace_id: str,
+        graph_id: str,
+        messages: list[dict[str, Any]],
+        initial_flow: dict[str, Any] | None = None,
+    ) -> planner_schemas.ApplyGraphPlan:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise ValidationError("1 validation error for ApplyGraphPlan\nnodes.0.config: field required")
+        return planner_schemas.ApplyGraphPlan(
+            variables=[planner_schemas.UpsertVariable(key="x", type="number", default_value=0)],
+            nodes=[
+                planner_schemas.UpsertNode(
+                    id="first_step",
+                    node_type="LOGICAL_ASSIGNER",
+                    config=planner_schemas.LogicalAssignerConfig(
+                        assignments=[
+                            planner_schemas.StrictAssignment(
+                                target_var_key="x",
+                                assignment=planner_schemas.SetLiteral(value=1),
+                            )
+                        ]
+                    ),
+                    target="end",
+                ),
+                planner_schemas.UpsertNode(id="start", target="first_step"),
+            ],
+        )
+
+    monkeypatch.setattr("app.modules.copilot.workflow.generate_plan", mock_generate_plan)
+    monkeypatch.setenv("GEMINI_API_KEY", "mock_key")
+
+    initial_state: CopilotState = {
+        "trace_id": "test_retry_deserialization",
+        "graph_id": "test_graph_deserialization",
+        "user_prompt": "Add a first step",
+        "serialized_state": "Flow:\n  start -> end",
+        "initial_flow_data": {
+            "nodes": [{"id": "start", "node_type": "START"}, {"id": "end", "node_type": "END"}],
+            "edges": [],
+            "state": [],
+        },
+        "plan": None,
+        "operations": None,
+        "validation_error": None,
+        "applied": None,
+        "retry_count": 0,
+        "messages": None,
+    }
+
+    config = cast(RunnableConfig, {"configurable": {"thread_id": "test_thread_deserialization"}})
+    final_state = await copilot_graph.ainvoke(cast(Any, initial_state), config)
+
+    assert call_count == 2
+    assert final_state.get("applied") is True
+    assert final_state.get("retry_count") == 1
 
 
 def test_validation_node_unconnected_switch_slot_error() -> None:
