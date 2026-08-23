@@ -32,9 +32,10 @@ async def generate_plan(
     graph_id: str,
     messages: list[dict[str, Any]],
     initial_flow: dict[str, Any] | None = None,
+    model: str | None = None,
 ) -> planner_schemas.ApplyGraphPlan:
     """Invokes the LLM with the single atomic apply_graph_plan tool and returns the validated ApplyGraphPlan."""
-    model_name = settings.copilot_model
+    model_name = model or settings.copilot_model
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
     tools_declarations = [
@@ -58,10 +59,14 @@ async def generate_plan(
         )
 
     thinking_config = None
-    if settings.copilot_thinking_budget > 0:
+    budget = settings.copilot_thinking_budget
+    if "3.5" in model_name or "lite" in model_name:
+        budget = settings.copilot_lite_thinking_budget
+
+    if budget > 0:
         thinking_config = types.ThinkingConfig(
             include_thoughts=True,
-            thinking_budget=settings.copilot_thinking_budget,
+            thinking_budget=budget,
         )
 
     config = types.GenerateContentConfig(

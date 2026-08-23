@@ -9,6 +9,7 @@ from app.modules.graphs.operations.schemas import GraphUpdateInput
 class CopilotState(TypedDict, total=False):
     trace_id: str
     graph_id: str
+    model: str
     user_prompt: str
     serialized_state: str
     initial_flow_data: dict[str, Any]

@@ -439,6 +439,7 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
         graph_id: str,
         messages: list[dict[str, Any]],
         initial_flow: dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> planner_schemas.ApplyGraphPlan:
         nonlocal call_count
         call_count += 1
@@ -525,6 +526,7 @@ async def test_copilot_workflow_planner_node_deserialization_retry(monkeypatch: 
         graph_id: str,
         messages: list[dict[str, Any]],
         initial_flow: dict[str, Any] | None = None,
+        model: str | None = None,
     ) -> planner_schemas.ApplyGraphPlan:
         nonlocal call_count
         call_count += 1
@@ -621,3 +623,66 @@ def test_validation_node_unconnected_switch_slot_error() -> None:
     assert result["applied"] is False
     assert "not connected to any target node" in str(result["validation_error"])
     assert "[UNCONNECTED_SLOT]" in result["messages"][-1]["content"]
+
+
+async def test_copilot_workflow_custom_model_propagation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that custom model selection is received by planner_node and passed to generate_plan."""
+    captured_model: str | None = None
+
+    async def mock_generate_plan(
+        client: Any,
+        trace_id: str,
+        graph_id: str,
+        messages: list[dict[str, Any]],
+        initial_flow: dict[str, Any] | None = None,
+        model: str | None = None,
+    ) -> planner_schemas.ApplyGraphPlan:
+        nonlocal captured_model
+        captured_model = model
+        return planner_schemas.ApplyGraphPlan(
+            variables=[planner_schemas.UpsertVariable(key="x", type="number", default_value=0)],
+            nodes=[
+                planner_schemas.UpsertNode(
+                    id="first_step",
+                    node_type="LOGICAL_ASSIGNER",
+                    config=planner_schemas.LogicalAssignerConfig(
+                        assignments=[
+                            planner_schemas.StrictAssignment(
+                                target_var_key="x",
+                                assignment=planner_schemas.SetLiteral(value=1),
+                            )
+                        ]
+                    ),
+                    target="end",
+                ),
+                planner_schemas.UpsertNode(id="start", target="first_step"),
+            ],
+        )
+
+    monkeypatch.setattr("app.modules.copilot.workflow.generate_plan", mock_generate_plan)
+    monkeypatch.setenv("GEMINI_API_KEY", "mock_key")
+
+    initial_state: CopilotState = {
+        "trace_id": "test_model_trace",
+        "graph_id": "test_graph_model",
+        "model": "gemini-3.5-flash-lite",
+        "user_prompt": "Set x to 1",
+        "serialized_state": "Flow:\n  start -> end",
+        "initial_flow_data": {
+            "nodes": [{"id": "start", "node_type": "START"}, {"id": "end", "node_type": "END"}],
+            "edges": [],
+            "state": [],
+        },
+        "plan": None,
+        "operations": None,
+        "validation_error": None,
+        "applied": None,
+        "retry_count": 0,
+        "messages": None,
+    }
+
+    config = cast(RunnableConfig, {"configurable": {"thread_id": "test_thread_model"}})
+    final_state = await copilot_graph.ainvoke(cast(Any, initial_state), config)
+
+    assert captured_model == "gemini-3.5-flash-lite"
+    assert final_state.get("applied") is True

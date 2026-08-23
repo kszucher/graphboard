@@ -49,6 +49,7 @@ async def planner_node(state: CopilotState) -> dict[str, Any]:
             state.get("graph_id", ""),
             messages,
             initial_flow=state.get("initial_flow_data"),
+            model=state.get("model"),
         )
         return {
             "plan": plan,
@@ -71,7 +72,9 @@ def _format_error_feedback(err_msg: str) -> str:
     lower_err = err_msg.lower()
     if "does not exist" in lower_err and ("target" in lower_err or "edge" in lower_err):
         tag = "[DANGLING_TARGET]"
-    elif "tool call" in lower_err or "validation error for applygraphplan" in lower_err or "arguments json" in lower_err:
+    elif (
+        "tool call" in lower_err or "validation error for applygraphplan" in lower_err or "arguments json" in lower_err
+    ):
         tag = "[INVALID_TOOL_PAYLOAD]"
     elif "never referenced by any node" in lower_err or "orphan variable" in lower_err:
         tag = "[DEAD_VARIABLE]"

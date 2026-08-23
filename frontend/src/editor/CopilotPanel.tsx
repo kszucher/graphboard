@@ -1,4 +1,4 @@
-import { AlertDialog, Box, Button, Flex, Text } from '@radix-ui/themes';
+import { AlertDialog, Box, Button, Flex, Select, Text } from '@radix-ui/themes';
 import { useState } from 'react';
 import { useInitiateCopilot } from '../api/mutations/copilot';
 
@@ -6,8 +6,14 @@ interface CopilotPanelProps {
   graphId: string;
 }
 
+const MODEL_OPTIONS = [
+  { value: 'gemini-3.6-flash', label: '3.6 Flash' },
+  { value: 'gemini-3.5-flash-lite', label: '3.5 Flash Lite' },
+] as const;
+
 export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
   const [prompt, setPrompt] = useState('');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const initiateCopilot = useInitiateCopilot(graphId);
@@ -17,7 +23,7 @@ export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
     if (!prompt.trim() || isPending) return;
     setErrorMessage(null);
     try {
-      const res = await initiateCopilot.mutateAsync({ prompt });
+      const res = await initiateCopilot.mutateAsync({ prompt, model: selectedModel });
       if (res.applied) {
         setPrompt('');
       } else {
@@ -56,7 +62,7 @@ export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 48px)',
-          maxWidth: '580px',
+          maxWidth: '620px',
           zIndex: 99,
           backgroundColor: 'rgba(24, 24, 28, 0.88)',
           backdropFilter: 'blur(16px)',
@@ -88,6 +94,35 @@ export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
             }}
           />
 
+          <Select.Root
+            size="1"
+            value={selectedModel}
+            onValueChange={setSelectedModel}
+            disabled={isPending}
+          >
+            <Select.Trigger
+              variant="ghost"
+              color="gray"
+              style={{
+                borderRadius: '8px',
+                cursor: isPending ? 'not-allowed' : 'pointer',
+                color: 'var(--gray-11)',
+                fontWeight: 500,
+                fontSize: '12px',
+                flexShrink: 0,
+              }}
+            />
+            <Select.Content position="popper" side="top" align="end">
+              <Select.Group>
+                {MODEL_OPTIONS.map((opt) => (
+                  <Select.Item key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Select.Item>
+                ))}
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+
           <Button
             size="2"
             onClick={() => void handleInitiate()}
@@ -99,6 +134,7 @@ export const CopilotPanel = ({ graphId }: CopilotPanelProps) => {
               cursor: isPending || !prompt.trim() ? 'not-allowed' : 'pointer',
               backgroundColor: 'var(--accent-9)',
               fontWeight: 500,
+              flexShrink: 0,
             }}
           >
             {isPending ? 'Planning...' : 'Submit'}

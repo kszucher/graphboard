@@ -4,6 +4,7 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
+from app.core.config import settings
 from app.core.context import UnitOfWork
 from app.core.exceptions import ValidationError
 from app.modules.copilot.workflow import copilot_graph
@@ -26,10 +27,12 @@ async def initiate_copilot_workflow(
     uow: UnitOfWork,
     graph_id: Any,
     prompt: str,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Starts the LangGraph Copilot workflow, runs to completion, and auto-commits on success."""
+    selected_model = model or settings.copilot_model
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    trace_id = f"{timestamp}_{graph_id}"
+    trace_id = f"{timestamp}_{selected_model}_{graph_id}"
 
     latest_snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
     if not latest_snapshot:
@@ -44,6 +47,7 @@ async def initiate_copilot_workflow(
     initial_state = {
         "trace_id": trace_id,
         "graph_id": str(graph_id),
+        "model": selected_model,
         "user_prompt": prompt,
         "serialized_state": serialized_state,
         "initial_flow_data": flow_data.model_dump(mode="json"),

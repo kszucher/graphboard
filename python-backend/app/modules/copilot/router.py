@@ -12,6 +12,7 @@ router = APIRouter(prefix="/copilot", tags=["copilot"])
 
 class CopilotInitiateRequest(BaseModel):
     prompt: str
+    model: str | None = None
 
 
 class CopilotStatusResponse(BaseModel):
@@ -31,5 +32,6 @@ async def initiate_copilot_endpoint(
             uow=uow,
             graph_id=graph_id,
             prompt=payload.prompt,
+            model=payload.model,
         )
     return CopilotStatusResponse.model_validate(result)
