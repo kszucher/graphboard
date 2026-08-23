@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from app.modules.graphs.operations.integrity import (
+    assert_flow_is_complete as assert_flow_is_complete,
+)
 from app.modules.graphs.operations.pipeline import (
     apply_graph_update as apply_graph_update,
 )
@@ -70,4 +73,5 @@ __all__ = [
     "apply_variable_deletions",
     "apply_variable_renames",
     "apply_variable_upserts",
+    "assert_flow_is_complete",
 ]

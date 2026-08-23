@@ -1,17 +1,15 @@
 import ast
 
-from app.modules.graphs.compiler import DirectLangGraphCompiler, generate_graph_code
-from app.modules.graphs.nodes import (
+from app.modules.graphs.engine import DirectLangGraphCompiler, generate_graph_code
+from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     Branch,
-    LogicalAssignerNode,
-    LogicalAssignmentSchema,
-    LogicalSwitchNode,
-)
-from app.modules.graphs.schemas import (
     DefinerVariableSchema,
     EdgeRead,
     GraphFlowData,
+    LogicalAssignerNode,
+    LogicalAssignmentSchema,
+    LogicalSwitchNode,
 )
 
 
@@ -125,7 +123,7 @@ async def test_generate_graph_code_with_agentic_assigner() -> None:
 
 
 async def test_generate_graph_code_with_rag_and_interrupt() -> None:
-    from app.modules.graphs.nodes import InterruptNode, RagRetrieverNode
+    from app.modules.graphs.schemas import InterruptNode, RagRetrieverNode
 
     flow_data = GraphFlowData(
         nodes=[
@@ -154,7 +152,7 @@ async def test_generate_graph_code_with_rag_and_interrupt() -> None:
         ],
     )
     code = await generate_graph_code(flow_data)
-    assert "from app.modules.graphs.rag_helper import retrieve_documents" in code
+    assert "from app.modules.graphs.engine.rag import retrieve_documents" in code
     assert "from langgraph.types import interrupt" in code
     assert "def retriever_1(state: State) -> dict:" in code
     assert "retrieve_documents(" in code
@@ -167,7 +165,7 @@ async def test_generate_graph_code_with_rag_and_interrupt() -> None:
 
 
 async def test_default_example_graph_ast_compilation() -> None:
-    from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
+    from app.modules.graphs.templates import build_default_trivia_graph_flow_data
 
     flow_data = build_default_trivia_graph_flow_data()
     code = DirectLangGraphCompiler(flow_data).compile()

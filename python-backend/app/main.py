@@ -4,7 +4,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import ws
 from app.core.config import settings
 from app.core.exceptions import GraphboardError
 from app.core.logging import setup_logging
@@ -44,7 +43,7 @@ def create_app() -> FastAPI:
 
     app.include_router(users.router)
     app.include_router(graphs.router)
-    app.include_router(ws.router)
+    app.include_router(graphs.ws_router)
     app.include_router(copilot.router)
 
     @app.get("/health")

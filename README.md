@@ -68,7 +68,8 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 ### Phase 3: Modular Node Handlers & AST Expression Compilation
 * **Unified Node Handlers**: Decomposed mutations into modular, type-safe node handlers under `app/modules/graphs/operations/handlers.py` orchestrated by a functional pipeline.
 * **Direct Inlined Expressions**: Expressions are embedded directly on node assignments and switch branches without lookup indirection or entity table stores.
-* **AST Expressions Consolidation**: Centralized expression-to-code synthesis, variable tracking, and cascading renames into `app/modules/graphs/expressions/`.
+* **AST Expressions Consolidation**: Centralized expression-to-code synthesis, variable tracking, and cascading renames into `app/modules/graphs/schemas/` and `app/modules/graphs/operations/`.
+
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
 * **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.

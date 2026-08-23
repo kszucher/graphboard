@@ -6,9 +6,9 @@ from typing import Any
 
 from google.genai import types
 
-from app.modules.copilot.agents import planner_schemas
-from app.modules.copilot.agents.schema_utils import dereference_schema, prune_json_schema
+from app.modules.copilot import planner_schemas
 from app.modules.copilot.logger import log_llm_call
+from app.modules.copilot.schema_utils import dereference_schema, prune_json_schema
 
 PLANNER_SYSTEM_PROMPT = """# GraphBoard Operations Planner
 

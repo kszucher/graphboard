@@ -8,8 +8,8 @@ from langchain_core.runnables import RunnableConfig
 from app.core.context import UnitOfWork
 from app.core.exceptions import ValidationError
 from app.modules.copilot.workflow import copilot_graph
+from app.modules.graphs.engine import serialize_flow_to_code
 from app.modules.graphs.schemas import GraphFlowData
-from app.modules.graphs.serializer import serialize_flow_to_code
 
 
 def format_copilot_response(values: dict[str, Any]) -> dict[str, Any]:

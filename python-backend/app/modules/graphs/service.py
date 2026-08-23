@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 
 from app.core.constants import EventName
 from app.core.exceptions import ValidationError
-from app.modules.graphs.compiler import generate_graph_code
-from app.modules.graphs.integrity import assert_flow_is_complete
-from app.modules.graphs.operations import GraphUpdateInput
+from app.modules.graphs.engine import compile_flow_with_langgraph, generate_graph_code
+from app.modules.graphs.operations import GraphUpdateInput, assert_flow_is_complete
 from app.modules.graphs.schemas import GraphFlowData
+from app.modules.graphs.templates import build_default_trivia_graph_flow_data
 
 if TYPE_CHECKING:
     from app.core.context import UnitOfWork
@@ -21,9 +21,8 @@ async def create_graph(
 ) -> uuid.UUID:
     graph = await uow.graphs.create_graph(user_id=user_id, graph_name=graph_name)
 
-    from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
-
     flow_data = build_default_trivia_graph_flow_data()
+
     initial_flow = flow_data.model_dump(mode="json")
 
     await uow.graph_history.save_snapshot(graph.id, initial_flow, 0)
@@ -65,8 +64,6 @@ async def run_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | No
     graph = await uow.graphs.get(graph_id)
     if not graph:
         raise ValidationError(f"Graph {graph_id} not found")
-
-    from app.modules.graphs.runner import compile_flow_with_langgraph
 
     if version is not None:
         snapshot = await uow.graph_history.get_by_sequence(graph_id, version)
@@ -112,9 +109,8 @@ async def get_graph_flow(uow: UnitOfWork, graph_id: uuid.UUID, version: int | No
         snapshot = await uow.graph_history.get_latest_snapshot(graph_id)
 
     if not snapshot:
-        from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
-
         flow_data = build_default_trivia_graph_flow_data()
+
         initial_flow = flow_data.model_dump(mode="json")
         snapshot = await uow.graph_history.save_snapshot(graph_id, initial_flow, 0)
         await uow.session.flush()

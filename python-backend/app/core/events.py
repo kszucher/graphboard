@@ -7,10 +7,18 @@ from collections import defaultdict
 from typing import Any
 
 from fastapi import WebSocket
+from pydantic import BaseModel
 
-from app.api.schemas import GraphEvent
+from app.core.constants import EventName
 
 logger = logging.getLogger(__name__)
+
+
+class GraphEvent(BaseModel):
+    event: EventName
+    graph_id: uuid.UUID
+    payload: dict[str, Any]
+    sender_client_id: str | None = None
 
 
 class GraphEventBroker:

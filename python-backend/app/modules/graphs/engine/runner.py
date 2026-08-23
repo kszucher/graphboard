@@ -7,7 +7,7 @@ import sys
 from typing import Any, cast
 
 from app.core.config import settings
-from app.modules.graphs.compiler import generate_graph_code
+from app.modules.graphs.engine.compiler import generate_graph_code
 from app.modules.graphs.schemas import GraphFlowData
 
 logger = logging.getLogger(__name__)

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from app.core.exceptions import ValidationError
-from app.modules.graphs.nodes import StartNode
-from app.modules.graphs.schemas import GraphFlowData
-from app.modules.graphs.variables import get_node_variable_references
+from app.modules.graphs.operations.variables import get_node_variable_references
+from app.modules.graphs.schemas import GraphFlowData, StartNode
 
 
 def assert_flow_is_complete(flow_data: GraphFlowData) -> None:

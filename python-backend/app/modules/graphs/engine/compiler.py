@@ -11,20 +11,18 @@ import ast
 from typing import Any
 
 from app.core.config import settings
-from app.modules.graphs.expressions import expression_to_code
-from app.modules.graphs.nodes import (
+from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
     EndNode,
+    GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
     LogicalSwitchNode,
     NodeRead,
     RagRetrieverNode,
     StartNode,
-)
-from app.modules.graphs.schemas import (
-    GraphFlowData,
+    expression_to_code,
 )
 
 try:
@@ -97,7 +95,8 @@ class DirectLangGraphCompiler:
             case InterruptNode():
                 return {"from langgraph.types import interrupt"}
             case RagRetrieverNode():
-                return {"from app.modules.graphs.rag_helper import retrieve_documents"}
+                return {"from app.modules.graphs.engine.rag import retrieve_documents"}
+
             case _:
                 return set()
 

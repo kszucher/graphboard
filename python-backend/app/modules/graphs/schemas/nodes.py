@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from app.core.constants import NodeType
-from app.modules.graphs.expressions import ComparisonExpression, Expression
+from app.modules.graphs.schemas.expressions import ComparisonExpression, Expression
 
 
 def _make_slot_id(node_id: str, label: str) -> str:

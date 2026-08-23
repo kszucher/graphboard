@@ -2,22 +2,23 @@ from __future__ import annotations
 
 from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
-from app.modules.graphs.expressions import get_expression_variables
-from app.modules.graphs.nodes import (
+from app.modules.graphs.operations.schemas import NodeUpsertInput
+from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     AgenticBranch,
     AgenticSwitchNode,
     BaseNode,
     Branch,
+    EdgeRead,
+    GraphFlowData,
     InterruptNode,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     RagRetrieverNode,
     _make_slot_id,
+    get_expression_variables,
 )
-from app.modules.graphs.operations.schemas import NodeUpsertInput
-from app.modules.graphs.schemas import EdgeRead, GraphFlowData
 
 
 def apply_logical_assigner(

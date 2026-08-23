@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
-from app.modules.graphs.rag_helper import get_huggingface_embedding, get_sync_engine
+from app.modules.graphs.engine.rag import get_huggingface_embedding, get_sync_engine
 
 # Sample document chunks to seed the RAG knowledge base
 SEED_DATA = {

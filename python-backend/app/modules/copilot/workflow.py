@@ -9,8 +9,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from app.core.exceptions import ValidationError
-from app.modules.copilot.agents.planner import generate_plan
-from app.modules.copilot.models import CopilotState
+from app.modules.copilot.planner import generate_plan
+from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
 from app.modules.graphs.schemas import GraphFlowData

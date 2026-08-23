@@ -5,20 +5,18 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.modules.graphs.defaults import build_default_trivia_graph_flow_data
-from app.modules.graphs.nodes import (
+from app.modules.graphs.schemas import (
     Branch,
+    DefinerVariableSchema,
+    EdgeRead,
     EndNode,
+    GraphFlowData,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     StartNode,
 )
-from app.modules.graphs.schemas import (
-    DefinerVariableSchema,
-    EdgeRead,
-    GraphFlowData,
-)
+from app.modules.graphs.templates import build_default_trivia_graph_flow_data
 
 
 class EvalScenario(BaseModel):

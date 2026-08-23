@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.events import GraphEventBroker
 from app.core.constants import EventName
+from app.core.events import GraphEventBroker
 
 if TYPE_CHECKING:
     from app.modules.graphs.repository import GraphHistoryRepository, GraphRepository

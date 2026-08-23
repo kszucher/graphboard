@@ -267,7 +267,7 @@ def test_translate_plan_node_orthogonal_collection_expressions() -> None:
     assert node_upsert["assignments"][0]["expression"]["op"] == "sample"
 
     # Verify flow update and compiler generation
-    from app.modules.graphs.compiler import DirectLangGraphCompiler
+    from app.modules.graphs.engine import DirectLangGraphCompiler
     from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
     from app.modules.graphs.schemas import GraphFlowData
 
@@ -284,7 +284,7 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
 
     from langchain_core.runnables import RunnableConfig
 
-    from app.modules.copilot.models import CopilotState
+    from app.modules.copilot.state import CopilotState
     from app.modules.copilot.workflow import copilot_graph
 
     call_count = 0

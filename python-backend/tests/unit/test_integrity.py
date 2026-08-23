@@ -1,21 +1,19 @@
 import pytest
 
 from app.core.exceptions import ValidationError
-from app.modules.graphs.integrity import assert_flow_is_complete
-from app.modules.graphs.nodes import (
+from app.modules.graphs.operations import assert_flow_is_complete
+from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     Branch,
+    DefinerVariableSchema,
+    EdgeRead,
     EndNode,
+    GraphFlowData,
     LogicalAssignerNode,
     LogicalAssignmentSchema,
     LogicalSwitchNode,
     NodeRead,
     StartNode,
-)
-from app.modules.graphs.schemas import (
-    DefinerVariableSchema,
-    EdgeRead,
-    GraphFlowData,
 )
 
 

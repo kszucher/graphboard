@@ -6,8 +6,8 @@ from typing import Any, cast
 from pydantic import BaseModel
 
 from app.core.exceptions import ValidationError
-from app.modules.copilot.agents import planner_schemas
-from app.modules.copilot.models import CopilotState
+from app.modules.copilot import planner_schemas
+from app.modules.copilot.state import CopilotState
 
 
 def convert_condition_group(group: dict[str, Any] | None) -> dict[str, Any] | None:

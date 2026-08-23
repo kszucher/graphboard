@@ -16,10 +16,10 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 
-from app.modules.copilot.models import CopilotState
+from app.modules.copilot.state import CopilotState
 from app.modules.copilot.workflow import copilot_graph
+from app.modules.graphs.engine import serialize_flow_to_code
 from app.modules.graphs.operations import GraphUpdateInput, apply_graph_update
-from app.modules.graphs.serializer import serialize_flow_to_code
 from tests.evals.scenarios import SCENARIOS, EvalScenario
 
 # Colors for terminal output

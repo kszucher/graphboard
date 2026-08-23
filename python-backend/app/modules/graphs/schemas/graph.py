@@ -6,7 +6,7 @@ from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.graphs.nodes import NodeRead
+from app.modules.graphs.schemas.nodes import NodeRead
 
 
 class OrmModel(BaseModel):

@@ -5,7 +5,7 @@ import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.api.events import broker
+from app.core.events import broker
 
 logger = logging.getLogger(__name__)
 

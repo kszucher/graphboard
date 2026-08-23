@@ -5,18 +5,6 @@ from typing import cast
 
 from app.core.constants import NodeType
 from app.core.exceptions import ValidationError
-from app.modules.graphs.expressions import (
-    ComparisonExpression,
-    Expression,
-    rename_expression_variables,
-)
-from app.modules.graphs.nodes import (
-    NODE_CLASS_MAP,
-    BaseNode,
-    LogicalAssignerNode,
-    LogicalSwitchNode,
-    NodeRead,
-)
 from app.modules.graphs.operations.handlers import NODE_HANDLERS
 from app.modules.graphs.operations.schemas import (
     GraphUpdateInput,
@@ -24,8 +12,20 @@ from app.modules.graphs.operations.schemas import (
     RenameInput,
     VariableUpsertInput,
 )
-from app.modules.graphs.schemas import DefinerVariableSchema, EdgeRead, GraphFlowData
-from app.modules.graphs.variables import rename_node_variable_references
+from app.modules.graphs.operations.variables import rename_node_variable_references
+from app.modules.graphs.schemas import (
+    NODE_CLASS_MAP,
+    BaseNode,
+    ComparisonExpression,
+    DefinerVariableSchema,
+    EdgeRead,
+    Expression,
+    GraphFlowData,
+    LogicalAssignerNode,
+    LogicalSwitchNode,
+    NodeRead,
+    rename_expression_variables,
+)
 
 
 def apply_variable_renames(flow_data: GraphFlowData, renames: list[RenameInput]) -> None:

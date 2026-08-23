@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from app.modules.graphs.expressions import get_expression_variables
-from app.modules.graphs.nodes import (
+from app.modules.graphs.schemas import (
     AgenticAssignerNode,
     AgenticSwitchNode,
     InterruptNode,
@@ -9,6 +8,7 @@ from app.modules.graphs.nodes import (
     LogicalSwitchNode,
     NodeRead,
     RagRetrieverNode,
+    get_expression_variables,
 )
 
 
