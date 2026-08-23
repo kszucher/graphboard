@@ -12,27 +12,27 @@ from app.modules.copilot.schema_utils import dereference_schema, prune_json_sche
 
 PLANNER_SYSTEM_PROMPT = """# GraphBoard Operations Planner
 
-You are the AI Graph Operations Planner. Analyze the user's graph edit request, view the current graph state (state variables and node flow), and call the appropriate operations tools to modify the graph.
+You are the AI Graph Operations Planner. Analyze the user's graph edit request, view the current graph state (state variables and node flow), and call `apply_graph_plan` with the complete, atomic batch of operations needed to fulfill the request.
 
-## Single-Turn Batch Generation Invariant
-- IMPORTANT: You MUST generate the COMPLETE batch of ALL tool calls to fulfill the entire request in this single response (e.g. `upsert_variable` followed immediately by all `upsert_node` and `upsert_switch_branch` calls).
-- Do NOT stop after creating variables or a single node. Do NOT wait for tool execution results or responses—emit all operations together in one single batch.
-- State variables must be defined with `upsert_variable` in the same batch before being referenced in node assignments or switch conditions.
+## Atomic Single-Turn Generation Invariant
+- IMPORTANT: You MUST emit your complete plan in a single `apply_graph_plan` call containing all variables, nodes, and switch branches.
+- State variables must be declared in `variables` in the same plan before being referenced in node assignments or switch conditions.
+- All linear nodes and switch branches must have explicit downstream targets connected to valid nodes or `end`.
 
 ## State Lifecycle & Flow Invariants
 - **Complete Variable Lifecycle (Write & Read)**: When introducing new state variables (e.g. milestones, safety nets, flags, or modifiers), always complete both sides of the lifecycle: ensure the variable is not only updated on triggers, but also read and applied where its effect matters (e.g. falling back on loss/exit paths, applying multipliers, or rendering UI).
 - **End-to-End Flow Tracing**: When altering mechanics or business logic, trace both the success path and the failure/exit path to ensure state mutations produce observable consequences before termination (`end`).
 
-## Core Operations Tools
+## Core Operation Schema (`apply_graph_plan`)
 
-1. `upsert_variable(key, type, default_value=null, description=null)`
-   - Creates or updates a state variable definition.
+1. `variables`: List of state variables to create or update.
+   - `{"key": "score", "type": "number", "default_value": 0, "description": "Player score"}`
+   - Supported types: `string`, `number`, `boolean`, `array`, `object`
 
-2. `upsert_node(id, node_type=null, config=null, target=null)`
-   - Creates or updates a node and its outgoing target.
+2. `nodes`: List of nodes to create, update, or retarget.
    - **Creating new nodes**: Provide `id`, `node_type`, `config`, and downstream `target="<node_id_or_end>"` (for linear nodes).
-   - **Retargeting existing nodes**: Simply call `upsert_node(id="existing_node", target="new_dest")` without repeating config.
-   - **Setting graph entrypoint**: `upsert_node(id="start", target="first_step")`.
+   - **Retargeting existing nodes**: Simply provide `{"id": "existing_node", "target": "new_dest"}` without repeating config.
+   - **Setting graph entrypoint**: `{"id": "start", "target": "first_step"}`.
    - Node Configurations:
      - `LOGICAL_ASSIGNER`: `config={"assignments": [{"target_var_key": "score", "assignment": {"value": 10}}]}`
      - `AGENTIC_ASSIGNER`: `config={"prompt": "...", "agentic_inputs": ["topic"], "agentic_outputs": [{"key": "out", "type": "string"}]}`
@@ -41,18 +41,14 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
      - `LOGICAL_SWITCH`: `config={"branches": [{"label": "Yes", "condition": {"logic": "ALL", "conditions": [{"var": "score", "op": "gte", "literal_value": 10}]}, "target": "node_a"}, {"label": "Default", "condition": null, "target": "node_b"}]}`
      - `AGENTIC_SWITCH`: `config={"agentic_input": "user_choice", "branches": [{"label": "Audience", "target": "poll_audience"}, {"label": "Phone", "target": "call_phone"}]}`
 
-3. `upsert_switch_branch(node_id, label, target, condition=null)`
-   - Surgically adds or updates a single branch on an existing switch without overwriting or reconstructing other branches.
-   - For `LOGICAL_SWITCH`, specify `condition` (or `null` for fallback).
-   - For `AGENTIC_SWITCH`, `condition` is `null`.
+3. `switch_branches`: List of surgical switch branches to add or update on existing switches without reconstructing other branches.
+   - `{"node_id": "choose_lifeline", "label": "FiftyFifty", "target": "fifty_fifty", "condition": null}`
 
-4. `delete_entity(kind, id, parent_id=null)`
-   - `kind="node"`: Deletes a node (`id="node_id"`).
-   - `kind="variable"`: Deletes a state variable (`id="var_key"`).
-   - `kind="switch_branch"`: Deletes a switch branch (`id="branch_label", parent_id="switch_node_id"`).
+4. `deletions`: List of entities to delete.
+   - `{"kind": "node"|"variable"|"switch_branch", "id": "entity_id", "parent_id": null|"switch_node_id"}`
 
-5. `rename_entity(kind, old_name, new_name)`
-   - `kind="node"` or `kind="variable"`.
+5. `renames`: List of entities to rename.
+   - `{"kind": "node"|"variable", "old_name": "old_key", "new_name": "new_key"}`
 
 ## Closed-Schema Expressions
 - **Comparisons (LOGICAL_SWITCH conditions only)**:
@@ -75,9 +71,6 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
     - `{"op": "append", "list": {"var": "options"}, "item": "New Choice"}`
     - `{"op": "length", "list": {"var": "options"}}`
     - `{"op": "slice", "list": {"var": "options"}, "start": 0, "end": 2}`
-
-## Final Execution Checklist
-- After completing your reasoning, emit the ENTIRE sequence of tool calls needed (variables, nodes, retargeting, switch branches) in this single turn. Never stop after emitting a single tool call.
 """
 
 
@@ -88,45 +81,16 @@ async def generate_plan(
     messages: list[dict[str, Any]],
     initial_flow: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Invokes the LLM with granular tools to produce a sequence of operations."""
+    """Invokes the LLM with the single atomic apply_graph_plan tool."""
     model_name = settings.copilot_model
     req_messages = [{"role": "system", "content": PLANNER_SYSTEM_PROMPT}] + messages
 
-    # Define closed-schema tools dynamically from planner_schemas
     tools_declarations = [
         types.FunctionDeclaration(
-            name="upsert_variable",
-            description="Create or update a state variable definition.",
+            name="apply_graph_plan",
+            description="Apply an atomic batch of graph operations (variables, nodes, switch branches, renames, deletions) to modify the graph.",
             parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertVariable.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="upsert_node",
-            description="Create or update a node (or set its target / entrypoint).",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertNode.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="upsert_switch_branch",
-            description="Surgically add or update a single branch on an existing switch node without overwriting other branches.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.UpsertSwitchBranch.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="delete_entity",
-            description="Delete a node, state variable, or switch branch.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.DeleteEntity.model_json_schema())
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="rename_entity",
-            description="Rename a node ID or state variable key and update all graph references.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.RenameEntity.model_json_schema())
+                dereference_schema(planner_schemas.ApplyGraphPlan.model_json_schema())
             ),
         ),
     ]
@@ -151,6 +115,12 @@ async def generate_plan(
     config = types.GenerateContentConfig(
         system_instruction=PLANNER_SYSTEM_PROMPT,
         tools=tools,
+        tool_config=types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.ANY,
+                allowed_function_names=["apply_graph_plan"],
+            )
+        ),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         temperature=0.0,
         thinking_config=thinking_config,

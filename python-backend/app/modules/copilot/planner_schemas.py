@@ -314,3 +314,17 @@ class RenameEntity(BaseModel):
     kind: Literal["node", "variable"] = Field(description="Kind of entity to rename.")
     old_name: str = Field(description="Current name/ID.")
     new_name: str = Field(description="New name/ID.")
+
+
+class ApplyGraphPlan(BaseModel):
+    """Declarative atomic plan to mutate the graph in a single atomic turn."""
+
+    variables: list[UpsertVariable] = Field(default_factory=list, description="State variables to create or update.")
+    nodes: list[UpsertNode] = Field(default_factory=list, description="Nodes to create, update, or retarget.")
+    switch_branches: list[UpsertSwitchBranch] = Field(
+        default_factory=list, description="Surgical switch branches to add or update."
+    )
+    deletions: list[DeleteEntity] = Field(
+        default_factory=list, description="Entities (nodes, variables, or branches) to delete."
+    )
+    renames: list[RenameEntity] = Field(default_factory=list, description="Entities (nodes or variables) to rename.")
