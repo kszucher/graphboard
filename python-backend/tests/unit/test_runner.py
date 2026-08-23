@@ -30,7 +30,7 @@ async def test_compile_flow_with_langgraph_success() -> None:
             StartNode(id="start"),
             LogicalAssignerNode(
                 id="init_val",
-                assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="count", expression={"set": 100})],
+                assignments=[LogicalAssignmentSchema(id="asgn_1", target_var_key="count", expression="100")],
             ),
         ],
         edges=[
@@ -61,7 +61,7 @@ async def test_compile_flow_with_langgraph_runtime_error() -> None:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="val",
-                        expression={"op": "divide", "amount": 0},
+                        expression="val / 0",
                     )
                 ],
             ),

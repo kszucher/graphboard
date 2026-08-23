@@ -29,7 +29,7 @@ def test_pipeline_basic() -> None:
                 NodeUpsertInput(
                     id="init",
                     node_type=NodeType.LOGICAL_ASSIGNER,
-                    assignments=[AssignmentInput(target_var_key="score", expression={"set": 0})],
+                    assignments=[AssignmentInput(target_var_key="score", expression="0")],
                     target="check",
                 )
             ]
@@ -43,7 +43,7 @@ def test_pipeline_basic() -> None:
     assert len(flow.nodes) == 1
     assert flow.nodes[0].id == "init"
     assert len(flow.edges) == 2  # start -> init, init -> check
-    assert flow.nodes[0].assignments[0].expression == {"set": 0}
+    assert flow.nodes[0].assignments[0].expression == "0"
 
     # 2. Test strict declaration check (assigning to undeclared variable)
     invalid_update = GraphUpdateInput(
@@ -52,7 +52,7 @@ def test_pipeline_basic() -> None:
                 NodeUpsertInput(
                     id="check",
                     node_type=NodeType.LOGICAL_ASSIGNER,
-                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression={"score": {"equals": 5}})],
+                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression="score == 5")],
                 )
             ]
         }
@@ -72,7 +72,7 @@ def test_pipeline_basic() -> None:
                 NodeUpsertInput(
                     id="check",
                     node_type=NodeType.LOGICAL_ASSIGNER,
-                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression={"score": {"equals": 5}})],
+                    assignments=[AssignmentInput(target_var_key="guaranteed_win", expression="score == 5")],
                 )
             ]
         },
@@ -80,7 +80,7 @@ def test_pipeline_basic() -> None:
     flow = apply_graph_update(flow, valid_update)
     assert len(flow.state) == 2
     assert flow.state[1].key == "guaranteed_win"
-    assert flow.nodes[1].assignments[0].expression == {"score": {"equals": 5}}
+    assert flow.nodes[1].assignments[0].expression == "score == 5"
 
     # 4. Test delete node (which cleans edges)
     delete_update = GraphUpdateInput(nodes={"delete": ["check"]}, variables={"delete": ["guaranteed_win"]})
@@ -105,7 +105,7 @@ def test_renames_cascading() -> None:
                 NodeUpsertInput(
                     id="score_node",
                     node_type=NodeType.LOGICAL_ASSIGNER,
-                    assignments=[AssignmentInput(target_var_key="points", expression={"increment": 1})],
+                    assignments=[AssignmentInput(target_var_key="points", expression="points + 1")],
                     target="end",
                 )
             ]
@@ -119,7 +119,7 @@ def test_renames_cascading() -> None:
     flow = apply_graph_update(flow, rename_var_update)
     assert flow.state[0].key == "score"
     assert flow.nodes[0].assignments[0].target_var_key == "score"
-    assert flow.nodes[0].assignments[0].expression == {"increment": 1}
+    assert flow.nodes[0].assignments[0].expression == "score + 1"
 
     # Rename node score_node -> points_node
     rename_node_update = GraphUpdateInput(rename_nodes=[RenameInput(old_key="score_node", new_key="points_node")])
@@ -159,7 +159,7 @@ def test_node_type_transmutation() -> None:
                 NodeUpsertInput(
                     id="fifty_fifty",
                     node_type=NodeType.LOGICAL_ASSIGNER,
-                    assignments=[AssignmentInput(target_var_key="display_text", expression={"var": "display_text"})],
+                    assignments=[AssignmentInput(target_var_key="display_text", expression="display_text")],
                     target="ask_question",
                 )
             ]
@@ -189,7 +189,7 @@ def test_pipeline_switch_nodes() -> None:
                     id="logic_switch",
                     node_type=NodeType.LOGICAL_SWITCH,
                     branches={
-                        "High": {"expression": {"score": {"gte": 100}}, "target": "end"},
+                        "High": {"expression": "score >= 100", "target": "end"},
                         "Low": {"expression": None, "target": "end"},
                     },
                 ),
@@ -225,7 +225,7 @@ def test_pipeline_switch_nodes() -> None:
                         NodeUpsertInput(
                             id="invalid_logic_switch",
                             node_type=NodeType.LOGICAL_SWITCH,
-                            branches={"Branch1": {"expression": {"unregistered_var": {"gt": 0}}, "target": "end"}},
+                            branches={"Branch1": {"expression": "unregistered_var > 0", "target": "end"}},
                         )
                     ]
                 }

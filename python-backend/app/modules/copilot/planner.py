@@ -9,7 +9,6 @@ from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.modules.copilot import planner_schemas
 from app.modules.copilot.logger import log_llm_call
-from app.modules.copilot.schema_utils import dereference_schema, prune_json_schema
 
 PLANNER_SYSTEM_PROMPT = """# GraphBoard Operations Planner
 
@@ -19,6 +18,11 @@ You are the AI Graph Operations Planner. Analyze the user's graph edit request, 
 - IMPORTANT: You MUST emit your complete plan in a single `apply_graph_plan` call containing all variables, nodes, and switch branches.
 - **Delta-Only Variables**: Only declare NEW or MODIFIED state variables in `variables`. Existing state variables in the graph are already available and must NOT be re-declared.
 - All linear nodes and switch branches must have explicit downstream targets connected to valid nodes or `end`.
+
+## Python Expression Invariants
+- **Expressions**: Write clean, standard Python expression strings for calculations and conditions:
+  - Assigner expressions: `'score + 10'`, `'user_answer'`, `"'Option A'"`, `'min(15, score + 1)'`, `'random.choice(options)'`, `'[]'`.
+  - Switch conditions: `'score < 15'`, `'score >= 15'`, `'is_correct == True'`, `'has_lifeline'`. (Leave null for default branch).
 
 ## State Lifecycle & Flow Invariants
 - **Intermediary Node Insertion (A -> C -> B)**: When inserting a new node `C` between existing nodes `A` and `B`, you must perform BOTH:
@@ -45,9 +49,7 @@ async def generate_plan(
         types.FunctionDeclaration(
             name="apply_graph_plan",
             description="Apply an atomic batch of graph operations (variables, nodes, switch branches, renames, deletions) to modify the graph.",
-            parameters_json_schema=prune_json_schema(
-                dereference_schema(planner_schemas.ApplyGraphPlan.model_json_schema())
-            ),
+            parameters_json_schema=planner_schemas.ApplyGraphPlan.model_json_schema(),
         ),
     ]
 

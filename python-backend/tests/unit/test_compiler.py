@@ -46,7 +46,7 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="status",
-                        expression={"set": "processed"},
+                        expression="'processed'",
                     ),
                 ],
             ),
@@ -62,9 +62,9 @@ async def test_generate_graph_code_with_logical_assigner() -> None:
     code = await generate_graph_code(flow_data)
     assert "def assigner_1(state: State) -> dict:" in code
     assert '"status": "processed"' in code or "'status': 'processed'" in code
-    assert 'workflow.add_node("assigner_1", assigner_1)' in code
-    assert 'workflow.add_edge(START, "assigner_1")' in code
-    assert 'workflow.add_edge("assigner_1", END)' in code
+    assert 'workflow.add_node("assigner_1", assigner_1)' in code or "workflow.add_node('assigner_1', assigner_1)" in code
+    assert 'workflow.add_edge(START, "assigner_1")' in code or "workflow.add_edge(START, 'assigner_1')" in code
+    assert 'workflow.add_edge("assigner_1", END)' in code or "workflow.add_edge('assigner_1', END)" in code
 
 
 async def test_generate_graph_code_with_switch_node() -> None:
@@ -76,7 +76,7 @@ async def test_generate_graph_code_with_switch_node() -> None:
                     Branch(
                         id="switch_1_is_active",
                         label="is_active",
-                        expression={"status": {"equals": "active"}},
+                        expression="status == 'active'",
                     )
                 ],
             ),
@@ -88,8 +88,8 @@ async def test_generate_graph_code_with_switch_node() -> None:
     )
     code = await generate_graph_code(flow_data)
     assert "def switch_1(state: State) -> str:" in code
-    assert "state.get('status') == 'active'" in code or 'state.get("status") == "active"' in code
-    assert 'return "is_active"' in code
+    assert 'status == "active"' in code or "status == 'active'" in code
+    assert 'return "is_active"' in code or "return 'is_active'" in code
     assert "workflow.add_conditional_edges(" in code
 
 

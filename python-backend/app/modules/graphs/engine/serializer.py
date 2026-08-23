@@ -1,60 +1,12 @@
+from __future__ import annotations
+
 import json
-from typing import Any
 
 from app.modules.graphs.schemas import GraphFlowData
 
 
-def format_condition_yaml(expr: Any) -> str:
-    """Formats an AST expression dictionary into an isomorphic closed condition string."""
-    if expr is None:
-        return "null"
-    if not isinstance(expr, dict):
-        return f"{{ literal_value: {json.dumps(expr)} }}"
-
-    # Compound logic
-    if "AND" in expr:
-        inner = ", ".join(format_condition_yaml(c) for c in expr["AND"])
-        return f'{{ logic: "ALL", conditions: [{inner}] }}'
-    if "OR" in expr:
-        inner = ", ".join(format_condition_yaml(c) for c in expr["OR"])
-        return f'{{ logic: "ANY", conditions: [{inner}] }}'
-    if "NOT" in expr:
-        inner = format_condition_yaml(expr["NOT"])
-        return f'{{ logic: "NOT", conditions: [{inner}] }}'
-
-    # Atomic comparison: {var: {op: val}}
-    for var, filter_block in expr.items():
-        if isinstance(filter_block, dict):
-            for op, val in filter_block.items():
-                if isinstance(val, dict) and "var" in val:
-                    return f'{{ var: "{var}", op: "{op}", compare_var: "{val["var"]}" }}'
-                return f'{{ var: "{var}", op: "{op}", literal_value: {json.dumps(val)} }}'
-        else:
-            return f'{{ var: "{var}", op: "equals", literal_value: {json.dumps(filter_block)} }}'
-
-    return json.dumps(expr)
-
-
-def format_assignment_yaml(expr: Any) -> str:
-    """Formats an assignment expression into isomorphic assignment string."""
-    if isinstance(expr, dict):
-        if "var" in expr and len(expr) == 1:
-            return f'{{ var: "{expr["var"]}" }}'
-        if "set" in expr:
-            inner = expr["set"]
-            if isinstance(inner, dict) and "var" in inner and len(inner) == 1:
-                return f'{{ var: "{inner["var"]}" }}'
-            return f"{{ value: {json.dumps(inner)} }}"
-        for op in ("increment", "decrement", "multiply", "divide"):
-            if op in expr and "op" not in expr:
-                return f'{{ op: "{op}", amount: {expr[op]} }}'
-        if "op" in expr:
-            return json.dumps(expr)
-    return f"{{ value: {json.dumps(expr)} }}"
-
-
 def serialize_flow_to_code(flow: GraphFlowData) -> str:
-    """Serializes GraphFlowData into structured isomorphic YAML format matching the tool schemas."""
+    """Serializes GraphFlowData into clean, structured YAML format matching the tool schemas."""
     lines: list[str] = []
 
     # 1. State Variables
@@ -91,8 +43,9 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
             lines.append(f"  {nid} [LOGICAL_ASSIGNER]{tgt_str}:")
             lines.append("    assignments:")
             for a in getattr(node, "assignments", []):
-                asgn_str = format_assignment_yaml(getattr(a, "expression", None))
-                lines.append(f'      - {{ target_var_key: "{a.target_var_key}", assignment: {asgn_str} }}')
+                expr = a.expression
+                expr_str = f'"{expr}"' if isinstance(expr, str) else json.dumps(expr)
+                lines.append(f'      - {{ target_var_key: "{a.target_var_key}", expression: {expr_str} }}')
 
         elif ntype == "AGENTIC_ASSIGNER":
             prompt_escaped = getattr(node, "prompt", "").replace('"', '\\"')
@@ -125,8 +78,7 @@ def serialize_flow_to_code(flow: GraphFlowData) -> str:
                 br_target = edge.target if edge else "end"
                 cond_val = getattr(b, "expression", None)
                 if cond_val is not None and cond_val is not True:
-                    cond_str = format_condition_yaml(cond_val)
-                    lines.append(f'    - branch "{b.label}": {cond_str} -> {br_target}')
+                    lines.append(f'    - branch "{b.label}": "{cond_val}" -> {br_target}')
                 else:
                     lines.append(f'    - branch "{b.label}": (default) -> {br_target}')
 

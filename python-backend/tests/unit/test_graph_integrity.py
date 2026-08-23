@@ -29,7 +29,7 @@ def valid_flow() -> GraphFlowData:
                     LogicalAssignmentSchema(
                         id="asgn_1",
                         target_var_key="score",
-                        expression={"increment": 1},
+                        expression="score + 1",
                     )
                 ],
             ),
@@ -126,7 +126,7 @@ def test_switch_unrouted_branch_rejected() -> None:
             LogicalSwitchNode(
                 id="switch_1",
                 branches=[
-                    Branch(id="switch_1_opt_a", label="opt_a", expression={"score": {"gt": 10}}),
+                    Branch(id="switch_1_opt_a", label="opt_a", expression="score > 10"),
                     Branch(id="switch_1_opt_b", label="opt_b", expression=None),
                 ],
             ),

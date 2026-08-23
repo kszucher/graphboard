@@ -8,73 +8,6 @@ from app.modules.copilot.state import CopilotState
 from app.modules.graphs.operations import GraphUpdateInput
 
 
-def convert_condition_group(group: planner_schemas.ConditionGroup | dict[str, Any] | None) -> dict[str, Any] | None:
-    """Converts a ConditionGroup into internal ComparisonExpression AST format."""
-    if not group:
-        return None
-    if isinstance(group, planner_schemas.ConditionGroup):
-        conditions = group.conditions
-        logic = str(group.logic)
-    else:
-        conditions = group.get("conditions", [])
-        logic = str(group.get("logic", "ALL"))
-
-    if not conditions:
-        return None
-
-    converted: list[dict[str, Any]] = []
-    for c in conditions:
-        if isinstance(c, planner_schemas.ComparisonCondition):
-            var = c.var
-            op = c.op
-            compare_var = c.compare_var
-            literal_val = c.literal_value
-        else:
-            var = c["var"]
-            op = c["op"]
-            compare_var = c.get("compare_var")
-            literal_val = c.get("literal_value")
-        if compare_var is None and literal_val is None:
-            raise ValidationError(
-                f"Condition on variable '{var}' with operator '{op}' requires either 'literal_value' or 'compare_var'."
-            )
-        right_side = {"var": compare_var} if compare_var is not None else literal_val
-        converted.append({var: {op: right_side}})
-
-    if len(converted) == 1 and logic != "NOT":
-        return converted[0]
-
-    if logic == "ANY":
-        return {"OR": converted}
-    if logic == "NOT":
-        not_inner: dict[str, Any] = converted[0] if len(converted) == 1 else {"AND": converted}
-        return {"NOT": not_inner}
-    return {"AND": converted}
-
-
-def convert_assignment(asgn: planner_schemas.StrictAssignment | dict[str, Any]) -> dict[str, Any]:
-    """Converts a StrictAssignment model or dict into internal Assignment AST format."""
-    if isinstance(asgn, planner_schemas.StrictAssignment):
-        target_var_key = asgn.target_var_key
-        inner = asgn.assignment.model_dump(mode="json")
-    else:
-        target_var_key = asgn["target_var_key"]
-        inner = asgn.get("assignment", {})
-
-    if isinstance(inner, dict):
-        if "var" in inner and len(inner) == 1:
-            expr = {"var": inner["var"]}
-        elif "value" in inner and len(inner) == 1:
-            expr = inner["value"]
-        elif "op" in inner and inner["op"] in {"increment", "decrement", "multiply", "divide"} and "amount" in inner:
-            expr = {inner["op"]: inner["amount"]}
-        else:
-            expr = inner
-    else:
-        expr = inner
-    return {"target_var_key": target_var_key, "expression": expr}
-
-
 def _hydrate_existing_node(node_id: str, initial_flow_data: dict[str, Any] | None) -> dict[str, Any]:
     """Extracts existing node configuration and edge targets to support partial retargeting or surgical branch patching."""
     initial_nodes = (initial_flow_data or {}).get("nodes", [])
@@ -145,7 +78,7 @@ def translate_plan(
     plan: planner_schemas.ApplyGraphPlan,
     initial_flow_data: dict[str, Any] | None = None,
 ) -> GraphUpdateInput:
-    """Deterministically transforms an ApplyGraphPlan into a validated GraphUpdateInput."""
+    """Transforms an ApplyGraphPlan into a validated GraphUpdateInput."""
     nodes_upsert: list[dict[str, Any]] = []
     nodes_delete: list[str] = []
     vars_upsert: list[dict[str, Any]] = []
@@ -206,7 +139,10 @@ def translate_plan(
                 node_update = {
                     "id": node_id,
                     "node_type": node_type,
-                    "assignments": [convert_assignment(a) for a in config_dict.get("assignments", [])],
+                    "assignments": [
+                        {"target_var_key": a["target_var_key"], "expression": a["expression"]}
+                        for a in config_dict.get("assignments", [])
+                    ],
                 }
                 if target is not None:
                     node_update["target"] = target
@@ -217,8 +153,8 @@ def translate_plan(
                     "id": node_id,
                     "node_type": node_type,
                     "prompt": config_dict.get("prompt"),
-                    "agentic_inputs": config_dict.get("agentic_inputs", []),
-                    "agentic_outputs": config_dict.get("agentic_outputs", []),
+                    "agentic_inputs": config_dict.get("inputs", []),
+                    "agentic_outputs": config_dict.get("outputs", []),
                 }
                 if target is not None:
                     node_update["target"] = target
@@ -230,7 +166,7 @@ def translate_plan(
                     "node_type": node_type,
                     "query_var": config_dict.get("query_var"),
                     "context_output_var": config_dict.get("context_output_var"),
-                    "knowledge_base": config_dict.get("knowledge_base"),
+                    "knowledge_base": config_dict.get("knowledge_base", "trivia"),
                     "top_k": config_dict.get("top_k", 3),
                 }
                 if target is not None:
@@ -251,7 +187,7 @@ def translate_plan(
             elif node_type == "LOGICAL_SWITCH":
                 branches = {
                     b["label"]: {
-                        "expression": convert_condition_group(b.get("condition")),
+                        "expression": b.get("condition"),
                         "target": b.get("target"),
                     }
                     for b in config_dict.get("branches", [])
@@ -276,8 +212,7 @@ def translate_plan(
         node = get_or_create_upsert(sb.node_id)
         if "branches" not in node or node["branches"] is None:
             node["branches"] = {}
-        expr_ast = convert_condition_group(sb.condition.model_dump(mode="json") if sb.condition else None)
-        node["branches"][sb.label] = {"expression": expr_ast, "target": sb.target}
+        node["branches"][sb.label] = {"expression": sb.condition, "target": sb.target}
 
     raw_payload: dict[str, Any] = {
         "start_target": start_target,

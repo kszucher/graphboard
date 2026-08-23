@@ -9,7 +9,6 @@ from app.modules.copilot.state import CopilotState
 from app.modules.copilot.translator import translate_plan_node
 from app.modules.copilot.workflow import copilot_graph, validation_node
 from app.modules.graphs.engine import DirectLangGraphCompiler
-from app.modules.graphs.engine.serializer import format_condition_yaml
 from app.modules.graphs.operations import apply_graph_update
 from app.modules.graphs.schemas import AgenticSwitchNode, GraphFlowData
 
@@ -23,9 +22,9 @@ def test_translate_plan_node_upsert_node_polymorphic() -> None:
                 node_type="LOGICAL_ASSIGNER",
                 config=planner_schemas.LogicalAssignerConfig(
                     assignments=[
-                        planner_schemas.StrictAssignment(
+                        planner_schemas.LogicalAssignment(
                             target_var_key="score",
-                            assignment=planner_schemas.SetLiteral(value=10),
+                            expression="10",
                         )
                     ]
                 ),
@@ -59,7 +58,7 @@ def test_translate_plan_node_upsert_node_polymorphic() -> None:
     assert new_assigner_upsert.target == "end"
     assert new_assigner_upsert.assignments is not None
     assert new_assigner_upsert.assignments[0].target_var_key == "score"
-    assert new_assigner_upsert.assignments[0].expression == 10
+    assert new_assigner_upsert.assignments[0].expression == "10"
 
 
 def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
@@ -71,8 +70,8 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
                 node_type="AGENTIC_ASSIGNER",
                 config=planner_schemas.AgenticAssignerConfig(
                     prompt="Call phone...",
-                    agentic_inputs=[],
-                    agentic_outputs=[],
+                    inputs=[],
+                    outputs=[],
                 ),
                 target="end",
             )
@@ -134,7 +133,7 @@ def test_translate_plan_node_upsert_switch_branch_surgical_delta() -> None:
     assert len(choose_node.branches) == 2
 
 
-def test_translate_plan_node_switch_with_closed_conditions() -> None:
+def test_translate_plan_node_switch_with_conditions() -> None:
     plan = planner_schemas.ApplyGraphPlan(
         nodes=[
             planner_schemas.UpsertNode(
@@ -142,17 +141,12 @@ def test_translate_plan_node_switch_with_closed_conditions() -> None:
                 node_type="LOGICAL_SWITCH",
                 config=planner_schemas.LogicalSwitchConfig(
                     branches=[
-                        planner_schemas.LogicalSwitchBranch(
+                        planner_schemas.LogicalBranch(
                             label="Yes",
-                            condition=planner_schemas.ConditionGroup(
-                                logic="ALL",
-                                conditions=[
-                                    planner_schemas.ComparisonCondition(var="score", op="gte", literal_value=10)
-                                ],
-                            ),
+                            condition="score >= 10",
                             target="end",
                         ),
-                        planner_schemas.LogicalSwitchBranch(label="No", condition=None, target="end"),
+                        planner_schemas.LogicalBranch(label="No", condition=None, target="end"),
                     ]
                 ),
             ),
@@ -181,7 +175,7 @@ def test_translate_plan_node_switch_with_closed_conditions() -> None:
     switch_upsert = next(n for n in ops.nodes.upsert if n.id == "switch_node")
     assert switch_upsert.branches is not None
     assert switch_upsert.branches["Yes"].target == "end"
-    assert switch_upsert.branches["Yes"].expression == {"score": {"gte": 10}}
+    assert switch_upsert.branches["Yes"].expression == "score >= 10"
     assert switch_upsert.branches["No"].target == "end"
 
 
@@ -259,9 +253,9 @@ def test_validation_node_unreachable_node_error() -> None:
                 node_type="LOGICAL_ASSIGNER",
                 config=planner_schemas.LogicalAssignerConfig(
                     assignments=[
-                        planner_schemas.StrictAssignment(
+                        planner_schemas.LogicalAssignment(
                             target_var_key="x",
-                            assignment=planner_schemas.SetLiteral(value=1),
+                            expression="1",
                         )
                     ]
                 ),
@@ -299,76 +293,6 @@ def test_validation_node_unreachable_node_error() -> None:
     assert "[UNREACHABLE_NODE]" in result["messages"][-1]["content"]
 
 
-def test_translate_plan_node_orthogonal_collection_expressions() -> None:
-    """Test translating a node with orthogonal collection expressions like sample and format."""
-    plan = planner_schemas.ApplyGraphPlan(
-        variables=[
-            planner_schemas.UpsertVariable(
-                key="options",
-                type="array",
-                default_value=["A", "B", "C", "D"],
-            ),
-            planner_schemas.UpsertVariable(
-                key="active_options",
-                type="array",
-                default_value=[],
-            ),
-        ],
-        nodes=[
-            planner_schemas.UpsertNode(
-                id="fifty_fifty_node",
-                node_type="LOGICAL_ASSIGNER",
-                config=planner_schemas.LogicalAssignerConfig(
-                    assignments=[
-                        planner_schemas.StrictAssignment(
-                            target_var_key="active_options",
-                            assignment=planner_schemas.CollectionSample(
-                                op="sample",
-                                items={"var": "options"},
-                                count=2,
-                            ),
-                        )
-                    ]
-                ),
-                target="end",
-            ),
-            planner_schemas.UpsertNode(id="start", target="fifty_fifty_node"),
-        ],
-    )
-
-    state: CopilotState = {
-        "trace_id": "test_trace",
-        "plan": plan,
-        "initial_flow_data": {
-            "nodes": [
-                {"id": "start", "node_type": "START"},
-                {"id": "end", "node_type": "END"},
-            ],
-            "edges": [],
-            "state": [],
-        },
-    }
-
-    result = translate_plan_node(state)
-    ops = result["operations"]
-    assert ops is not None
-    assert ops.variables is not None
-    assert len(ops.variables.upsert) == 2
-    assert ops.nodes is not None
-    assert len(ops.nodes.upsert) == 1
-
-    node_upsert = ops.nodes.upsert[0]
-    assert node_upsert.id == "fifty_fifty_node"
-    assert node_upsert.assignments is not None
-    assert node_upsert.assignments[0].target_var_key == "active_options"
-
-    initial_flow = GraphFlowData.model_validate(state["initial_flow_data"])
-    updated_flow = apply_graph_update(initial_flow, ops)
-    compiler = DirectLangGraphCompiler(updated_flow)
-    compiled_code = compiler.compile()
-    assert "random.sample" in compiled_code
-
-
 def test_translate_plan_node_delete_switch_branch() -> None:
     """Test that delete_entity cleanly removes a branch from switch node branches."""
     plan = planner_schemas.ApplyGraphPlan(
@@ -390,8 +314,8 @@ def test_translate_plan_node_delete_switch_branch() -> None:
                     "id": "lifeline_switch",
                     "node_type": "LOGICAL_SWITCH",
                     "branches": [
-                        {"id": "lifeline_switch_fiftyfifty", "label": "FiftyFifty", "expression": True},
-                        {"id": "lifeline_switch_default", "label": "Default", "expression": True},
+                        {"id": "lifeline_switch_fiftyfifty", "label": "FiftyFifty", "expression": "True"},
+                        {"id": "lifeline_switch_default", "label": "Default", "expression": "True"},
                     ],
                 }
             ],
@@ -411,22 +335,6 @@ def test_translate_plan_node_delete_switch_branch() -> None:
     assert switch_upsert.branches is not None
     assert "FiftyFifty" not in switch_upsert.branches
     assert "Default" in switch_upsert.branches
-
-
-def test_format_condition_yaml_canonical_and_not() -> None:
-    # NOT condition
-    not_expr = {"NOT": {"score": {"equals": 0}}}
-    assert (
-        format_condition_yaml(not_expr)
-        == '{ logic: "NOT", conditions: [{ var: "score", op: "equals", literal_value: 0 }] }'
-    )
-
-    # Canonical operators
-    ne_expr = {"score": {"not_equals": 5}}
-    assert format_condition_yaml(ne_expr) == '{ var: "score", op: "not_equals", literal_value: 5 }'
-
-    in_expr = {"choice": {"in": ["A", "B"]}}
-    assert format_condition_yaml(in_expr) == '{ var: "choice", op: "in", literal_value: ["A", "B"] }'
 
 
 async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -452,9 +360,9 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
                         node_type="LOGICAL_ASSIGNER",
                         config=planner_schemas.LogicalAssignerConfig(
                             assignments=[
-                                planner_schemas.StrictAssignment(
+                                planner_schemas.LogicalAssignment(
                                     target_var_key="x",
-                                    assignment=planner_schemas.SetLiteral(value=1),
+                                    expression="1",
                                 )
                             ]
                         ),
@@ -472,9 +380,9 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
                         node_type="LOGICAL_ASSIGNER",
                         config=planner_schemas.LogicalAssignerConfig(
                             assignments=[
-                                planner_schemas.StrictAssignment(
+                                planner_schemas.LogicalAssignment(
                                     target_var_key="x",
-                                    assignment=planner_schemas.SetLiteral(value=1),
+                                    expression="1",
                                 )
                             ]
                         ),
@@ -508,7 +416,6 @@ async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.M
     config = cast(RunnableConfig, {"configurable": {"thread_id": "test_thread_retry"}})
     final_state = await copilot_graph.ainvoke(cast(Any, initial_state), config)
 
-    # Verify that planner was called twice and second attempt succeeded
     assert call_count == 2
     assert final_state.get("applied") is True
     assert final_state.get("validation_error") is None
@@ -540,9 +447,9 @@ async def test_copilot_workflow_planner_node_deserialization_retry(monkeypatch: 
                     node_type="LOGICAL_ASSIGNER",
                     config=planner_schemas.LogicalAssignerConfig(
                         assignments=[
-                            planner_schemas.StrictAssignment(
+                            planner_schemas.LogicalAssignment(
                                 target_var_key="x",
-                                assignment=planner_schemas.SetLiteral(value=1),
+                                expression="1",
                             )
                         ]
                     ),
@@ -596,7 +503,7 @@ def test_validation_node_unconnected_switch_slot_error() -> None:
                     "id": "switch_1",
                     "node_type": "LOGICAL_SWITCH",
                     "branches": [
-                        {"id": "switch_1_opt_a", "label": "opt_a", "expression": {"score": {"gt": 10}}},
+                        {"id": "switch_1_opt_a", "label": "opt_a", "expression": "score > 10"},
                         {"id": "switch_1_opt_b", "label": "opt_b", "expression": None},
                     ],
                 },
@@ -647,9 +554,9 @@ async def test_copilot_workflow_custom_model_propagation(monkeypatch: pytest.Mon
                     node_type="LOGICAL_ASSIGNER",
                     config=planner_schemas.LogicalAssignerConfig(
                         assignments=[
-                            planner_schemas.StrictAssignment(
+                            planner_schemas.LogicalAssignment(
                                 target_var_key="x",
-                                assignment=planner_schemas.SetLiteral(value=1),
+                                expression="1",
                             )
                         ]
                     ),
@@ -686,75 +593,3 @@ async def test_copilot_workflow_custom_model_propagation(monkeypatch: pytest.Mon
 
     assert captured_model == "gemini-3.5-flash-lite"
     assert final_state.get("applied") is True
-
-
-def test_upsert_variable_coerces_stringified_literals() -> None:
-    # Array string literal
-    v_arr = planner_schemas.UpsertVariable.model_validate(
-        {"key": "options", "type": "array", "default_value": "[]"}
-    )
-    assert v_arr.default_value == []
-
-    # Object string literal
-    v_obj = planner_schemas.UpsertVariable.model_validate(
-        {"key": "meta", "type": "object", "default_value": '{"k": 1}'}
-    )
-    assert v_obj.default_value == {"k": 1}
-
-    # Boolean string literals
-    v_bool_t = planner_schemas.UpsertVariable.model_validate(
-        {"key": "flag", "type": "boolean", "default_value": "true"}
-    )
-    assert v_bool_t.default_value is True
-    v_bool_f = planner_schemas.UpsertVariable.model_validate(
-        {"key": "flag", "type": "boolean", "default_value": "false"}
-    )
-    assert v_bool_f.default_value is False
-
-    # Number string literals
-    v_num_int = planner_schemas.UpsertVariable.model_validate(
-        {"key": "count", "type": "number", "default_value": "42"}
-    )
-    assert v_num_int.default_value == 42
-    v_num_float = planner_schemas.UpsertVariable.model_validate(
-        {"key": "ratio", "type": "number", "default_value": "3.14"}
-    )
-    assert v_num_float.default_value == 3.14
-
-    # String type stays string even if looks like JSON
-    v_str = planner_schemas.UpsertVariable.model_validate(
-        {"key": "txt", "type": "string", "default_value": "[]"}
-    )
-    assert v_str.default_value == "[]"
-
-
-def test_agentic_output_var_shorthand() -> None:
-    # String shorthand
-    out_str = planner_schemas.AgenticOutputVar.model_validate("advice_text")
-    assert out_str.key == "advice_text"
-    assert out_str.type == "string"
-
-    # Full dictionary
-    out_dict = planner_schemas.AgenticOutputVar.model_validate({"key": "score", "type": "number"})
-    assert out_dict.key == "score"
-    assert out_dict.type == "number"
-
-
-def test_numeric_delta_aliases() -> None:
-    nd1 = planner_schemas.NumericDelta.model_validate({"op": "increment", "value": 5})
-    assert nd1.amount == 5.0
-    nd2 = planner_schemas.NumericDelta.model_validate({"op": "increment", "text": "1"})
-    assert nd2.amount == 1.0
-    nd3 = planner_schemas.NumericDelta.model_validate({"op": "decrement", "by": 2.5})
-    assert nd3.amount == 2.5
-
-
-def test_comparison_condition_aliases() -> None:
-    c1 = planner_schemas.ComparisonCondition.model_validate({"var": "score", "op": "lt", "value": 15})
-    assert c1.literal_value == 15
-    c2 = planner_schemas.ComparisonCondition.model_validate({"var": "topic", "op": "equals", "val": "Space"})
-    assert c2.literal_value == "Space"
-
-
-
-

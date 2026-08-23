@@ -27,7 +27,7 @@ def base_flow() -> GraphFlowData:
                 Branch(
                     id="switch_1_option_a",
                     label="option_a",
-                    expression={"x": {"equals": 10}},
+                    expression="x == 10",
                 ),
                 Branch(
                     id="switch_1_option_b",
@@ -42,7 +42,7 @@ def base_flow() -> GraphFlowData:
                 LogicalAssignmentSchema(
                     id="asgn_x",
                     target_var_key="x",
-                    expression={"increment": 1},
+                    expression="x + 1",
                 )
             ],
         ),
@@ -82,7 +82,7 @@ def test_assert_flow_is_complete_success(base_flow: GraphFlowData) -> None:
 def test_assert_flow_is_complete_invalid_variable_reference(base_flow: GraphFlowData) -> None:
     switch_1 = next(n for n in base_flow.nodes if n.id == "switch_1")
     assert isinstance(switch_1, LogicalSwitchNode)
-    switch_1.branches[0].expression = {"non_existent_var": {"equals": 10}}
+    switch_1.branches[0].expression = "non_existent_var == 10"
 
     with pytest.raises(ValidationError, match="Invalid variable reference"):
         assert_flow_is_complete(base_flow)

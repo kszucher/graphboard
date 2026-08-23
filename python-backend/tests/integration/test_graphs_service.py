@@ -171,7 +171,7 @@ async def test_run_graph_flow_success(
                     {
                         "id": "asgn_1",
                         "target_var_key": "x",
-                        "expression": {"set": 42},
+                        "expression": "42",
                     }
                 ],
             },
@@ -214,7 +214,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "switch_1_option_a",
                         "label": "option_a",
-                        "expression": {"x": {"gt": 0}},
+                        "expression": "x > 0",
                     },
                     {
                         "id": "switch_1_option_b",
@@ -230,7 +230,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_a",
                         "target_var_key": "y",
-                        "expression": {"set": 100},
+                        "expression": "100",
                     }
                 ],
             },
@@ -241,7 +241,7 @@ async def test_run_graph_flow_switch_routing(
                     {
                         "id": "asgn_b",
                         "target_var_key": "y",
-                        "expression": {"set": 200},
+                        "expression": "200",
                     }
                 ],
             },
@@ -268,10 +268,10 @@ async def test_run_graph_flow_switch_routing(
     vars_dict_a = {v["key"]: v["value"] for v in exec_result_a["variables"]}
     assert vars_dict_a.get("y") == 100
 
-    # Test Scenario 2: x = -5 (default_value) -> routes to assigner_b -> y = 200
+    # Test Scenario 2: x = -1 -> routes to option_b (fallback) -> assigner_b -> y = 200
     flow_payload_b = dict(flow_payload_a)
     flow_payload_b["state"] = [
-        {"id": "v1", "key": "x", "type": "number", "default_value": -5},
+        {"id": "v1", "key": "x", "type": "number", "default_value": -1},
         {"id": "v2", "key": "y", "type": "number", "default_value": 0},
     ]
 
@@ -286,11 +286,10 @@ async def test_run_graph_flow_switch_routing(
 
 
 @pytest.mark.asyncio
-async def test_run_graph_flow_invalid_state_ref(
+async def test_run_graph_flow_compilation_error(
     real_uow: UnitOfWork,
     dummy_graph: Graph,
 ) -> None:
-    # Assigner node attempts to mutate target "non_existent" not registered in state
     flow_payload: dict[str, Any] = {
         "nodes": [
             {
@@ -300,7 +299,7 @@ async def test_run_graph_flow_invalid_state_ref(
                     {
                         "id": "asgn_1",
                         "target_var_key": "non_existent",
-                        "expression": {"set": 42},
+                        "expression": "42",
                     }
                 ],
             },
@@ -335,12 +334,12 @@ async def test_run_graph_flow_cycle_limit(
             {
                 "id": "assigner_1",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"target_var_key": "x", "expression": {"increment": 1}}],
+                "assignments": [{"target_var_key": "x", "expression": "x + 1"}],
             },
             {
                 "id": "assigner_2",
                 "node_type": "LOGICAL_ASSIGNER",
-                "assignments": [{"target_var_key": "x", "expression": {"increment": 1}}],
+                "assignments": [{"target_var_key": "x", "expression": "x + 1"}],
             },
         ],
         "edges": [

@@ -15,12 +15,12 @@
         {
           "id": "loop_questions_continue",
           "label": "Continue",
-          "expression": { "score": { "lt": 5 } }
+          "expression": "score < 5"
         },
         {
           "id": "loop_questions_won",
           "label": "Won",
-          "expression": { "score": { "gte": 5 } }
+          "expression": "score >= 5"
         }
       ]
     },
@@ -63,7 +63,7 @@
         {
           "id": "706ca220-6b80-4178-8f78-c3d563448dde",
           "target_var_key": "parsed_answer",
-          "expression": { "set": { "var": "user_answer" } }
+          "expression": "user_answer"
         }
       ]
     },
@@ -130,12 +130,12 @@
         {
           "id": "0efbc2c0-af0e-409a-bfe0-982f1a2b7499",
           "target_var_key": "is_correct",
-          "expression": { "parsed_answer": { "equals": { "var": "correct_answer" } } }
+          "expression": "parsed_answer == correct_answer"
         },
         {
           "id": "1fa093c1-b79e-4a4b-9e4a-5f9888910001",
           "target_var_key": "advice_text",
-          "expression": ""
+          "expression": "''"
         }
       ]
     },
@@ -146,12 +146,12 @@
         {
           "id": "result_switch_correct",
           "label": "correct",
-          "expression": { "is_correct": { "equals": true } }
+          "expression": "is_correct == True"
         },
         {
           "id": "result_switch_wrong",
           "label": "wrong",
-          "expression": { "is_correct": { "equals": false } }
+          "expression": "is_correct == False"
         }
       ]
     },
@@ -162,7 +162,7 @@
         {
           "id": "b2f8b45d-ff61-46e0-a3f7-b3a8f7e6cd03",
           "target_var_key": "score",
-          "expression": { "increment": 1 }
+          "expression": "score + 1"
         }
       ]
     }

@@ -3,11 +3,11 @@ from __future__ import annotations
 from app.modules.graphs.schemas.expressions import (
     ComparisonExpression,
     Expression,
-    compile_comparison,
-    compile_value,
+    SafeExpressionValidator,
     expression_to_code,
     get_expression_variables,
     rename_expression_variables,
+    validate_expression,
 )
 from app.modules.graphs.schemas.graph import (
     DefinerVariableSchema,
@@ -74,9 +74,9 @@ __all__ = [
     # Expressions
     "ComparisonExpression",
     "Expression",
-    "compile_comparison",
-    "compile_value",
+    "SafeExpressionValidator",
     "expression_to_code",
     "get_expression_variables",
     "rename_expression_variables",
+    "validate_expression",
 ]
