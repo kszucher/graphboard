@@ -3,7 +3,7 @@
 A personal R&D project: a visual canvas and AI Copilot for designing, compiling, and running **LangGraph** workflows in Python.
 
 ### 🚀 Project Evolution
-Second iteration of this idea, building directly on **Mapboard** (a previous client-side visual graph builder in Nest.js/Node.js). Graphboard shifts to a backend-first architecture — the graph is owned and mutated exclusively by the server, with the AI Copilot as the primary interface for modifications: multi-stage planning, dry-run validation, and human-in-the-loop checkpoints before committing any changes. The visual canvas is now a read-only inspector; manual node editing has been removed in favour of the agentic model.
+Second iteration of this idea, building directly on **Mapboard** (a previous client-side visual graph builder in Nest.js/Node.js). Graphboard shifts to a backend-first architecture — the graph is owned and mutated exclusively by the server, with the AI Copilot as the primary interface for modifications: single-call planning, deterministic schema translation, dry-run validation, and self-correction reflection before committing any changes. The visual canvas is now a read-only inspector; manual node editing has been removed in favour of the agentic model.
 
 ---
 
@@ -12,16 +12,16 @@ Second iteration of this idea, building directly on **Mapboard** (a previous cli
 ---
 
 ## 🌟 Core Engineering Highlights
-* **Agentic LangGraph Copilot:** Orchestrates modifications using a single-call Planner and deterministic translation LangGraph workflow with human-in-the-loop validation checkpoints.
+* **Agentic LangGraph Copilot:** Orchestrates modifications using a single-call Planner, deterministic translation, and dry-run validation with an automated self-correction retry loop.
 * **Real-time AST Compiler:** Dynamically compiles the visual graph schema directly into native Python LangGraph code.
-* **Transactional Patch Protocol:** Modifies graph topology programmatically via structured `GraphOperation` patches, ensuring referential integrity and cascading updates.
+* **Transactional Patch Protocol:** Modifies graph topology programmatically via structured `GraphUpdateInput` patches, ensuring referential integrity and cascading updates.
 * **Isolated Subprocess Sandbox:** Runs compiled user workflows inside a dedicated spawned subprocess with a hard 5-second timeout, terminating it explicitly to protect the main FastAPI server from infinite loops.
 
 ## 💡 How It Works
 
 1. **Natural Language Requests**: The user prompts the Copilot to modify the graph logic (e.g., *"Add a fifty-fifty lifeline"*).
-2. **Agentic Patch Generation**: The AI Copilot uses a multi-stage LangGraph workflow to generate a plan, which is executed as a series of structured `GraphOperation` patches (`upsert_node`, `delete_node`, `connect`, etc.).
-3. **Strict Schema Integrity Guard**: Before patches are committed, the backend runs dry-run validations, managing cascading variable renames or blocking invalid operations.
+2. **Agentic Patch Generation**: The AI Copilot generates an atomic plan using a structured 5-tool schema (`upsert_variable`, `upsert_node`, `upsert_switch_branch`, `delete_entity`, `rename_entity`), which is deterministically translated into transactional backend patches (`GraphUpdateInput`).
+3. **Strict Schema & AST Integrity Guard**: Before patches are committed, the backend runs dry-run validations, checking delta application, topological completeness (`assert_flow_is_complete`), and LangGraph AST compilation with reflection retry on failures.
 4. **LangGraph Code Compiler**: The backend compiles the new graph structure into executable Python code using standard `LangGraph` primitives (`StateGraph`, `add_conditional_edges`, `interrupt`).
 5. **WebSocket-Triggered UI Sync**: On patch commit, the backend emits a `GRAPH_UPDATED` event over a WebSocket broker, which triggers the frontend canvas to re-fetch and render the updated graph topology and Python code.
 
@@ -34,7 +34,7 @@ Second iteration of this idea, building directly on **Mapboard** (a previous cli
 | **START** | Sentinel | Entry point of execution flow | Mapped to `START` sentinel: `workflow.add_edge(START, "first_step")` |
 | **END** | Sentinel | Exit point / state machine termination | Mapped to `END` sentinel: `workflow.add_edge("last_step", END)` |
 | **LOGICAL_ASSIGNER** | Computation | Performs deterministic inline variable assignments | Generated Python function returning updated state dictionary |
-| **AGENTIC_ASSIGNER** | Computation | Invokes LLM agents for structured state mutations | Generated Python function calling Groq LLM with Pydantic response format |
+| **AGENTIC_ASSIGNER** | Computation | Invokes LLM agents for structured state mutations | Generated Python function calling Google Gemini with Pydantic response format |
 | **RAG_RETRIEVER** | Computation | Queries Neon Postgres vector database using Hugging Face embeddings | Generated Python function calling `retrieve_documents(...)` |
 | **LOGICAL_SWITCH** | Routing | Evaluates deterministic expression branching logic | Router function evaluating AST expressions, registered via `workflow.add_conditional_edges(...)` |
 | **AGENTIC_SWITCH** | Routing | LLM-driven decision routing across slot options | Router function parsing LLM choice output to select outgoing branch |
@@ -72,7 +72,7 @@ This covers every fundamental pattern in an agentic state machine: transforming 
 
 
 ### Phase 4: Agentic Copilot & Flow Engineering (Active R&D)
-* **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every `GraphOperation`. A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations — no intermediate LLM calls, zero hallucination surface.
+* **Single-Call Planner + Deterministic Translation**: A single `planner_node` LLM call produces a fully-specified operation checklist with pre-filled params for every mutation (`ApplyGraphPlan`). A deterministic `translate_plan_node` converts params directly to Pydantic-validated operations (`GraphUpdateInput`) — no intermediate LLM calls, zero hallucination surface.
 * **Streamlined Pipeline & Dry-Run Validation**: Direct linear execution (`planner_node` $\rightarrow$ `translate_plan_node` $\rightarrow$ `validation_node`). Planner-generated patches are validated against the backend's operations engine and AST compiler before being committed. The Copilot is constrained to emit structured operations rather than raw code specifically so this validation step is deterministic and reliable.
 * **Design Note**: This constraint (structured ops vs. free-form code) is a deliberate architectural choice — it makes agent output atomically versionable, dry-run-testable, and compiler-safe, at the cost of a fixed primitive vocabulary. The earlier multi-agent (planner → 3 sub-agent LLMs) design was abandoned because sub-agents consistently hallucinated argument values and swapped tool parameters despite receiving pre-filled params.
 
@@ -109,7 +109,7 @@ graph TD
 
     User([👤 User]) -->|"Natural language prompt"| Planner["🧠 Planner Node"]
     Planner -->|"apply_graph_plan (Atomic tool)"| Translator["⚡ Translation Node"]
-    Translator -->|"GraphOperation patches"| Validator["✅ Dry-run Validator<br/>(Delta + Integrity + AST Compile)"]
+    Translator -->|"GraphUpdateInput patches"| Validator["✅ Dry-run Validator<br/>(Delta + Integrity + AST Compile)"]
     Validator -->|"Self-Correction Retry (attempt <= 1)<br/>Structured Diagnostic Hint"| Planner
     Validator -->|"Validation passed"| Operations["⚙️ operations/pipeline.py"]
     Operations -->|"New snapshot"| History[("🗄️ Snapshot History")]
@@ -127,7 +127,7 @@ graph TD
 ### Key Technical Constraints
 * **Atomic Plan Generation**: The Copilot Planner is bound to exactly one atomic tool (`apply_graph_plan`) with `mode=ANY`. All graph operations (variables, nodes, switch branches, renames, deletions) are generated as a single atomic JSON transaction, eliminating multi-tool list cutoffs.
 * **Validation & Retry Pipeline**: The Copilot validation loop sequentially runs delta patch application, full topological integrity verification (`assert_flow_is_complete`), and LangGraph AST compilation before committing. If any gate fails, structured diagnostic feedback is routed back to the Planner for self-correction.
-* **Canvas Editing vs. Execution Readiness**: Delta mutations on the canvas remain tolerant of intermediate states (e.g. unlinked nodes or newly added slots during manual drafting), while graph execution and Copilot output strictly require full topological completeness.
+* **Mutation Tolerance vs. Execution Completeness**: The backend mutation engine tolerates intermediate graph topology states (e.g., unlinked nodes during staged programmatic operations), while graph execution and Copilot output strictly require full topological completeness (`assert_flow_is_complete`).
 * **UoW Transaction Timing**: Endpoints mutating data must manage transaction boundaries using `async with uow:` blocks to ensure SQL writes and event brokers finish before returning HTTP responses.
 
 ---
@@ -135,4 +135,4 @@ graph TD
 ## 🛠️ Tech Stack
 
 * **Frontend**: React 19, TypeScript, React Flow (@xyflow/react), ELKjs, CodeMirror 6, TanStack Query v5, Radix UI.
-* **Backend**: Python 3.12+, FastAPI, LangGraph, SQLAlchemy 2.0, Pydantic v2.
+* **Backend**: Python 3.11+, FastAPI, LangGraph, SQLAlchemy 2.0, Pydantic v2, Google GenAI SDK.
