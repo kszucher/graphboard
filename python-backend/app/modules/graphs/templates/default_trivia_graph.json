@@ -13,14 +13,14 @@
       "node_type": "LOGICAL_SWITCH",
       "branches": [
         {
-          "id": "loop_questions_yes",
-          "label": "Yes",
-          "expression": { "more_questions": { "equals": true } }
+          "id": "loop_questions_continue",
+          "label": "Continue",
+          "expression": { "score": { "lt": 5 } }
         },
         {
-          "id": "loop_questions_no",
-          "label": "No",
-          "expression": { "more_questions": { "equals": false } }
+          "id": "loop_questions_won",
+          "label": "Won",
+          "expression": { "score": { "gte": 5 } }
         }
       ]
     },
@@ -131,6 +131,11 @@
           "id": "0efbc2c0-af0e-409a-bfe0-982f1a2b7499",
           "target_var_key": "is_correct",
           "expression": { "parsed_answer": { "equals": { "var": "correct_answer" } } }
+        },
+        {
+          "id": "1fa093c1-b79e-4a4b-9e4a-5f9888910001",
+          "target_var_key": "advice_text",
+          "expression": ""
         }
       ]
     },
@@ -173,14 +178,14 @@
     {
       "id": "4b077a93-a6b3-4925-8b07-35cd2fc9d235",
       "source": "loop_questions",
-      "source_handle": "loop_questions_no",
+      "source_handle": "loop_questions_won",
       "target": "end",
       "target_handle": null
     },
     {
       "id": "0e81b888-c391-42b7-8d40-204893029223",
       "source": "loop_questions",
-      "source_handle": "loop_questions_yes",
+      "source_handle": "loop_questions_continue",
       "target": "retrieve_trivia_facts",
       "target_handle": null
     },
@@ -289,13 +294,6 @@
       "key": "score",
       "type": "number",
       "default_value": 0,
-      "description": null
-    },
-    {
-      "id": "bdacffce-0edc-4b17-a148-17a43e836827",
-      "key": "more_questions",
-      "type": "boolean",
-      "default_value": true,
       "description": null
     },
     {
