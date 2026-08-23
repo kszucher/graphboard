@@ -18,7 +18,7 @@ def convert_condition_group(group: dict[str, Any] | None) -> dict[str, Any] | No
     if not conditions:
         return None
 
-    converted = []
+    converted: list[dict[str, Any]] = []
     for c in conditions:
         var = c["var"]
         op = c["op"]
@@ -26,21 +26,17 @@ def convert_condition_group(group: dict[str, Any] | None) -> dict[str, Any] | No
         literal_val = c.get("literal_value")
         right_side = {"var": compare_var} if compare_var is not None else literal_val
 
-        if op in {"equals", "eq"}:
-            converted.append({var: {"equals": right_side}})
-        elif op in {"not_equals", "ne", "not"}:
-            converted.append({var: {"not": right_side}})
-        elif op in {"gt", "gte", "lt", "lte", "in"}:
-            converted.append({var: {op: right_side}})
-        else:
-            converted.append({var: {"equals": right_side}})
+        converted.append({var: {op: right_side}})
 
-    if len(converted) == 1:
+    if len(converted) == 1 and group.get("logic") != "NOT":
         return converted[0]
 
     logic = group.get("logic", "ALL")
     if logic == "ANY":
         return {"OR": converted}
+    if logic == "NOT":
+        not_inner: dict[str, Any] = converted[0] if len(converted) == 1 else {"AND": converted}
+        return {"NOT": not_inner}
     return {"AND": converted}
 
 

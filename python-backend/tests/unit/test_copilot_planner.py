@@ -314,7 +314,7 @@ def test_translate_plan_node_delete_switch_branch() -> None:
     assert "Default" in switch_upsert["branches"]
 
 
-def test_format_condition_yaml_normalization_and_not() -> None:
+def test_format_condition_yaml_canonical_and_not() -> None:
     from app.modules.graphs.engine.serializer import format_condition_yaml
 
     # NOT condition
@@ -324,12 +324,12 @@ def test_format_condition_yaml_normalization_and_not() -> None:
         == '{ logic: "NOT", conditions: [{ var: "score", op: "equals", literal_value: 0 }] }'
     )
 
-    # Operator normalization
-    ne_expr = {"score": {"ne": 5}}
+    # Canonical operators
+    ne_expr = {"score": {"not_equals": 5}}
     assert format_condition_yaml(ne_expr) == '{ var: "score", op: "not_equals", literal_value: 5 }'
 
-    not_op_expr = {"score": {"not": 5}}
-    assert format_condition_yaml(not_op_expr) == '{ var: "score", op: "not_equals", literal_value: 5 }'
+    in_expr = {"choice": {"in": ["A", "B"]}}
+    assert format_condition_yaml(in_expr) == '{ var: "choice", op: "in", literal_value: ["A", "B"] }'
 
 
 async def test_copilot_workflow_self_correction_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:

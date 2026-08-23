@@ -44,10 +44,7 @@ def compile_comparison(var_name: str, op: str, filter_val: Any, valid_keys: set[
 
     op_mapping = {
         "equals": "==",
-        "eq": "==",
         "not_equals": "!=",
-        "ne": "!=",
-        "not": "!=",
         "lt": "<",
         "lte": "<=",
         "gt": ">",
@@ -57,7 +54,7 @@ def compile_comparison(var_name: str, op: str, filter_val: Any, valid_keys: set[
     if op in op_mapping:
         return f"({left} {op_mapping[op]} {right})"
 
-    if op in {"in", "isin"}:
+    if op == "in":
         if isinstance(filter_val, list):
             list_items = [compile_value(item, valid_keys) for item in filter_val]
             return f"({left} in [{', '.join(list_items)}])"

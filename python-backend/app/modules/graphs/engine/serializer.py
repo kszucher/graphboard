@@ -26,10 +26,9 @@ def format_condition_yaml(expr: Any) -> str:
     for var, filter_block in expr.items():
         if isinstance(filter_block, dict):
             for op, val in filter_block.items():
-                normalized_op = "not_equals" if op in {"not", "ne"} else ("equals" if op == "eq" else op)
                 if isinstance(val, dict) and "var" in val:
-                    return f'{{ var: "{var}", op: "{normalized_op}", compare_var: "{val["var"]}" }}'
-                return f'{{ var: "{var}", op: "{normalized_op}", literal_value: {json.dumps(val)} }}'
+                    return f'{{ var: "{var}", op: "{op}", compare_var: "{val["var"]}" }}'
+                return f'{{ var: "{var}", op: "{op}", literal_value: {json.dumps(val)} }}'
         else:
             return f'{{ var: "{var}", op: "equals", literal_value: {json.dumps(filter_block)} }}'
 
